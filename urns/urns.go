@@ -3,6 +3,7 @@ package urns
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/nyaruka/phonenumbers"
@@ -136,7 +137,7 @@ func NewTelURNForCountry(number string, country string) URN {
 
 // NewTelegramURN returns a URN for the passed in telegram identifier
 func NewTelegramURN(identifier int64, display string) URN {
-	return newURN(TelegramScheme, fmt.Sprintf("%d", identifier), display)
+	return newURN(TelegramScheme, strconv.FormatInt(identifier, 10), display)
 }
 
 // NewURNFromParts returns a new URN for the given scheme, path and display
