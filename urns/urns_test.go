@@ -1,8 +1,144 @@
 package urns
 
 import (
+	"strconv"
 	"testing"
 )
+
+func TestFromParts(t *testing.T) {
+	testCases := []struct {
+		scheme   string
+		path     string
+		display  string
+		expected string
+		identity string
+		err      bool
+	}{
+		{"TEL", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
+		{"telephone", "+250788383383", "", "", "", true},
+		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
+		{"facebook", "hello", "", "facebook:hello", "facebook:hello", false},
+		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345", false},
+	}
+
+	for _, tc := range testCases {
+		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
+		if err != nil && !tc.err {
+			t.Errorf("Unexpected error creating urn: %s:%s: %s", tc.scheme, tc.path, err)
+		}
+		if err == nil && tc.err {
+			t.Errorf("Expected error creating urn: %s:%s: ", tc.scheme, tc.path)
+		}
+
+		if urn != URN(tc.expected) {
+			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
+		}
+
+		if urn.Identity() != tc.identity {
+			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
+		}
+	}
+}
+
+func TestNormalize(t *testing.T) {
+	testCases := []struct {
+		rawURN   URN
+		country  string
+		expected URN
+	}{
+		// valid tel numbers
+		{"tel:0788383383", "RW", "tel:+250788383383"},
+		{"tel:0788383383", "RW", "tel:+250788383383"},
+		{"tel: +250788383383 ", "KE", "tel:+250788383383"},
+		{"tel:+250788383383", "", "tel:+250788383383"},
+		{"tel:250788383383", "", "tel:+250788383383"},
+		{"tel:2.50788383383E+11", "", "tel:+250788383383"},
+		{"tel:2.50788383383E+12", "", "tel:+250788383383"},
+		{"tel:(917)992-5253", "US", "tel:+19179925253"},
+		{"tel:19179925253", "", "tel:+19179925253"},
+		{"tel:+62877747666", "", "tel:+62877747666"},
+		{"tel:62877747666", "ID", "tel:+62877747666"},
+		{"tel:0877747666", "ID", "tel:+62877747666"},
+		{"tel:07531669965", "GB", "tel:+447531669965"},
+
+		// un-normalizable tel numbers
+		{"tel:12345", "RW", "tel:12345"},
+		{"tel:0788383383", "", "tel:0788383383"},
+		{"tel:0788383383", "ZZ", "tel:0788383383"},
+		{"tel:MTN", "RW", "tel:mtn"},
+
+		// twitter handles remove @
+		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
+		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo"},
+
+		// email addresses
+		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com"},
+
+		// external ids are case sensitive
+		{"ext: eXterNAL123 ", "", "ext:eXterNAL123"},
+	}
+
+	for _, tc := range testCases {
+		normalized, err := tc.rawURN.Normalize(tc.country)
+		if err != nil {
+			t.Errorf("Unexpected error normalizing urn '%s': %s", tc.rawURN, err)
+		}
+		if normalized != tc.expected {
+			t.Errorf("Failed normalizing urn, got '%s', expected '%s' for '%s' in country %s", normalized, tc.expected, string(tc.rawURN), tc.country)
+		}
+	}
+}
+
+func TestValidate(t *testing.T) {
+	testCases := []struct {
+		urn     URN
+		country string
+		isValid bool
+	}{
+		{"xxxx", "", false}, // un-parseable URNs don't validate
+
+		// valid tel numbers
+		{"tel:0788383383", "RW", true},
+		{"tel:+250788383383", "KE", true},
+		{"tel:+23761234567", "CM", true},  // old Cameroon format
+		{"tel:+237661234567", "CM", true}, // new Cameroon format
+		{"tel:+250788383383", "", true},
+
+		// invalid tel numbers
+		{"tel:0788383383", "ZZ", false}, // invalid country
+		{"tel:0788383383", "", false},   // no country
+		{"tel:MTN", "RW", false},
+
+		// twitter handles
+		{"twitter:jimmyjo", "", true},
+		{"twitter:billy_bob", "", true},
+		{"twitter:jimmyjo!@", "", false},
+		{"twitter:billy bob", "", false},
+
+		// twitterid urns
+		{"twitterid:12345#jimmyjo", "", true},
+		{"twitterid:12345#1234567", "", true},
+		{"twitterid:jimmyjo#1234567", "", false},
+		{"twitterid:123#a.!f", "", false},
+
+		// email addresses
+		{"mailto:abcd+label@x.y.z.com", "", true},
+		{"mailto:@@@", "", false},
+
+		// facebook and telegram URN paths must be integers
+		{"telegram:12345678901234567", "", true},
+		{"telegram:abcdef", "", false},
+		{"facebook:12345678901234567", "", true},
+		{"facebook:abcdef", "", false},
+	}
+
+	for _, tc := range testCases {
+		isValid := tc.urn.Validate(tc.country)
+		if isValid != tc.isValid {
+			t.Errorf("Failed validating urn, got %s, expected %s for '%s' in country %s", strconv.FormatBool(isValid), strconv.FormatBool(tc.isValid), string(tc.urn), tc.country)
+		}
+	}
+}
 
 func TestTelURNs(t *testing.T) {
 	testCases := []struct {
@@ -48,41 +184,6 @@ func TestTelegramURNs(t *testing.T) {
 		urn := NewTelegramURN(tc.identifier, tc.display)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed telegram URN, got '%s', expected '%s' for '%d'", urn, tc.expected, tc.identifier)
-		}
-	}
-}
-
-func TestFromParts(t *testing.T) {
-	testCases := []struct {
-		scheme   string
-		path     string
-		display  string
-		expected string
-		identity string
-		err      bool
-	}{
-		{"TEL", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
-		{"telephone", "+250788383383", "", "", "", true},
-		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
-		{"facebook", "hello", "", "facebook:hello", "facebook:hello", false},
-		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345", false},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
-		if err != nil && !tc.err {
-			t.Errorf("Unexpected error creating urn: %s:%s: %s", tc.scheme, tc.path, err)
-		}
-		if err == nil && tc.err {
-			t.Errorf("Expected error creating urn: %s:%s: ", tc.scheme, tc.path)
-		}
-
-		if urn != URN(tc.expected) {
-			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
-		}
-
-		if urn.Identity() != tc.identity {
-			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
 		}
 	}
 }
