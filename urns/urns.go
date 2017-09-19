@@ -137,14 +137,14 @@ func (u URN) Normalize(country string) (URN, error) {
 
 		// strip @ prefix if provided
 		if strings.HasPrefix(normPath, "@") {
-			normPath = normPath[1:len(normPath)]
+			normPath = normPath[1:]
 		}
 
 	case TwitterIDScheme:
 		if display != "" {
 			display = strings.ToLower(strings.TrimSpace(display))
 			if display != "" && strings.HasPrefix(display, "@") {
-				display = display[1:len(display)]
+				display = display[1:]
 			}
 		}
 
