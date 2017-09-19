@@ -233,6 +233,7 @@ func (u URN) Identity() string {
 	return string(u)
 }
 
+// Resolve is called when a URN is part of an excellent expression
 func (u URN) Resolve(key string) interface{} {
 	switch key {
 	case "path":
@@ -245,8 +246,11 @@ func (u URN) Resolve(key string) interface{} {
 	return fmt.Errorf("no field '%s' on URN", key)
 }
 
+// Default is called when a URN is part of an excellent expression
 func (u URN) Default() interface{} { return u }
-func (u URN) String() string       { return string(u.Path()) }
+
+// String returns the string representation of this URN
+func (u URN) String() string { return string(u.Path()) }
 
 // NilURN is our constant for nil URNs
 var NilURN = URN("")
