@@ -12,30 +12,20 @@ func TestFromParts(t *testing.T) {
 		display  string
 		expected string
 		identity string
-		err      bool
 	}{
-		{"TEL", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
-		{"telephone", "+250788383383", "", "", "", true},
-		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
-		{"facebook", "hello", "", "facebook:hello", "facebook:hello", false},
-		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345", false},
+		{"tel", "+250788383383", "", "tel:+250788383383", "tel:+250788383383"},
+		{"twitter", "hello", "", "twitter:hello", "twitter:hello"},
+		{"facebook", "hello", "", "facebook:hello", "facebook:hello"},
+		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345"},
 	}
 
 	for _, tc := range testCases {
-		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
-		if err != nil && !tc.err {
-			t.Errorf("Unexpected error creating urn: %s:%s: %s", tc.scheme, tc.path, err)
-		}
-		if err == nil && tc.err {
-			t.Errorf("Expected error creating urn: %s:%s: ", tc.scheme, tc.path)
-		}
-
+		urn := NewURNFromParts(tc.scheme, tc.path, tc.display)
 		if urn != URN(tc.expected) {
-			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
+			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}
-
 		if urn.Identity() != tc.identity {
-			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.path, tc.scheme)
+			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}
 	}
 }
@@ -79,10 +69,7 @@ func TestNormalize(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		normalized, err := tc.rawURN.Normalize(tc.country)
-		if err != nil {
-			t.Errorf("Unexpected error normalizing urn '%s': %s", tc.rawURN, err)
-		}
+		normalized := tc.rawURN.Normalize(tc.country)
 		if normalized != tc.expected {
 			t.Errorf("Failed normalizing urn, got '%s', expected '%s' for '%s' in country %s", normalized, tc.expected, string(tc.rawURN), tc.country)
 		}
@@ -95,7 +82,8 @@ func TestValidate(t *testing.T) {
 		country string
 		isValid bool
 	}{
-		{"xxxx", "", false}, // un-parseable URNs don't validate
+		{"xxxx", "", false},    // un-parseable URNs don't validate
+		{"xyz:abc", "", false}, // nor do unknown schemes
 
 		// valid tel numbers
 		{"tel:0788383383", "RW", true},

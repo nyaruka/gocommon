@@ -75,26 +75,16 @@ type URN string
 
 // NewTelURNForCountry returns a URN for the passed in telephone number and country code ("US")
 func NewTelURNForCountry(number string, country string) URN {
-	return newURN(TelScheme, normalizeNumber(number, country), "")
+	return NewURNFromParts(TelScheme, normalizeNumber(number, country), "")
 }
 
 // NewTelegramURN returns a URN for the passed in telegram identifier
 func NewTelegramURN(identifier int64, display string) URN {
-	return newURN(TelegramScheme, strconv.FormatInt(identifier, 10), display)
+	return NewURNFromParts(TelegramScheme, strconv.FormatInt(identifier, 10), display)
 }
 
 // NewURNFromParts returns a new URN for the given scheme, path and display
-func NewURNFromParts(scheme string, path string, display string) (URN, error) {
-	scheme = strings.ToLower(scheme)
-	if !validSchemes[scheme] {
-		return NilURN, fmt.Errorf("invalid scheme '%s'", scheme)
-	}
-
-	return newURN(scheme, path, display), nil
-}
-
-// private utility method to create a URN from a scheme and path
-func newURN(scheme string, path string, display string) URN {
+func NewURNFromParts(scheme string, path string, display string) URN {
 	urn := fmt.Sprintf("%s:%s", scheme, path)
 	if display != "" {
 		urn = fmt.Sprintf("%s#%s", urn, strings.ToLower(display))
@@ -123,7 +113,7 @@ func (u URN) ToParts() (string, string, string) {
 }
 
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
-func (u URN) Normalize(country string) (URN, error) {
+func (u URN) Normalize(country string) URN {
 	scheme, path, display := u.ToParts()
 	normPath := strings.TrimSpace(path)
 
@@ -158,7 +148,7 @@ func (u URN) Normalize(country string) (URN, error) {
 // Validate returns whether this URN is considered valid
 func (u URN) Validate(country string) bool {
 	scheme, path, display := u.ToParts()
-	if scheme == "" || path == "" {
+	if !IsValidScheme(scheme) || path == "" {
 		return false
 	}
 
