@@ -223,6 +223,20 @@ func (u URN) Identity() string {
 	return string(u)
 }
 
+// Localize returns a new URN which is local to the given country
+func (u URN) Localize(country string) URN {
+	scheme, path, display := u.ToParts()
+
+	if scheme == TelScheme {
+		parsed, err := phonenumbers.Parse(path, country)
+		if err == nil {
+			path = strconv.FormatUint(parsed.GetNationalNumber(), 10)
+		}
+	}
+
+	return NewURNFromParts(scheme, path, display)
+}
+
 // Resolve is called when a URN is part of an excellent expression
 func (u URN) Resolve(key string) interface{} {
 	switch key {

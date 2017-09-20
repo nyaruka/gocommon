@@ -38,7 +38,6 @@ func TestNormalize(t *testing.T) {
 	}{
 		// valid tel numbers
 		{"tel:0788383383", "RW", "tel:+250788383383"},
-		{"tel:0788383383", "RW", "tel:+250788383383"},
 		{"tel: +250788383383 ", "KE", "tel:+250788383383"},
 		{"tel:+250788383383", "", "tel:+250788383383"},
 		{"tel:250788383383", "", "tel:+250788383383"},
@@ -72,6 +71,36 @@ func TestNormalize(t *testing.T) {
 		normalized := tc.rawURN.Normalize(tc.country)
 		if normalized != tc.expected {
 			t.Errorf("Failed normalizing urn, got '%s', expected '%s' for '%s' in country %s", normalized, tc.expected, string(tc.rawURN), tc.country)
+		}
+	}
+}
+
+func TestLocalize(t *testing.T) {
+	testCases := []struct {
+		input    URN
+		country  string
+		expected URN
+	}{
+		// valid tel numbers
+		{"tel:+250788383383", "RW", "tel:788383383"},
+		{"tel:+447531669965", "GB", "tel:7531669965"},
+		{"tel:+19179925253", "US", "tel:9179925253"},
+
+		// un-localizable tel numbers
+		{"tel:12345", "RW", "tel:12345"},
+		{"tel:0788383383", "", "tel:0788383383"},
+		{"tel:0788383383", "ZZ", "tel:0788383383"},
+		{"tel:MTN", "RW", "tel:MTN"},
+
+		// other schemes left as is
+		{"twitter:jimmyjo", "RW", "twitter:jimmyjo"},
+		{"mailto:bob@example.com", "", "mailto:bob@example.com"},
+	}
+
+	for _, tc := range testCases {
+		localized := tc.input.Localize(tc.country)
+		if localized != tc.expected {
+			t.Errorf("Failed localizing urn, got '%s', expected '%s' for '%s' in country %s", localized, tc.expected, string(tc.input), tc.country)
 		}
 	}
 }
