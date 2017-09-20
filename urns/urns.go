@@ -146,7 +146,7 @@ func (u URN) Normalize(country string) URN {
 }
 
 // Validate returns whether this URN is considered valid
-func (u URN) Validate(country string) bool {
+func (u URN) Validate() bool {
 	scheme, path, display := u.ToParts()
 	if !IsValidScheme(scheme) || path == "" {
 		return false
@@ -155,7 +155,7 @@ func (u URN) Validate(country string) bool {
 	switch scheme {
 	case TelScheme:
 		// validate is possible phone number
-		parsed, err := phonenumbers.Parse(path, country)
+		parsed, err := phonenumbers.Parse(path, "")
 		if err != nil {
 			return false
 		}

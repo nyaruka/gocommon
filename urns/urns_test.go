@@ -108,51 +108,48 @@ func TestLocalize(t *testing.T) {
 func TestValidate(t *testing.T) {
 	testCases := []struct {
 		urn     URN
-		country string
 		isValid bool
 	}{
-		{"xxxx", "", false},    // un-parseable URNs don't validate
-		{"xyz:abc", "", false}, // nor do unknown schemes
+		{"xxxx", false},    // un-parseable URNs don't validate
+		{"xyz:abc", false}, // nor do unknown schemes
 
 		// valid tel numbers
-		{"tel:0788383383", "RW", true},
-		{"tel:+250788383383", "KE", true},
-		{"tel:+23761234567", "CM", true},  // old Cameroon format
-		{"tel:+237661234567", "CM", true}, // new Cameroon format
-		{"tel:+250788383383", "", true},
+		{"tel:+250788383383", true},
+		{"tel:+23761234567", true},  // old Cameroon format
+		{"tel:+237661234567", true}, // new Cameroon format
+		{"tel:+250788383383", true},
 
 		// invalid tel numbers
-		{"tel:0788383383", "ZZ", false}, // invalid country
-		{"tel:0788383383", "", false},   // no country
-		{"tel:MTN", "RW", false},
+		{"tel:0788383383", false}, // no country
+		{"tel:MTN", false},
 
 		// twitter handles
-		{"twitter:jimmyjo", "", true},
-		{"twitter:billy_bob", "", true},
-		{"twitter:jimmyjo!@", "", false},
-		{"twitter:billy bob", "", false},
+		{"twitter:jimmyjo", true},
+		{"twitter:billy_bob", true},
+		{"twitter:jimmyjo!@", false},
+		{"twitter:billy bob", false},
 
 		// twitterid urns
-		{"twitterid:12345#jimmyjo", "", true},
-		{"twitterid:12345#1234567", "", true},
-		{"twitterid:jimmyjo#1234567", "", false},
-		{"twitterid:123#a.!f", "", false},
+		{"twitterid:12345#jimmyjo", true},
+		{"twitterid:12345#1234567", true},
+		{"twitterid:jimmyjo#1234567", false},
+		{"twitterid:123#a.!f", false},
 
 		// email addresses
-		{"mailto:abcd+label@x.y.z.com", "", true},
-		{"mailto:@@@", "", false},
+		{"mailto:abcd+label@x.y.z.com", true},
+		{"mailto:@@@", false},
 
 		// facebook and telegram URN paths must be integers
-		{"telegram:12345678901234567", "", true},
-		{"telegram:abcdef", "", false},
-		{"facebook:12345678901234567", "", true},
-		{"facebook:abcdef", "", false},
+		{"telegram:12345678901234567", true},
+		{"telegram:abcdef", false},
+		{"facebook:12345678901234567", true},
+		{"facebook:abcdef", false},
 	}
 
 	for _, tc := range testCases {
-		isValid := tc.urn.Validate(tc.country)
+		isValid := tc.urn.Validate()
 		if isValid != tc.isValid {
-			t.Errorf("Failed validating urn, got %s, expected %s for '%s' in country %s", strconv.FormatBool(isValid), strconv.FormatBool(tc.isValid), string(tc.urn), tc.country)
+			t.Errorf("Failed validating urn, got %s, expected %s for '%s'", strconv.FormatBool(isValid), strconv.FormatBool(tc.isValid), string(tc.urn))
 		}
 	}
 }
