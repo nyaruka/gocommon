@@ -67,7 +67,7 @@ func IsValidScheme(scheme string) bool {
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9a-z]`)
 var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
 var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
-var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=]{1,16}$`) // (this is a guess)
+var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=]{1,24}$`)
 var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
