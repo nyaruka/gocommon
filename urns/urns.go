@@ -42,6 +42,9 @@ const (
 
 	// ExternalScheme is the scheme used for externally defined identifiers
 	ExternalScheme string = "ext"
+
+	// FacebookRefPrefix is the path prefix used for facebook referral URNs
+	FacebookRefPrefix string = "ref:"
 )
 
 var validSchemes = map[string]bool{
@@ -179,7 +182,7 @@ func (u URN) Validate() bool {
 
 	case FacebookScheme:
 		// we don't validate facebook refs since they come from the outside
-		if strings.HasPrefix(path, "ref:") {
+		if u.IsFacebookRef() {
 			return true
 		}
 
@@ -237,9 +240,24 @@ func (u URN) Localize(country string) URN {
 	return NewURNFromParts(scheme, path, display)
 }
 
+// IsFacebookRef returns whether this URN is a facebook referral
+func (u URN) IsFacebookRef() bool {
+	return u.Scheme() == FacebookScheme && strings.HasPrefix(u.Path(), FacebookRefPrefix)
+}
+
+// FacebookRef returns the facebook referral portion of our path, this return empty string in the case where we aren't a Facebook scheme
+func (u URN) FacebookRef() string {
+	if u.IsFacebookRef() {
+		return strings.TrimPrefix(u.Path(), FacebookRefPrefix)
+	}
+	return ""
+}
+
 // Resolve is called when a URN is part of an excellent expression
 func (u URN) Resolve(key string) interface{} {
 	switch key {
+	case "display":
+		return u.Display()
 	case "path":
 		return u.Path()
 	case "scheme":
@@ -254,7 +272,7 @@ func (u URN) Resolve(key string) interface{} {
 func (u URN) Default() interface{} { return u }
 
 // String returns the string representation of this URN
-func (u URN) String() string { return string(u.Path()) }
+func (u URN) String() string { return string(u) }
 
 // NilURN is our constant for nil URNs
 var NilURN = URN("")
