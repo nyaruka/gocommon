@@ -123,6 +123,7 @@ func TestNormalize(t *testing.T) {
 		{"tel:62877747666", "ID", "tel:+62877747666"},
 		{"tel:0877747666", "ID", "tel:+62877747666"},
 		{"tel:07531669965", "GB", "tel:+447531669965"},
+		{"tel:+22658125926", "", "tel:+22658125926"},
 
 		// un-normalizable tel numbers
 		{"tel:12345", "RW", "tel:12345"},
