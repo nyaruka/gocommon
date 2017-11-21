@@ -298,7 +298,7 @@ func normalizeNumber(number string, country string) string {
 
 	// couldn't parse it, use the original number
 	if err != nil {
-		return number
+		return parseNumber
 	}
 
 	// if it looks valid, return it
@@ -307,5 +307,5 @@ func normalizeNumber(number string, country string) string {
 	}
 
 	// this doesn't look like anything we recognize, use the original number
-	return number
+	return parseNumber
 }
