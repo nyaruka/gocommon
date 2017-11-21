@@ -67,7 +67,7 @@ func IsValidScheme(scheme string) bool {
 	return valid
 }
 
-var nonTelCharsRegex = regexp.MustCompile(`[^0-9a-z+]`)
+var nonTelCharsRegex = regexp.MustCompile(`[^0-9a-z]`)
 var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
 var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
 var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=]{1,24}$`)
