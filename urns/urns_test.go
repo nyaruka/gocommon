@@ -290,6 +290,27 @@ func TestTelegramURNs(t *testing.T) {
 	}
 }
 
+func TestTestWhatsAppURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   string
+		hasError   bool
+	}{
+		{"12345", "whatsapp:12345", false},
+		{"+12345", "whatsapp:+12345", true},
+	}
+
+	for _, tc := range testCases {
+		urn, err := NewWhatsAppURN(tc.identifier)
+		if urn != URN(tc.expected) {
+			t.Errorf("Failed WhatsApp URN, got '%s', expected '%s' for '%d'", urn, tc.expected, tc.identifier)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed WhatsApp URN, got error: %s when expecting: %s", urn, tc.expected, tc.hasError)
+		}
+	}
+}
+
 func BenchmarkValidTel(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		NewTelURNForCountry("2065551212", "US")
