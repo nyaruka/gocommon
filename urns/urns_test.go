@@ -91,6 +91,7 @@ func TestFromParts(t *testing.T) {
 		{"twitter", "hello", "", "twitter:hello", "twitter:hello"},
 		{"facebook", "hello", "", "facebook:hello", "facebook:hello"},
 		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345"},
+		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345"},
 	}
 
 	for _, tc := range testCases {
@@ -123,7 +124,7 @@ func TestNormalize(t *testing.T) {
 		{"tel:62877747666", "ID", "tel:+62877747666"},
 		{"tel:0877747666", "ID", "tel:+62877747666"},
 		{"tel:07531669965", "GB", "tel:+447531669965"},
-		{"tel:+22658125926", "", "tel:+22658125926"},
+		{"tel:22658125926", "", "tel:+22658125926"},
 
 		// un-normalizable tel numbers
 		{"tel:12345", "RW", "tel:12345"},
@@ -223,8 +224,14 @@ func TestValidate(t *testing.T) {
 		// facebook refs can be anything
 		{"facebook:ref:facebookRef", true},
 
-		// viber needs to be integers
+		// viber needs to be alphanum
 		{"viber:asdf12354", true},
+		{"viber:asdf!12354", false},
+
+		// whatsapp needs to be integers
+		{"whatsapp:12354", true},
+		{"whatsapp:abcde", false},
+		{"whatsapp:+12067799294", false},
 	}
 
 	for _, tc := range testCases {
