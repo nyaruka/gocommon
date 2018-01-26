@@ -43,6 +43,22 @@ func TestDisplay(t *testing.T) {
 	}
 }
 
+func TestFormat(t *testing.T) {
+	testCases := []struct {
+		urn    URN
+		format string
+	}{
+		{"tel:+250788383383", "0788 383 383"},
+		{"twitter:85114#billy_bob", "billy_bob"},
+		{"twitter:billy_bob", "billy_bob"},
+	}
+	for _, tc := range testCases {
+		if tc.urn.Format() != tc.format {
+			t.Errorf("Mismatch format for %s, expected %s, got %s", tc.urn, tc.format, tc.urn.Format())
+		}
+	}
+}
+
 func TestResolve(t *testing.T) {
 	testCases := []struct {
 		urn      URN
