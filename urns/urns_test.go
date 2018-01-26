@@ -51,6 +51,7 @@ func TestFormat(t *testing.T) {
 		{"tel:+250788383383", "0788 383 383"},
 		{"twitter:85114#billy_bob", "billy_bob"},
 		{"twitter:billy_bob", "billy_bob"},
+		{"tel:not-a-number", "not-a-number"},
 	}
 	for _, tc := range testCases {
 		if tc.urn.Format() != tc.format {
