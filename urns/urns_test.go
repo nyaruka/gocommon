@@ -70,7 +70,6 @@ func TestResolve(t *testing.T) {
 		{"facebook:ref:12345", "display", true, ""},
 		{"facebook:ref:12345", "path", true, "ref:12345"},
 		{"twitter:85114#foobar", "display", true, "foobar"},
-		{"twitter:85114#foobar", "urn", true, "twitter:85114#foobar"},
 		{"twitter:85114#foobar", "notkey", false, ""},
 	}
 	for _, tc := range testCases {

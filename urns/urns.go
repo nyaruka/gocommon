@@ -280,8 +280,6 @@ func (u URN) Resolve(key string) interface{} {
 		return u.Path()
 	case "scheme":
 		return u.Scheme()
-	case "urn":
-		return string(u)
 	}
 	return fmt.Errorf("no field '%s' on URN", key)
 }
