@@ -290,7 +290,7 @@ func TestTelegramURNs(t *testing.T) {
 	}
 }
 
-func TestTestWhatsAppURNs(t *testing.T) {
+func TestWhatsAppURNs(t *testing.T) {
 	testCases := []struct {
 		identifier string
 		expected   string
@@ -303,10 +303,48 @@ func TestTestWhatsAppURNs(t *testing.T) {
 	for _, tc := range testCases {
 		urn, err := NewWhatsAppURN(tc.identifier)
 		if urn != URN(tc.expected) {
-			t.Errorf("Failed WhatsApp URN, got '%s', expected '%s' for '%d'", urn, tc.expected, tc.identifier)
+			t.Errorf("Failed WhatsApp URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
 		}
 		if err != nil != tc.hasError {
-			t.Errorf("Failed WhatsApp URN, got error: %s when expecting: %s", urn, tc.expected, tc.hasError)
+			t.Errorf("Failed WhatsApp URN, got error: %s when expecting: %s", err.Error(), tc.expected)
+		}
+	}
+}
+
+func TestFacebookURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   string
+		hasError   bool
+	}{
+		{"12345", "facebook:12345", false},
+		{"invalid", "facebook:invalid", true},
+	}
+
+	for _, tc := range testCases {
+		urn, err := NewFacebookURN(tc.identifier)
+		if urn != URN(tc.expected) {
+			t.Errorf("Failed Facebook URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed Facebook URN, got error: %s when expecting: %s", err.Error(), tc.expected)
+		}
+	}
+}
+
+func TestFirebaseURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   string
+	}{
+		{"12345", "fcm:12345"},
+		{"asdf", "fcm:asdf"},
+	}
+
+	for _, tc := range testCases {
+		urn := NewFirebaseURN(tc.identifier)
+		if urn != URN(tc.expected) {
+			t.Errorf("Failed WhatsApp URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
 		}
 	}
 }

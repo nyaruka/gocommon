@@ -100,6 +100,23 @@ func NewWhatsAppURN(identifier string) (URN, error) {
 	return urn, nil
 }
 
+// NewFirebaseURN returns a URN for the passed in firebase identifier
+func NewFirebaseURN(identifier string) URN {
+	// validate identifier
+	urn := NewURNFromParts(FCMScheme, identifier, "")
+	return urn
+}
+
+// NewFacebookURN returns a URN for the passed in facebook identifier
+func NewFacebookURN(identifier string) (URN, error) {
+	// validate identifier
+	urn := NewURNFromParts(FacebookScheme, identifier, "")
+	if !urn.Validate() {
+		return urn, fmt.Errorf("invalid facebook identifier: %s", identifier)
+	}
+	return urn, nil
+}
+
 // NewURNFromParts returns a new URN for the given scheme, path and display
 func NewURNFromParts(scheme string, path string, display string) URN {
 	urn := fmt.Sprintf("%s:%s", scheme, path)
