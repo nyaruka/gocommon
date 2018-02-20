@@ -102,14 +102,11 @@ func NewWhatsAppURN(identifier string) (URN, error) {
 
 // NewFirebaseURN returns a URN for the passed in firebase identifier
 func NewFirebaseURN(identifier string) URN {
-	// validate identifier
-	urn := NewURNFromParts(FCMScheme, identifier, "")
-	return urn
+	return NewURNFromParts(FCMScheme, identifier, "")
 }
 
 // NewFacebookURN returns a URN for the passed in facebook identifier
 func NewFacebookURN(identifier string) (URN, error) {
-	// validate identifier
 	urn := NewURNFromParts(FacebookScheme, identifier, "")
 	if !urn.Validate() {
 		return urn, fmt.Errorf("invalid facebook identifier: %s", identifier)
