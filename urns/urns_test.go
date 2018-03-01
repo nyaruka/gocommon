@@ -132,43 +132,47 @@ func TestNormalize(t *testing.T) {
 		rawURN   URN
 		country  string
 		expected URN
+		hasError bool
 	}{
 		// valid tel numbers
-		{"tel:0788383383", "RW", "tel:+250788383383"},
-		{"tel: +250788383383 ", "KE", "tel:+250788383383"},
-		{"tel:+250788383383", "", "tel:+250788383383"},
-		{"tel:250788383383", "", "tel:+250788383383"},
-		{"tel:2.50788383383E+11", "", "tel:+250788383383"},
-		{"tel:2.50788383383E+12", "", "tel:+250788383383"},
-		{"tel:(917)992-5253", "US", "tel:+19179925253"},
-		{"tel:19179925253", "", "tel:+19179925253"},
-		{"tel:+62877747666", "", "tel:+62877747666"},
-		{"tel:62877747666", "ID", "tel:+62877747666"},
-		{"tel:0877747666", "ID", "tel:+62877747666"},
-		{"tel:07531669965", "GB", "tel:+447531669965"},
-		{"tel:22658125926", "", "tel:+22658125926"},
+		{"tel:0788383383", "RW", "tel:+250788383383", false},
+		{"tel: +250788383383 ", "KE", "tel:+250788383383", false},
+		{"tel:+250788383383", "", "tel:+250788383383", false},
+		{"tel:250788383383", "", "tel:+250788383383", false},
+		{"tel:2.50788383383E+11", "", "tel:+250788383383", false},
+		{"tel:2.50788383383E+12", "", "tel:+250788383383", false},
+		{"tel:(917)992-5253", "US", "tel:+19179925253", false},
+		{"tel:19179925253", "", "tel:+19179925253", false},
+		{"tel:+62877747666", "", "tel:+62877747666", false},
+		{"tel:62877747666", "ID", "tel:+62877747666", false},
+		{"tel:0877747666", "ID", "tel:+62877747666", false},
+		{"tel:07531669965", "GB", "tel:+447531669965", false},
+		{"tel:22658125926", "", "tel:+22658125926", false},
 
 		// un-normalizable tel numbers
-		{"tel:12345", "RW", ""},
-		{"tel:0788383383", "", ""},
-		{"tel:0788383383", "ZZ", ""},
-		{"tel:MTN", "RW", ""},
+		{"tel:12345", "RW", "tel:12345", true},
+		{"tel:0788383383", "", "tel:0788383383", true},
+		{"tel:0788383383", "ZZ", "tel:0788383383", true},
+		{"tel:MTN", "RW", "tel:mtn", true},
 
 		// twitter handles remove @
-		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
-		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo"},
+		{"twitter: @jimmyJO", "", "twitter:jimmyjo", false},
+		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo", false},
 
 		// email addresses
-		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com"},
+		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com", false},
 
 		// external ids are case sensitive
-		{"ext: eXterNAL123 ", "", "ext:eXterNAL123"},
+		{"ext: eXterNAL123 ", "", "ext:eXterNAL123", false},
 	}
 
 	for _, tc := range testCases {
-		normalized := tc.rawURN.Normalize(tc.country)
+		normalized, err := tc.rawURN.Normalize(tc.country)
 		if normalized != tc.expected {
 			t.Errorf("Failed normalizing urn, got '%s', expected '%s' for '%s' in country %s", normalized, tc.expected, string(tc.rawURN), tc.country)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed normalizing urn, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -178,27 +182,31 @@ func TestLocalize(t *testing.T) {
 		input    URN
 		country  string
 		expected URN
+		hasError bool
 	}{
 		// valid tel numbers
-		{"tel:+250788383383", "RW", "tel:788383383"},
-		{"tel:+447531669965", "GB", "tel:7531669965"},
-		{"tel:+19179925253", "US", "tel:9179925253"},
+		{"tel:+250788383383", "RW", "tel:788383383", true},
+		{"tel:+447531669965", "GB", "tel:7531669965", true},
+		{"tel:+19179925253", "US", "tel:9179925253", true},
 
 		// un-localizable tel numbers
-		{"tel:12345", "RW", "tel:12345"},
-		{"tel:0788383383", "", "tel:0788383383"},
-		{"tel:0788383383", "ZZ", "tel:0788383383"},
-		{"tel:MTN", "RW", "tel:MTN"},
+		{"tel:12345", "RW", "tel:12345", true},
+		{"tel:0788383383", "", "tel:0788383383", true},
+		{"tel:0788383383", "ZZ", "tel:0788383383", true},
+		{"tel:MTN", "RW", "tel:MTN", true},
 
 		// other schemes left as is
-		{"twitter:jimmyjo", "RW", "twitter:jimmyjo"},
-		{"mailto:bob@example.com", "", "mailto:bob@example.com"},
+		{"twitter:jimmyjo", "RW", "twitter:jimmyjo", false},
+		{"mailto:bob@example.com", "", "mailto:bob@example.com", false},
 	}
 
 	for _, tc := range testCases {
-		localized := tc.input.Localize(tc.country)
+		localized, err := tc.input.Localize(tc.country)
 		if localized != tc.expected {
 			t.Errorf("Failed localizing urn, got '%s', expected '%s' for '%s' in country %s", localized, tc.expected, string(tc.input), tc.country)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed localizing urn, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }

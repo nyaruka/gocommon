@@ -106,7 +106,7 @@ func NewFirebaseURN(identifier string) (URN, error) {
 	urn, err := NewURNFromParts(FCMScheme, identifier, "")
 	if err != nil {
 		return urn, fmt.Errorf("invalid firebase identifier: %s", identifier)
-}
+	}
 	return urn, nil
 }
 
@@ -153,7 +153,7 @@ func (u URN) ToParts() (string, string, string) {
 }
 
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
-func (u URN) Normalize(country string) URN {
+func (u URN) Normalize(country string) (URN, error) {
 	scheme, path, display := u.ToParts()
 	normPath := strings.TrimSpace(path)
 
@@ -182,11 +182,7 @@ func (u URN) Normalize(country string) URN {
 		normPath = strings.ToLower(normPath)
 	}
 
-	urn, err := NewURNFromParts(scheme, normPath, display)
-	if err != nil {
-		return NilURN
-	}
-	return urn
+	return NewURNFromParts(scheme, normPath, display)
 }
 
 // Validate returns whether this URN is considered valid
@@ -271,7 +267,7 @@ func (u URN) Identity() string {
 }
 
 // Localize returns a new URN which is local to the given country
-func (u URN) Localize(country string) URN {
+func (u URN) Localize(country string) (URN, error) {
 	scheme, path, display := u.ToParts()
 
 	if scheme == TelScheme {
@@ -281,8 +277,7 @@ func (u URN) Localize(country string) URN {
 		}
 	}
 
-	urn, _ := NewURNFromParts(scheme, path, display)
-	return urn
+	return NewURNFromParts(scheme, path, display)
 }
 
 // IsFacebookRef returns whether this URN is a facebook referral
