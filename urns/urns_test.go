@@ -195,6 +195,7 @@ func TestLocalize(t *testing.T) {
 
 		// other schemes left as is
 		{"twitter:jimmyjo", "RW", "twitter:jimmyjo"},
+		{"twitterid:12345#jimmyjo", "RW", "twitterid:12345#jimmyjo"},
 		{"mailto:bob@example.com", "", "mailto:bob@example.com"},
 	}
 
@@ -221,6 +222,7 @@ func TestValidate(t *testing.T) {
 		{"tel:+250788383383", true},
 
 		// invalid tel numbers
+		{"tel:+250123", false},    // no country
 		{"tel:0788383383", false}, // no country
 		{"tel:MTN", false},
 
