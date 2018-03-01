@@ -221,8 +221,9 @@ func TestValidate(t *testing.T) {
 		{"tel:+237661234567", true}, // new Cameroon format
 		{"tel:+250788383383", true},
 
+		{"tel:+250123", true}, // invalid but parsed we accept it then
+
 		// invalid tel numbers
-		{"tel:+250123", false},    // no country
 		{"tel:0788383383", false}, // no country
 		{"tel:MTN", false},
 

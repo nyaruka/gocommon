@@ -176,19 +176,20 @@ func (u URN) Normalize(country string) (URN, error) {
 // Validate returns whether this URN is considered valid
 func (u URN) Validate() error {
 	scheme, path, display := u.ToParts()
-	if !IsValidScheme(scheme) || path == "" {
+	if !IsValidScheme(scheme) {
+		return fmt.Errorf("invalid scheme: '%s'", scheme)
+	}
+
+	if path == "" {
 		return fmt.Errorf("invalid path: '%s'", path)
 	}
 
 	switch scheme {
 	case TelScheme:
 		// validate is possible phone number
-		parsed, err := phonenumbers.Parse(path, "")
+		_, err := phonenumbers.Parse(path, "")
 		if err != nil {
 			return err
-		}
-		if !phonenumbers.IsPossibleNumber(parsed) {
-			return fmt.Errorf("impossible phone number: %s", path)
 		}
 	case TwitterScheme:
 		// validate twitter URNs look like handles
