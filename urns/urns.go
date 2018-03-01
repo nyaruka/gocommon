@@ -93,41 +93,29 @@ func NewTelegramURN(identifier int64, display string) (URN, error) {
 
 // NewWhatsAppURN returns a URN for the passed in whatsapp identifier
 func NewWhatsAppURN(identifier string) (URN, error) {
-	// validate identifier
-	urn, err := NewURNFromParts(WhatsAppScheme, identifier, "")
-	if err != nil {
-		return urn, fmt.Errorf("invalid whatsapp identifier: %s", identifier)
-	}
-	return urn, nil
+	return NewURNFromParts(WhatsAppScheme, identifier, "")
 }
 
 // NewFirebaseURN returns a URN for the passed in firebase identifier
 func NewFirebaseURN(identifier string) (URN, error) {
-	urn, err := NewURNFromParts(FCMScheme, identifier, "")
-	if err != nil {
-		return urn, fmt.Errorf("invalid firebase identifier: %s", identifier)
-	}
-	return urn, nil
+	return NewURNFromParts(FCMScheme, identifier, "")
 }
 
 // NewFacebookURN returns a URN for the passed in facebook identifier
 func NewFacebookURN(identifier string) (URN, error) {
-	urn, err := NewURNFromParts(FacebookScheme, identifier, "")
-	if err != nil {
-		return urn, fmt.Errorf("invalid facebook identifier: %s", identifier)
-	}
-	return urn, nil
+	return NewURNFromParts(FacebookScheme, identifier, "")
 }
 
 // NewURNFromParts returns a new URN for the given scheme, path and display
 func NewURNFromParts(scheme string, path string, display string) (URN, error) {
 	urnString := fmt.Sprintf("%s:%s", scheme, path)
 	if display != "" {
-		urnString = fmt.Sprintf("%s#%s", urnString, strings.ToLower(display))
+		urnString = fmt.Sprintf("%s#%s", urnString, display)
 	}
 	urn := URN(urnString)
-	if !urn.Validate() {
-		return urn, fmt.Errorf("invalid urn from %s", urnString)
+	err := urn.Validate()
+	if err != nil {
+		return NilURN, err
 	}
 	return urn, nil
 }
@@ -186,10 +174,10 @@ func (u URN) Normalize(country string) (URN, error) {
 }
 
 // Validate returns whether this URN is considered valid
-func (u URN) Validate() bool {
+func (u URN) Validate() error {
 	scheme, path, display := u.ToParts()
 	if !IsValidScheme(scheme) || path == "" {
-		return false
+		return fmt.Errorf("invalid path: '%s'", path)
 	}
 
 	switch scheme {
@@ -197,46 +185,59 @@ func (u URN) Validate() bool {
 		// validate is possible phone number
 		parsed, err := phonenumbers.Parse(path, "")
 		if err != nil {
-			return false
+			return err
 		}
-		return phonenumbers.IsPossibleNumber(parsed)
-
+		if !phonenumbers.IsPossibleNumber(parsed) {
+			return fmt.Errorf("impossible phone number: %s", path)
+		}
 	case TwitterScheme:
 		// validate twitter URNs look like handles
-		return twitterHandleRegex.MatchString(path)
+		if twitterHandleRegex.MatchString(path) {
+			return nil
+		}
 
 	case TwitterIDScheme:
 		// validate path is a number and display is a handle if present
 		if !allDigitsRegex.MatchString(path) {
-			return false
+			return fmt.Errorf("invalid twitter id: %s", path)
 		}
 		if display != "" && !twitterHandleRegex.MatchString(display) {
-			return false
+			return fmt.Errorf("invalid display: %s", display)
 		}
 
 	case EmailScheme:
-		return emailRegex.MatchString(path)
+		if !emailRegex.MatchString(path) {
+			return fmt.Errorf("invalid email: %s", path)
+		}
 
 	case FacebookScheme:
 		// we don't validate facebook refs since they come from the outside
 		if u.IsFacebookRef() {
-			return true
+			return nil
 		}
 
 		// otherwise, this should be an int
-		return allDigitsRegex.MatchString(path)
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid facebook id: %s", path)
+		}
 
 	case TelegramScheme:
-		return allDigitsRegex.MatchString(path)
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid telegram id: %s", path)
+		}
 
 	case ViberScheme:
-		return viberRegex.MatchString(path)
+		if !viberRegex.MatchString(path) {
+			return fmt.Errorf("invalid viber id: %s", path)
+		}
 
 	case WhatsAppScheme:
-		return allDigitsRegex.MatchString(path)
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid whatsapp id: %s", path)
+		}
 	}
 
-	return true // anything goes for external schemes
+	return nil // anything goes for external schemes
 }
 
 // Scheme returns the scheme portion for the URN
@@ -267,7 +268,7 @@ func (u URN) Identity() string {
 }
 
 // Localize returns a new URN which is local to the given country
-func (u URN) Localize(country string) (URN, error) {
+func (u URN) Localize(country string) URN {
 	scheme, path, display := u.ToParts()
 
 	if scheme == TelScheme {
@@ -276,8 +277,12 @@ func (u URN) Localize(country string) (URN, error) {
 			path = strconv.FormatUint(parsed.GetNationalNumber(), 10)
 		}
 	}
+	urnString := fmt.Sprintf("%s:%s", scheme, path)
+	if display != "" {
+		urnString = fmt.Sprintf("%s#%s", urnString, display)
+	}
 
-	return NewURNFromParts(scheme, path, display)
+	return URN(urnString)
 }
 
 // IsFacebookRef returns whether this URN is a facebook referral

@@ -2,7 +2,6 @@ package urns
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 )
 
@@ -107,9 +106,9 @@ func TestFromParts(t *testing.T) {
 		{"tel", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
 		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
 		{"facebook", "12345", "", "facebook:12345", "facebook:12345", false},
-		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345", false},
+		{"telegram", "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345", false},
-		{"viber", "", "", "viber:", "viber:", true},
+		{"viber", "", "", "", "", true},
 	}
 
 	for _, tc := range testCases {
@@ -150,10 +149,10 @@ func TestNormalize(t *testing.T) {
 		{"tel:22658125926", "", "tel:+22658125926", false},
 
 		// un-normalizable tel numbers
-		{"tel:12345", "RW", "tel:12345", true},
-		{"tel:0788383383", "", "tel:0788383383", true},
-		{"tel:0788383383", "ZZ", "tel:0788383383", true},
-		{"tel:MTN", "RW", "tel:mtn", true},
+		{"tel:12345", "RW", "", true},
+		{"tel:0788383383", "", "", true},
+		{"tel:0788383383", "ZZ", "", true},
+		{"tel:MTN", "RW", "", true},
 
 		// twitter handles remove @
 		{"twitter: @jimmyJO", "", "twitter:jimmyjo", false},
@@ -182,31 +181,27 @@ func TestLocalize(t *testing.T) {
 		input    URN
 		country  string
 		expected URN
-		hasError bool
 	}{
 		// valid tel numbers
-		{"tel:+250788383383", "RW", "tel:788383383", true},
-		{"tel:+447531669965", "GB", "tel:7531669965", true},
-		{"tel:+19179925253", "US", "tel:9179925253", true},
+		{"tel:+250788383383", "RW", "tel:788383383"},
+		{"tel:+447531669965", "GB", "tel:7531669965"},
+		{"tel:+19179925253", "US", "tel:9179925253"},
 
 		// un-localizable tel numbers
-		{"tel:12345", "RW", "tel:12345", true},
-		{"tel:0788383383", "", "tel:0788383383", true},
-		{"tel:0788383383", "ZZ", "tel:0788383383", true},
-		{"tel:MTN", "RW", "tel:MTN", true},
+		{"tel:12345", "RW", "tel:12345"},
+		{"tel:0788383383", "", "tel:0788383383"},
+		{"tel:0788383383", "ZZ", "tel:0788383383"},
+		{"tel:MTN", "RW", "tel:MTN"},
 
 		// other schemes left as is
-		{"twitter:jimmyjo", "RW", "twitter:jimmyjo", false},
-		{"mailto:bob@example.com", "", "mailto:bob@example.com", false},
+		{"twitter:jimmyjo", "RW", "twitter:jimmyjo"},
+		{"mailto:bob@example.com", "", "mailto:bob@example.com"},
 	}
 
 	for _, tc := range testCases {
-		localized, err := tc.input.Localize(tc.country)
+		localized := tc.input.Localize(tc.country)
 		if localized != tc.expected {
 			t.Errorf("Failed localizing urn, got '%s', expected '%s' for '%s' in country %s", localized, tc.expected, string(tc.input), tc.country)
-		}
-		if err != nil != tc.hasError {
-			t.Errorf("Failed localizing urn, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -265,9 +260,9 @@ func TestValidate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		isValid := tc.urn.Validate()
-		if isValid != tc.isValid {
-			t.Errorf("Failed validating urn, got %s, expected %s for '%s'", strconv.FormatBool(isValid), strconv.FormatBool(tc.isValid), string(tc.urn))
+		err := tc.urn.Validate()
+		if err != nil && tc.isValid {
+			t.Errorf("Failed validating urn, got %s, expected no error for '%s'", err.Error(), string(tc.urn))
 		}
 	}
 }
@@ -289,10 +284,10 @@ func TestTelURNs(t *testing.T) {
 		{"62877747666", "ID", "tel:+62877747666", false},
 		{"0877747666", "ID", "tel:+62877747666", false},
 		{"07531669965", "GB", "tel:+447531669965", false},
-		{"12345", "RW", "tel:12345", true},
-		{"0788383383", "", "tel:0788383383", true},
-		{"0788383383", "ZZ", "tel:0788383383", true},
-		{"MTN", "RW", "tel:mtn", true},
+		{"12345", "RW", "", true},
+		{"0788383383", "", "", true},
+		{"0788383383", "ZZ", "", true},
+		{"MTN", "RW", "", true},
 	}
 
 	for _, tc := range testCases {
@@ -314,7 +309,7 @@ func TestTelegramURNs(t *testing.T) {
 		hasError   bool
 	}{
 		{12345, "", "telegram:12345", false},
-		{12345, "Sarah", "telegram:12345#sarah", false},
+		{12345, "Sarah", "telegram:12345#Sarah", false},
 	}
 
 	for _, tc := range testCases {
@@ -335,7 +330,7 @@ func TestWhatsAppURNs(t *testing.T) {
 		hasError   bool
 	}{
 		{"12345", "whatsapp:12345", false},
-		{"+12345", "whatsapp:+12345", true},
+		{"+12345", "", true},
 	}
 
 	for _, tc := range testCases {
@@ -356,7 +351,7 @@ func TestFacebookURNs(t *testing.T) {
 		hasError   bool
 	}{
 		{"12345", "facebook:12345", false},
-		{"invalid", "facebook:invalid", true},
+		{"invalid", "", true},
 	}
 
 	for _, tc := range testCases {
@@ -378,7 +373,7 @@ func TestFirebaseURNs(t *testing.T) {
 	}{
 		{"12345", "fcm:12345", false},
 		{"asdf", "fcm:asdf", false},
-		{"", "fcm:", true},
+		{"", "", true},
 	}
 
 	for _, tc := range testCases {
