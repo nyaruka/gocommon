@@ -82,46 +82,54 @@ var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
 type URN string
 
 // NewTelURNForCountry returns a URN for the passed in telephone number and country code ("US")
-func NewTelURNForCountry(number string, country string) URN {
+func NewTelURNForCountry(number string, country string) (URN, error) {
 	return NewURNFromParts(TelScheme, normalizeNumber(number, country), "")
 }
 
 // NewTelegramURN returns a URN for the passed in telegram identifier
-func NewTelegramURN(identifier int64, display string) URN {
+func NewTelegramURN(identifier int64, display string) (URN, error) {
 	return NewURNFromParts(TelegramScheme, strconv.FormatInt(identifier, 10), display)
 }
 
 // NewWhatsAppURN returns a URN for the passed in whatsapp identifier
 func NewWhatsAppURN(identifier string) (URN, error) {
 	// validate identifier
-	urn := NewURNFromParts(WhatsAppScheme, identifier, "")
-	if !urn.Validate() {
+	urn, err := NewURNFromParts(WhatsAppScheme, identifier, "")
+	if err != nil {
 		return urn, fmt.Errorf("invalid whatsapp identifier: %s", identifier)
 	}
 	return urn, nil
 }
 
 // NewFirebaseURN returns a URN for the passed in firebase identifier
-func NewFirebaseURN(identifier string) URN {
-	return NewURNFromParts(FCMScheme, identifier, "")
+func NewFirebaseURN(identifier string) (URN, error) {
+	urn, err := NewURNFromParts(FCMScheme, identifier, "")
+	if err != nil {
+		return urn, fmt.Errorf("invalid firebase identifier: %s", identifier)
+}
+	return urn, nil
 }
 
 // NewFacebookURN returns a URN for the passed in facebook identifier
 func NewFacebookURN(identifier string) (URN, error) {
-	urn := NewURNFromParts(FacebookScheme, identifier, "")
-	if !urn.Validate() {
+	urn, err := NewURNFromParts(FacebookScheme, identifier, "")
+	if err != nil {
 		return urn, fmt.Errorf("invalid facebook identifier: %s", identifier)
 	}
 	return urn, nil
 }
 
 // NewURNFromParts returns a new URN for the given scheme, path and display
-func NewURNFromParts(scheme string, path string, display string) URN {
-	urn := fmt.Sprintf("%s:%s", scheme, path)
+func NewURNFromParts(scheme string, path string, display string) (URN, error) {
+	urnString := fmt.Sprintf("%s:%s", scheme, path)
 	if display != "" {
-		urn = fmt.Sprintf("%s#%s", urn, strings.ToLower(display))
+		urnString = fmt.Sprintf("%s#%s", urnString, strings.ToLower(display))
 	}
-	return URN(urn)
+	urn := URN(urnString)
+	if !urn.Validate() {
+		return urn, fmt.Errorf("invalid urn from %s", urnString)
+	}
+	return urn, nil
 }
 
 // ToParts splits the URN into scheme, path and display parts
@@ -174,7 +182,11 @@ func (u URN) Normalize(country string) URN {
 		normPath = strings.ToLower(normPath)
 	}
 
-	return NewURNFromParts(scheme, normPath, display)
+	urn, err := NewURNFromParts(scheme, normPath, display)
+	if err != nil {
+		return NilURN
+	}
+	return urn
 }
 
 // Validate returns whether this URN is considered valid
@@ -269,7 +281,8 @@ func (u URN) Localize(country string) URN {
 		}
 	}
 
-	return NewURNFromParts(scheme, path, display)
+	urn, _ := NewURNFromParts(scheme, path, display)
+	return urn
 }
 
 // IsFacebookRef returns whether this URN is a facebook referral

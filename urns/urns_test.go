@@ -102,21 +102,27 @@ func TestFromParts(t *testing.T) {
 		display  string
 		expected string
 		identity string
+		hasError bool
 	}{
-		{"tel", "+250788383383", "", "tel:+250788383383", "tel:+250788383383"},
-		{"twitter", "hello", "", "twitter:hello", "twitter:hello"},
-		{"facebook", "hello", "", "facebook:hello", "facebook:hello"},
-		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345"},
-		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345"},
+		{"tel", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
+		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
+		{"facebook", "12345", "", "facebook:12345", "facebook:12345", false},
+		{"telegram", "12345", "Jane", "telegram:12345#jane", "telegram:12345", false},
+		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345", false},
+		{"viber", "", "", "viber:", "viber:", true},
 	}
 
 	for _, tc := range testCases {
-		urn := NewURNFromParts(tc.scheme, tc.path, tc.display)
+		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}
 		if urn.Identity() != tc.identity {
 			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
+		}
+
+		if err != nil != tc.hasError {
+			t.Errorf("Failed creating urn, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -143,10 +149,10 @@ func TestNormalize(t *testing.T) {
 		{"tel:22658125926", "", "tel:+22658125926"},
 
 		// un-normalizable tel numbers
-		{"tel:12345", "RW", "tel:12345"},
-		{"tel:0788383383", "", "tel:0788383383"},
-		{"tel:0788383383", "ZZ", "tel:0788383383"},
-		{"tel:MTN", "RW", "tel:mtn"},
+		{"tel:12345", "RW", ""},
+		{"tel:0788383383", "", ""},
+		{"tel:0788383383", "ZZ", ""},
+		{"tel:MTN", "RW", ""},
 
 		// twitter handles remove @
 		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
@@ -263,27 +269,31 @@ func TestTelURNs(t *testing.T) {
 		number   string
 		country  string
 		expected string
+		hasError bool
 	}{
-		{"0788383383", "RW", "tel:+250788383383"},
-		{" +250788383383 ", "KE", "tel:+250788383383"},
-		{"+250788383383", "", "tel:+250788383383"},
-		{"250788383383", "", "tel:+250788383383"},
-		{"(917)992-5253", "US", "tel:+19179925253"},
-		{"19179925253", "", "tel:+19179925253"},
-		{"+62877747666", "", "tel:+62877747666"},
-		{"62877747666", "ID", "tel:+62877747666"},
-		{"0877747666", "ID", "tel:+62877747666"},
-		{"07531669965", "GB", "tel:+447531669965"},
-		{"12345", "RW", "tel:12345"},
-		{"0788383383", "", "tel:0788383383"},
-		{"0788383383", "ZZ", "tel:0788383383"},
-		{"MTN", "RW", "tel:mtn"},
+		{"0788383383", "RW", "tel:+250788383383", false},
+		{" +250788383383 ", "KE", "tel:+250788383383", false},
+		{"+250788383383", "", "tel:+250788383383", false},
+		{"250788383383", "", "tel:+250788383383", false},
+		{"(917)992-5253", "US", "tel:+19179925253", false},
+		{"19179925253", "", "tel:+19179925253", false},
+		{"+62877747666", "", "tel:+62877747666", false},
+		{"62877747666", "ID", "tel:+62877747666", false},
+		{"0877747666", "ID", "tel:+62877747666", false},
+		{"07531669965", "GB", "tel:+447531669965", false},
+		{"12345", "RW", "tel:12345", true},
+		{"0788383383", "", "tel:0788383383", true},
+		{"0788383383", "ZZ", "tel:0788383383", true},
+		{"MTN", "RW", "tel:mtn", true},
 	}
 
 	for _, tc := range testCases {
-		urn := NewTelURNForCountry(tc.number, tc.country)
+		urn, err := NewTelURNForCountry(tc.number, tc.country)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed tel parsing, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.number, tc.country)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed tel parsing, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -293,15 +303,19 @@ func TestTelegramURNs(t *testing.T) {
 		identifier int64
 		display    string
 		expected   string
+		hasError   bool
 	}{
-		{12345, "", "telegram:12345"},
-		{12345, "Sarah", "telegram:12345#sarah"},
+		{12345, "", "telegram:12345", false},
+		{12345, "Sarah", "telegram:12345#sarah", false},
 	}
 
 	for _, tc := range testCases {
-		urn := NewTelegramURN(tc.identifier, tc.display)
+		urn, err := NewTelegramURN(tc.identifier, tc.display)
 		if urn != URN(tc.expected) {
-			t.Errorf("Failed telegram URN, got '%s', expected '%s' for '%d'", urn, tc.expected, tc.identifier)
+			t.Errorf("Failed Telegram URN, got '%s', expected '%s' for '%d'", urn, tc.expected, tc.identifier)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed Telegram URN, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -352,15 +366,20 @@ func TestFirebaseURNs(t *testing.T) {
 	testCases := []struct {
 		identifier string
 		expected   string
+		hasError   bool
 	}{
-		{"12345", "fcm:12345"},
-		{"asdf", "fcm:asdf"},
+		{"12345", "fcm:12345", false},
+		{"asdf", "fcm:asdf", false},
+		{"", "fcm:", true},
 	}
 
 	for _, tc := range testCases {
-		urn := NewFirebaseURN(tc.identifier)
+		urn, err := NewFirebaseURN(tc.identifier)
 		if urn != URN(tc.expected) {
-			t.Errorf("Failed WhatsApp URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
+			t.Errorf("Failed Firebase URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed Firebase URN, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
