@@ -255,6 +255,7 @@ func TestValidate(t *testing.T) {
 		// viber needs to be alphanum
 		{"viber:asdf12354", true},
 		{"viber:asdf!12354", false},
+		{"viber:xy5/5y6O81+/kbWHpLhBoA==", true},
 
 		// whatsapp needs to be integers
 		{"whatsapp:12354", true},
