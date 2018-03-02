@@ -2,6 +2,7 @@ package urns
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -209,62 +210,81 @@ func TestLocalize(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	testCases := []struct {
-		urn     URN
-		isValid bool
+		urn           URN
+		expectedError string
 	}{
-		{"xxxx", false},    // un-parseable URNs don't validate
-		{"xyz:abc", false}, // nor do unknown schemes
+		{"xxxx", "invalid scheme"},    // un-parseable URNs don't validate
+		{"xyz:abc", "invalid scheme"}, // nor do unknown schemes
 
 		// valid tel numbers
-		{"tel:+250788383383", true},
-		{"tel:+23761234567", true},  // old Cameroon format
-		{"tel:+237661234567", true}, // new Cameroon format
-		{"tel:+250788383383", true},
+		{"tel:+250788383383", ""},
+		{"tel:+23761234567", ""},  // old Cameroon format
+		{"tel:+237661234567", ""}, // new Cameroon format
+		{"tel:+250788383383", ""},
 
-		{"tel:+250123", true}, // invalid but parsed we accept it then
+		{"tel:+250123", ""}, // invalid but parsed we accept it then
 
 		// invalid tel numbers
-		{"tel:0788383383", false}, // no country
-		{"tel:MTN", false},
+		{"tel:0788383383", "invalid country code"}, // no country
+		{"tel:MTN", "phone number supplied was empty"},
 
 		// twitter handles
-		{"twitter:jimmyjo", true},
-		{"twitter:billy_bob", true},
-		{"twitter:jimmyjo!@", false},
-		{"twitter:billy bob", false},
+		{"twitter:jimmyjo", ""},
+		{"twitter:billy_bob", ""},
+		{"twitter:jimmyjo!@", "invalid twitter handle"},
+		{"twitter:billy bob", "invalid twitter handle"},
 
 		// twitterid urns
-		{"twitterid:12345#jimmyjo", true},
-		{"twitterid:12345#1234567", true},
-		{"twitterid:jimmyjo#1234567", false},
-		{"twitterid:123#a.!f", false},
+		{"twitterid:12345#jimmyjo", ""},
+		{"twitterid:12345#1234567", ""},
+		{"twitterid:jimmyjo#1234567", "invalid twitter id"},
+		{"twitterid:123#a.!f", "invalid twitter handle"},
 
 		// email addresses
-		{"mailto:abcd+label@x.y.z.com", true},
-		{"mailto:@@@", false},
+		{"mailto:abcd+label@x.y.z.com", ""},
+		{"mailto:@@@", "invalid email"},
 
 		// facebook and telegram URN paths must be integers
-		{"telegram:12345678901234567", true},
-		{"telegram:abcdef", false},
-		{"facebook:12345678901234567", true},
-		{"facebook:abcdef", false},
+		{"telegram:12345678901234567", ""},
+		{"telegram:abcdef", "invalid telegram id"},
+		{"facebook:12345678901234567", ""},
+		{"facebook:abcdef", "invalid facebook id"},
 
 		// facebook refs can be anything
-		{"facebook:ref:facebookRef", true},
+		{"facebook:ref:facebookRef", ""},
+
+		// jiochat IDs
+		{"jiochat:12345", ""},
+		{"jiochat:123de", "invalid jiochat id"},
+
+		// line IDs
+		{"line:Uasd224", ""},
+		{"line:Uqw!123", "invalid line id"},
 
 		// viber needs to be alphanum
-		{"viber:asdf12354", true},
-		{"viber:asdf!12354", false},
+		{"viber:asdf12354", ""},
+		{"viber:asdf!12354", "invalid viber id"},
+		{"viber:xy5/5y6O81+/kbWHpLhBoA==", ""},
 
 		// whatsapp needs to be integers
-		{"whatsapp:12354", true},
-		{"whatsapp:abcde", false},
-		{"whatsapp:+12067799294", false},
+		{"whatsapp:12354", ""},
+		{"whatsapp:abcde", "invalid whatsapp id"},
+		{"whatsapp:+12067799294", "invalid whatsapp id"},
 	}
 
 	for _, tc := range testCases {
 		err := tc.urn.Validate()
-		if err != nil && tc.isValid {
+		if tc.expectedError != "" {
+			if err == nil {
+				t.Errorf("Failed wrong validation, expected error with '%s' for '%s'", tc.expectedError, string(tc.urn))
+			}
+
+			if err != nil && !strings.Contains(err.Error(), tc.expectedError) {
+				t.Errorf("Failed wrong error, '%s' not found in '%s'", tc.expectedError, err.Error())
+			}
+		}
+
+		if err != nil && tc.expectedError == "" {
 			t.Errorf("Failed validating urn, got %s, expected no error for '%s'", err.Error(), string(tc.urn))
 		}
 	}
