@@ -200,7 +200,7 @@ func (u URN) Validate() error {
 			return fmt.Errorf("invalid twitter id: %s", path)
 		}
 		if display != "" && !twitterHandleRegex.MatchString(display) {
-			return fmt.Errorf("invalid display: %s", display)
+			return fmt.Errorf("invalid twitter handle: %s", display)
 		}
 
 	case EmailScheme:
