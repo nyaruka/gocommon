@@ -252,6 +252,14 @@ func TestValidate(t *testing.T) {
 		// facebook refs can be anything
 		{"facebook:ref:facebookRef", true},
 
+		// jiochat IDs
+		{"jiochat:12345", true},
+		{"jiochat:123de", false},
+
+		// line IDs
+		{"line:Uasd224", true},
+		{"line:Uqw!123", false},
+
 		// viber needs to be alphanum
 		{"viber:asdf12354", true},
 		{"viber:asdf!12354", false},
@@ -265,6 +273,10 @@ func TestValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		err := tc.urn.Validate()
+		if err == nil && !tc.isValid {
+			t.Errorf("Failed with wrong validation urn, expected '%s' to be invalid", string(tc.urn))
+		}
+
 		if err != nil && tc.isValid {
 			t.Errorf("Failed validating urn, got %s, expected no error for '%s'", err.Error(), string(tc.urn))
 		}
