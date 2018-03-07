@@ -29,8 +29,7 @@ func TestParseURNAndBack(t *testing.T) {
 		// can't single part
 		{input: "xyz", hasError: true},
 
-		// can't omit scheme or path
-		{input: "scheme:", hasError: true},
+		// can't omit scheme
 		{input: ":path", hasError: true},
 
 		// can't have multiple queries or fragments

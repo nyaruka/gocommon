@@ -235,6 +235,7 @@ func TestValidate(t *testing.T) {
 	}{
 		{"xxxx", "invalid scheme"},    // un-parseable URNs don't validate
 		{"xyz:abc", "invalid scheme"}, // nor do unknown schemes
+		{"tel:", "path cannot be empty"},
 
 		// valid tel numbers
 		{"tel:+250788383383", ""},

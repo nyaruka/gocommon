@@ -179,6 +179,10 @@ func (u URN) Validate() error {
 		return fmt.Errorf("invalid scheme: '%s'", scheme)
 	}
 
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+
 	switch scheme {
 	case TelScheme:
 		// validate is possible phone number
@@ -240,10 +244,6 @@ func (u URN) Validate() error {
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid whatsapp id: %s", path)
 		}
-	}
-
-	if path == "" {
-		return fmt.Errorf("invalid path: '%s'", path)
 	}
 
 	return nil // anything goes for external schemes

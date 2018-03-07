@@ -74,7 +74,7 @@ func parseURN(urn string) (*parsedURN, error) {
 		buffers[state].WriteRune(c)
 	}
 
-	if buffers[stateScheme].Len() == 0 || buffers[statePath].Len() == 0 {
+	if state == stateScheme || buffers[stateScheme].Len() == 0 {
 		return nil, fmt.Errorf("must contain at least scheme and path")
 	}
 
