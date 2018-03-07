@@ -2,6 +2,7 @@ package urns
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -266,10 +267,16 @@ func (u URN) Display() string {
 	return display
 }
 
-// Query returns the query portion for the URN (if any)
-func (u URN) Query() string {
+// RawQuery returns the unparsed query portion for the URN (if any)
+func (u URN) RawQuery() string {
 	_, _, query, _ := u.ToParts()
 	return query
+}
+
+// Query returns the parsed query portion for the URN (if any)
+func (u URN) Query() (url.Values, error) {
+	_, _, query, _ := u.ToParts()
+	return url.ParseQuery(query)
 }
 
 // Identity returns the URN with any query or display attributes stripped

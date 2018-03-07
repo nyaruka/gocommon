@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
+
 const (
 	stateScheme = iota
 	statePath
@@ -16,7 +18,7 @@ const (
 var escapes = map[rune]string{
 	'#': `%23`,
 	'%': `%25`,
-	// '/': `%2F`,  can't enable this until we migrate URNs with slashes
+	// '/': `%2F`,  can't enable this until we fix our URNs with slashes
 	'?': `%3F`,
 }
 
