@@ -2,8 +2,11 @@ package urns
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsFacebookRef(t *testing.T) {
@@ -24,6 +27,25 @@ func TestIsFacebookRef(t *testing.T) {
 		if tc.urn.FacebookRef() != tc.FacebookRef {
 			t.Errorf("Mismatch facebook ref for %s, expected %v", tc.urn, tc.IsFacebookRef)
 		}
+	}
+}
+
+func TestQuery(t *testing.T) {
+	testCases := []struct {
+		urn      URN
+		rawQuery string
+		query    url.Values
+	}{
+		{"facebook:ref:12345?foo=bar&foo=zap", "foo=bar&foo=zap", map[string][]string{"foo": {"bar", "zap"}}},
+		{"tel:+250788383383", "", map[string][]string{}},
+		{"twitter:85114?foo=bar#foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
+	}
+	for _, tc := range testCases {
+		if tc.urn.RawQuery() != tc.rawQuery {
+			t.Errorf("Mismatch raw query for '%s', expected '%s', got '%s'", tc.urn, tc.rawQuery, tc.urn.RawQuery())
+		}
+		query, _ := tc.urn.Query()
+		assert.Equal(t, query, tc.query, "Mismatch raw query for '%s', expected '%s', got '%s'", tc.urn, tc.rawQuery, tc.urn.RawQuery())
 	}
 }
 
