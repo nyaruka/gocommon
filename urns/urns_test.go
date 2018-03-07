@@ -109,16 +109,18 @@ func TestFromParts(t *testing.T) {
 		{"facebook", "12345", "", "facebook:12345", "facebook:12345", false},
 		{"telegram", "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345", false},
-		{"viber", "", "", "", "", true},
+		{"viber", "", "", "", ":", true},
 	}
 
 	for _, tc := range testCases {
-		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
+		urn, err := NewValidatedURNFromParts(tc.scheme, tc.path, "", tc.display)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}
-		if urn.Identity() != tc.identity {
-			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
+
+		identity := urn.Identity()
+		if identity != URN(tc.identity) {
+			t.Errorf("Failed creating urn, got identity '%s', expected '%s' for '%s:%s'", identity, tc.identity, tc.scheme, tc.path)
 		}
 
 		if err != nil != tc.hasError {
