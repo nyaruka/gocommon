@@ -140,7 +140,7 @@ func (u URN) ToParts() (string, string, string, string) {
 }
 
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
-func (u URN) Normalize(country string) (URN, error) {
+func (u URN) Normalize(country string) URN {
 	scheme, path, query, display := u.ToParts()
 	normPath := strings.TrimSpace(path)
 
@@ -169,7 +169,7 @@ func (u URN) Normalize(country string) (URN, error) {
 		normPath = strings.ToLower(normPath)
 	}
 
-	return NewValidatedURNFromParts(scheme, normPath, query, display)
+	return NewURNFromParts(scheme, normPath, query, display)
 }
 
 // Validate returns whether this URN is considered valid
