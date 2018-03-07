@@ -85,31 +85,31 @@ type URN string
 
 // NewTelURNForCountry returns a URN for the passed in telephone number and country code ("US")
 func NewTelURNForCountry(number string, country string) (URN, error) {
-	return NewValidatedURNFromParts(TelScheme, normalizeNumber(number, country), "", "")
+	return NewURNFromParts(TelScheme, normalizeNumber(number, country), "", "")
 }
 
 // NewTelegramURN returns a URN for the passed in telegram identifier
 func NewTelegramURN(identifier int64, display string) (URN, error) {
-	return NewValidatedURNFromParts(TelegramScheme, strconv.FormatInt(identifier, 10), "", display)
+	return NewURNFromParts(TelegramScheme, strconv.FormatInt(identifier, 10), "", display)
 }
 
 // NewWhatsAppURN returns a URN for the passed in whatsapp identifier
 func NewWhatsAppURN(identifier string) (URN, error) {
-	return NewValidatedURNFromParts(WhatsAppScheme, identifier, "", "")
+	return NewURNFromParts(WhatsAppScheme, identifier, "", "")
 }
 
 // NewFirebaseURN returns a URN for the passed in firebase identifier
 func NewFirebaseURN(identifier string) (URN, error) {
-	return NewValidatedURNFromParts(FCMScheme, identifier, "", "")
+	return NewURNFromParts(FCMScheme, identifier, "", "")
 }
 
 // NewFacebookURN returns a URN for the passed in facebook identifier
 func NewFacebookURN(identifier string) (URN, error) {
-	return NewValidatedURNFromParts(FacebookScheme, identifier, "", "")
+	return NewURNFromParts(FacebookScheme, identifier, "", "")
 }
 
-// NewURNFromParts returns a new URN for the given scheme, path, query and display
-func NewURNFromParts(scheme string, path string, query string, display string) URN {
+// returns a new URN for the given scheme, path, query and display
+func newURNFromParts(scheme string, path string, query string, display string) URN {
 	u := &parsedURN{
 		scheme:   scheme,
 		path:     path,
@@ -119,9 +119,9 @@ func NewURNFromParts(scheme string, path string, query string, display string) U
 	return URN(u.String())
 }
 
-// NewValidatedURNFromParts returns a validated URN for the given scheme, path, query and display
-func NewValidatedURNFromParts(scheme string, path string, query string, display string) (URN, error) {
-	urn := NewURNFromParts(scheme, path, query, display)
+// NewURNFromParts returns a validated URN for the given scheme, path, query and display
+func NewURNFromParts(scheme string, path string, query string, display string) (URN, error) {
+	urn := newURNFromParts(scheme, path, query, display)
 	err := urn.Validate()
 	if err != nil {
 		return NilURN, err
@@ -169,7 +169,7 @@ func (u URN) Normalize(country string) URN {
 		normPath = strings.ToLower(normPath)
 	}
 
-	return NewURNFromParts(scheme, normPath, query, display)
+	return newURNFromParts(scheme, normPath, query, display)
 }
 
 // Validate returns whether this URN is considered valid
@@ -282,7 +282,7 @@ func (u URN) Query() (url.Values, error) {
 // Identity returns the URN with any query or display attributes stripped
 func (u URN) Identity() URN {
 	scheme, path, _, _ := u.ToParts()
-	return NewURNFromParts(scheme, path, "", "")
+	return newURNFromParts(scheme, path, "", "")
 }
 
 // Localize returns a new URN which is local to the given country
@@ -295,8 +295,7 @@ func (u URN) Localize(country string) URN {
 			path = strconv.FormatUint(parsed.GetNationalNumber(), 10)
 		}
 	}
-
-	return NewURNFromParts(scheme, path, query, display)
+	return newURNFromParts(scheme, path, query, display)
 }
 
 // IsFacebookRef returns whether this URN is a facebook referral

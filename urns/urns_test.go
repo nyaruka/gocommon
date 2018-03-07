@@ -113,7 +113,7 @@ func TestFromParts(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		urn, err := NewValidatedURNFromParts(tc.scheme, tc.path, "", tc.display)
+		urn, err := NewURNFromParts(tc.scheme, tc.path, "", tc.display)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}

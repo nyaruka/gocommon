@@ -1,7 +1,6 @@
 package urns
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -43,7 +42,7 @@ func (u *parsedURN) String() string {
 func parseURN(urn string) (*parsedURN, error) {
 	state := stateScheme
 
-	buffers := map[int]*bytes.Buffer{
+	buffers := map[int]*strings.Builder{
 		stateScheme:   {},
 		statePath:     {},
 		stateQuery:    {},
@@ -88,7 +87,7 @@ func parseURN(urn string) (*parsedURN, error) {
 }
 
 func escape(s string) string {
-	b := bytes.Buffer{}
+	b := strings.Builder{}
 	for _, c := range s {
 		esc, isEsc := escapes[c]
 		if isEsc {

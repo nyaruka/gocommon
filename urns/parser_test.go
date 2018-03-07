@@ -17,6 +17,7 @@ func TestParseURNAndBack(t *testing.T) {
 		{input: "scheme:path#frag", scheme: "scheme", path: "path", fragment: "frag"},
 		{input: "scheme:path?query", scheme: "scheme", path: "path", query: "query"},
 		{input: "scheme:path?query#frag", scheme: "scheme", path: "path", query: "query", fragment: "frag"},
+		{input: "scheme:path?bar=foo&bar=zap#frag", scheme: "scheme", path: "path", query: "bar=foo&bar=zap", fragment: "frag"},
 		{input: "scheme:pa%25th?qu%23ery#fra%3Fg", scheme: "scheme", path: "pa%th", query: "qu#ery", fragment: "fra?g"},
 
 		{input: "scheme:path:morepath", scheme: "scheme", path: "path:morepath"},
