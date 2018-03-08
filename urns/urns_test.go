@@ -2,8 +2,11 @@ package urns
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsFacebookRef(t *testing.T) {
@@ -24,6 +27,25 @@ func TestIsFacebookRef(t *testing.T) {
 		if tc.urn.FacebookRef() != tc.FacebookRef {
 			t.Errorf("Mismatch facebook ref for %s, expected %v", tc.urn, tc.IsFacebookRef)
 		}
+	}
+}
+
+func TestQuery(t *testing.T) {
+	testCases := []struct {
+		urn      URN
+		rawQuery string
+		query    url.Values
+	}{
+		{"facebook:ref:12345?foo=bar&foo=zap", "foo=bar&foo=zap", map[string][]string{"foo": {"bar", "zap"}}},
+		{"tel:+250788383383", "", map[string][]string{}},
+		{"twitter:85114?foo=bar#foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
+	}
+	for _, tc := range testCases {
+		if tc.urn.RawQuery() != tc.rawQuery {
+			t.Errorf("Mismatch raw query for '%s', expected '%s', got '%s'", tc.urn, tc.rawQuery, tc.urn.RawQuery())
+		}
+		query, _ := tc.urn.Query()
+		assert.Equal(t, query, tc.query, "Mismatch raw query for '%s', expected '%s', got '%s'", tc.urn, tc.rawQuery, tc.urn.RawQuery())
 	}
 }
 
@@ -109,16 +131,18 @@ func TestFromParts(t *testing.T) {
 		{"facebook", "12345", "", "facebook:12345", "facebook:12345", false},
 		{"telegram", "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{"whatsapp", "12345", "", "whatsapp:12345", "whatsapp:12345", false},
-		{"viber", "", "", "", "", true},
+		{"viber", "", "", "", ":", true},
 	}
 
 	for _, tc := range testCases {
-		urn, err := NewURNFromParts(tc.scheme, tc.path, tc.display)
+		urn, err := NewURNFromParts(tc.scheme, tc.path, "", tc.display)
 		if urn != URN(tc.expected) {
 			t.Errorf("Failed creating urn, got '%s', expected '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
 		}
-		if urn.Identity() != tc.identity {
-			t.Errorf("Failed creating urn, got identity '%s', expected identity '%s' for '%s:%s'", urn, tc.expected, tc.scheme, tc.path)
+
+		identity := urn.Identity()
+		if identity != URN(tc.identity) {
+			t.Errorf("Failed creating urn, got identity '%s', expected '%s' for '%s:%s'", identity, tc.identity, tc.scheme, tc.path)
 		}
 
 		if err != nil != tc.hasError {
@@ -132,47 +156,43 @@ func TestNormalize(t *testing.T) {
 		rawURN   URN
 		country  string
 		expected URN
-		hasError bool
 	}{
 		// valid tel numbers
-		{"tel:0788383383", "RW", "tel:+250788383383", false},
-		{"tel: +250788383383 ", "KE", "tel:+250788383383", false},
-		{"tel:+250788383383", "", "tel:+250788383383", false},
-		{"tel:250788383383", "", "tel:+250788383383", false},
-		{"tel:2.50788383383E+11", "", "tel:+250788383383", false},
-		{"tel:2.50788383383E+12", "", "tel:+250788383383", false},
-		{"tel:(917)992-5253", "US", "tel:+19179925253", false},
-		{"tel:19179925253", "", "tel:+19179925253", false},
-		{"tel:+62877747666", "", "tel:+62877747666", false},
-		{"tel:62877747666", "ID", "tel:+62877747666", false},
-		{"tel:0877747666", "ID", "tel:+62877747666", false},
-		{"tel:07531669965", "GB", "tel:+447531669965", false},
-		{"tel:22658125926", "", "tel:+22658125926", false},
+		{"tel:0788383383", "RW", "tel:+250788383383"},
+		{"tel: +250788383383 ", "KE", "tel:+250788383383"},
+		{"tel:+250788383383", "", "tel:+250788383383"},
+		{"tel:250788383383", "", "tel:+250788383383"},
+		{"tel:2.50788383383E+11", "", "tel:+250788383383"},
+		{"tel:2.50788383383E+12", "", "tel:+250788383383"},
+		{"tel:(917)992-5253", "US", "tel:+19179925253"},
+		{"tel:19179925253", "", "tel:+19179925253"},
+		{"tel:+62877747666", "", "tel:+62877747666"},
+		{"tel:62877747666", "ID", "tel:+62877747666"},
+		{"tel:0877747666", "ID", "tel:+62877747666"},
+		{"tel:07531669965", "GB", "tel:+447531669965"},
+		{"tel:22658125926", "", "tel:+22658125926"},
 
 		// un-normalizable tel numbers
-		{"tel:12345", "RW", "", true},
-		{"tel:0788383383", "", "", true},
-		{"tel:0788383383", "ZZ", "", true},
-		{"tel:MTN", "RW", "", true},
+		{"tel:12345", "RW", "tel:12345"},
+		{"tel:0788383383", "", "tel:0788383383"},
+		{"tel:0788383383", "ZZ", "tel:0788383383"},
+		{"tel:MTN", "RW", "tel:mtn"},
 
 		// twitter handles remove @
-		{"twitter: @jimmyJO", "", "twitter:jimmyjo", false},
-		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo", false},
+		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
+		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo"},
 
 		// email addresses
-		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com", false},
+		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com"},
 
 		// external ids are case sensitive
-		{"ext: eXterNAL123 ", "", "ext:eXterNAL123", false},
+		{"ext: eXterNAL123 ", "", "ext:eXterNAL123"},
 	}
 
 	for _, tc := range testCases {
-		normalized, err := tc.rawURN.Normalize(tc.country)
+		normalized := tc.rawURN.Normalize(tc.country)
 		if normalized != tc.expected {
 			t.Errorf("Failed normalizing urn, got '%s', expected '%s' for '%s' in country %s", normalized, tc.expected, string(tc.rawURN), tc.country)
-		}
-		if err != nil != tc.hasError {
-			t.Errorf("Failed normalizing urn, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
@@ -213,8 +233,9 @@ func TestValidate(t *testing.T) {
 		urn           URN
 		expectedError string
 	}{
-		{"xxxx", "invalid scheme"},    // un-parseable URNs don't validate
-		{"xyz:abc", "invalid scheme"}, // nor do unknown schemes
+		{"xxxx", "scheme or path cannot be empty"}, // un-parseable URNs don't validate
+		{"xyz:abc", "invalid scheme"},              // nor do unknown schemes
+		{"tel:", "scheme or path cannot be empty"},
 
 		// valid tel numbers
 		{"tel:+250788383383", ""},
@@ -280,7 +301,7 @@ func TestValidate(t *testing.T) {
 			}
 
 			if err != nil && !strings.Contains(err.Error(), tc.expectedError) {
-				t.Errorf("Failed wrong error, '%s' not found in '%s'", tc.expectedError, err.Error())
+				t.Errorf("Failed wrong error, '%s' not found in '%s' for '%s'", tc.expectedError, err.Error(), string(tc.urn))
 			}
 		}
 
