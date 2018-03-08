@@ -7,13 +7,6 @@ import (
 
 // Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
 
-const (
-	stateScheme = iota
-	statePath
-	stateQuery
-	stateFragment
-)
-
 var escapes = map[rune]string{
 	'#': `%23`,
 	'%': `%25`,
@@ -38,6 +31,13 @@ func (u *parsedURN) String() string {
 	}
 	return s
 }
+
+const (
+	stateScheme = iota
+	statePath
+	stateQuery
+	stateFragment
+)
 
 func parseURN(urn string) (*parsedURN, error) {
 	state := stateScheme
@@ -74,8 +74,11 @@ func parseURN(urn string) (*parsedURN, error) {
 		buffers[state].WriteRune(c)
 	}
 
-	if state == stateScheme || buffers[stateScheme].Len() == 0 {
-		return nil, fmt.Errorf("must contain at least scheme and path")
+	if buffers[stateScheme].Len() == 0 {
+		return nil, fmt.Errorf("scheme cannot be empty")
+	}
+	if buffers[statePath].Len() == 0 {
+		return nil, fmt.Errorf("path cannot be empty")
 	}
 
 	return &parsedURN{

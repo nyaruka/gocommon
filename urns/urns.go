@@ -175,12 +175,12 @@ func (u URN) Normalize(country string) URN {
 // Validate returns whether this URN is considered valid
 func (u URN) Validate() error {
 	scheme, path, _, display := u.ToParts()
+
+	if scheme == "" || path == "" {
+		return fmt.Errorf("scheme or path cannot be empty")
+	}
 	if !IsValidScheme(scheme) {
 		return fmt.Errorf("invalid scheme: '%s'", scheme)
-	}
-
-	if path == "" {
-		return fmt.Errorf("path cannot be empty")
 	}
 
 	switch scheme {

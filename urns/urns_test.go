@@ -233,9 +233,9 @@ func TestValidate(t *testing.T) {
 		urn           URN
 		expectedError string
 	}{
-		{"xxxx", "invalid scheme"},    // un-parseable URNs don't validate
-		{"xyz:abc", "invalid scheme"}, // nor do unknown schemes
-		{"tel:", "path cannot be empty"},
+		{"xxxx", "scheme or path cannot be empty"}, // un-parseable URNs don't validate
+		{"xyz:abc", "invalid scheme"},              // nor do unknown schemes
+		{"tel:", "scheme or path cannot be empty"},
 
 		// valid tel numbers
 		{"tel:+250788383383", ""},
@@ -301,7 +301,7 @@ func TestValidate(t *testing.T) {
 			}
 
 			if err != nil && !strings.Contains(err.Error(), tc.expectedError) {
-				t.Errorf("Failed wrong error, '%s' not found in '%s'", tc.expectedError, err.Error())
+				t.Errorf("Failed wrong error, '%s' not found in '%s' for '%s'", tc.expectedError, err.Error(), string(tc.urn))
 			}
 		}
 
