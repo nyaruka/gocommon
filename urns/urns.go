@@ -311,22 +311,6 @@ func (u URN) FacebookRef() string {
 	return ""
 }
 
-// Resolve is called when a URN is part of an excellent expression
-func (u URN) Resolve(key string) interface{} {
-	switch key {
-	case "display":
-		return u.Display()
-	case "path":
-		return u.Path()
-	case "scheme":
-		return u.Scheme()
-	}
-	return fmt.Errorf("no field '%s' on URN", key)
-}
-
-// Default is called when a URN is part of an excellent expression
-func (u URN) Default() interface{} { return u }
-
 // String returns the string representation of this URN
 func (u URN) String() string { return string(u) }
 

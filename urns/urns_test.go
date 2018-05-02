@@ -1,7 +1,6 @@
 package urns
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -78,41 +77,6 @@ func TestFormat(t *testing.T) {
 	for _, tc := range testCases {
 		if tc.urn.Format() != tc.format {
 			t.Errorf("Mismatch format for %s, expected %s, got %s", tc.urn, tc.format, tc.urn.Format())
-		}
-	}
-}
-
-func TestResolve(t *testing.T) {
-	testCases := []struct {
-		urn      URN
-		key      string
-		hasValue bool
-		value    string
-	}{
-		{"facebook:ref:12345", "scheme", true, "facebook"},
-		{"facebook:ref:12345", "display", true, ""},
-		{"facebook:ref:12345", "path", true, "ref:12345"},
-		{"twitter:85114#foobar", "display", true, "foobar"},
-		{"twitter:85114#foobar", "notkey", false, ""},
-	}
-	for _, tc := range testCases {
-		val := tc.urn.Resolve(tc.key)
-		err, isErr := val.(error)
-
-		if tc.hasValue && isErr {
-			t.Errorf("Got unexpected error resolving %s for %s: %s", tc.key, tc.urn, err)
-		}
-
-		if !tc.hasValue && !isErr {
-			t.Errorf("Did not get expected error resolving %s for %s: %s", tc.key, tc.urn, err)
-		}
-
-		if tc.hasValue && tc.value != val {
-			t.Errorf("Did not get expected value resolving %s for %s. Got %s expected %s", tc.key, tc.urn, val, tc.value)
-		}
-
-		if fmt.Sprintf("%s", tc.urn.Default()) != tc.urn.String() {
-			t.Errorf("Default value was not string value for %s", tc.urn)
 		}
 	}
 }
