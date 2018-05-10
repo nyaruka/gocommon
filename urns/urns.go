@@ -74,6 +74,7 @@ func IsValidScheme(scheme string) bool {
 }
 
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9a-z]`)
+var telRegex = regexp.MustCompile(`^\+?[a-zA-Z0-9]{3,16}$`)
 var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
 var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
 var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=/+]{1,24}$`)
@@ -186,10 +187,10 @@ func (u URN) Validate() error {
 	switch scheme {
 	case TelScheme:
 		// validate is possible phone number
-		_, err := phonenumbers.Parse(path, "")
-		if err != nil {
-			return err
+		if !telRegex.MatchString(path) {
+			return fmt.Errorf("invalid tel number: %s", path)
 		}
+
 	case TwitterScheme:
 		// validate twitter URNs look like handles
 		if !twitterHandleRegex.MatchString(path) {

@@ -203,15 +203,15 @@ func TestValidate(t *testing.T) {
 
 		// valid tel numbers
 		{"tel:+250788383383", ""},
-		{"tel:+23761234567", ""},  // old Cameroon format
-		{"tel:+237661234567", ""}, // new Cameroon format
 		{"tel:+250788383383", ""},
-
-		{"tel:+250123", ""}, // invalid but parsed we accept it then
+		{"tel:+250123", ""},
+		{"tel:1337", ""},
+		{"tel:PRIZES", ""},
 
 		// invalid tel numbers
-		{"tel:0788383383", "invalid country code"}, // no country
-		{"tel:MTN", "phone number supplied was empty"},
+		{"tel:07883 83383", "invalid tel number"},       // can't have spaces
+		{"tel:12", "invalid tel number"},                // too short
+		{"tel:12345678901234567", "invalid tel number"}, // too long
 
 		// twitter handles
 		{"twitter:jimmyjo", ""},
@@ -292,10 +292,12 @@ func TestTelURNs(t *testing.T) {
 		{"62877747666", "ID", "tel:+62877747666", false},
 		{"0877747666", "ID", "tel:+62877747666", false},
 		{"07531669965", "GB", "tel:+447531669965", false},
-		{"12345", "RW", "", true},
-		{"0788383383", "", "", true},
-		{"0788383383", "ZZ", "", true},
-		{"MTN", "RW", "", true},
+		{"12345", "RW", "tel:12345", false},
+		{"0788383383", "", "tel:0788383383", false},
+		{"0788383383", "ZZ", "tel:0788383383", false},
+		{"PRIZES", "RW", "tel:prizes", false},
+		{"1", "RW", "", true},
+		{"123456789012345678901234567890", "RW", "", true},
 	}
 
 	for _, tc := range testCases {

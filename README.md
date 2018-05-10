@@ -7,5 +7,5 @@ Common functionality in goflow and courier.
 You can run all the tests (excluding tests in vendor packages) with:
 
 ```
-% go test $(go list ./... | grep -v /vendor/)
+% go test github.com/nyaruka/gocommon/...
 ```
