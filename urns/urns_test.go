@@ -242,6 +242,9 @@ func TestValidate(t *testing.T) {
 		{"jiochat:12345", ""},
 		{"jiochat:123de", "invalid jiochat id"},
 
+		// WeChat Open IDs
+		{"wechat:o6_bmjrPTlm6_2sgVt7hMZOPfL2M", ""},
+
 		// line IDs
 		{"line:Uasd224", ""},
 		{"line:Uqw!123", "invalid line id"},
