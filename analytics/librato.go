@@ -60,10 +60,6 @@ func NewLibrato(url string, username string, token string, source string, timeou
 
 // Start starts our librato sender, callers can use Stop to stop it
 func (c *librato) Start() {
-	if c == nil {
-		return
-	}
-
 	go func() {
 		c.waitGroup.Add(1)
 		defer c.waitGroup.Done()
@@ -89,11 +85,6 @@ func (c *librato) Start() {
 
 // Gauge can be used to add a new gauge to be sent to librato
 func (c *librato) Gauge(name string, value float64) {
-	// if no librato configured, return
-	if c == nil {
-		return
-	}
-
 	// our buffer is full, log an error but continue
 	if len(c.buffer) >= cap(c.buffer) {
 		logrus.Error("unable to add new gauges, buffer full, you may want to increase your buffer size or decrease your timeout")
@@ -105,9 +96,6 @@ func (c *librato) Gauge(name string, value float64) {
 
 // Stop stops our sender, callers can use the WaitGroup used during initialization to block for stop
 func (c *librato) Stop() {
-	if c == nil {
-		return
-	}
 	close(c.stop)
 }
 
