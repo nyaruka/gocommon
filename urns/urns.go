@@ -29,6 +29,9 @@ const (
 	// LineScheme is the scheme used for LINE identifiers
 	LineScheme string = "line"
 
+	// RbmScheme is the scheme used for RBM messaging
+	RbmScheme string = "rbm"
+
 	// TelegramScheme is the scheme used for Telegram identifiers
 	TelegramScheme string = "telegram"
 
@@ -62,6 +65,7 @@ var ValidSchemes = map[string]bool{
 	FCMScheme:       true,
 	JiochatScheme:   true,
 	LineScheme:      true,
+	RbmScheme:       true,
 	TelegramScheme:  true,
 	TelScheme:       true,
 	TwitterIDScheme: true,
@@ -101,6 +105,11 @@ func NewTelegramURN(identifier int64, display string) (URN, error) {
 // NewWhatsAppURN returns a URN for the passed in whatsapp identifier
 func NewWhatsAppURN(identifier string) (URN, error) {
 	return NewURNFromParts(WhatsAppScheme, identifier, "", "")
+}
+
+// NewRbmURN returns a URN for the passed in whatsapp identifier
+func NewRbmURN(identifier string) (URN, error) {
+	return NewURNFromParts(RbmScheme, identifier, "", "")
 }
 
 // NewFirebaseURN returns a URN for the passed in firebase identifier
@@ -234,7 +243,10 @@ func (u URN) Validate() error {
 		if !lineRegex.MatchString(path) {
 			return fmt.Errorf("invalid line id: %s", path)
 		}
-
+	case RbmScheme:
+		if !telRegex.MatchString(path) {
+			return fmt.Errorf("invalid rbm number: %s", path)
+		}
 	case TelegramScheme:
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid telegram id: %s", path)
