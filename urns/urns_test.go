@@ -17,6 +17,7 @@ func TestIsFacebookRef(t *testing.T) {
 		{"facebook:ref:12345", true, "12345"},
 		{"facebook:12345", false, ""},
 		{"tel:25078838383", false, ""},
+		{"rbm:25078838383", false, ""},
 	}
 	for _, tc := range testCases {
 		if tc.urn.IsFacebookRef() != tc.IsFacebookRef {
@@ -37,6 +38,7 @@ func TestQuery(t *testing.T) {
 	}{
 		{"facebook:ref:12345?foo=bar&foo=zap", "foo=bar&foo=zap", map[string][]string{"foo": {"bar", "zap"}}},
 		{"tel:+250788383383", "", map[string][]string{}},
+		{"rbm:+250788383383", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
 	}
 	for _, tc := range testCases {
@@ -55,6 +57,7 @@ func TestDisplay(t *testing.T) {
 	}{
 		{"facebook:ref:12345", ""},
 		{"tel:+250788383383", ""},
+		{"rbm:+250788383383", ""},
 		{"twitter:85114#foobar", "foobar"},
 	}
 	for _, tc := range testCases {
@@ -70,6 +73,7 @@ func TestFormat(t *testing.T) {
 		format string
 	}{
 		{"tel:+250788383383", "0788 383 383"},
+		{"rbm:+250788383383", "0788 383 383"},
 		{"twitter:85114#billy_bob", "billy_bob"},
 		{"twitter:billy_bob", "billy_bob"},
 		{"tel:not-a-number", "not-a-number"},
@@ -91,6 +95,7 @@ func TestFromParts(t *testing.T) {
 		hasError bool
 	}{
 		{"tel", "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
+		{"rbm", "+250788383383", "", "rbm:+250788383383", "rbm:+250788383383", false},
 		{"twitter", "hello", "", "twitter:hello", "twitter:hello", false},
 		{"facebook", "12345", "", "facebook:12345", "facebook:12345", false},
 		{"telegram", "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
@@ -136,6 +141,21 @@ func TestNormalize(t *testing.T) {
 		{"tel:07531669965", "GB", "tel:+447531669965"},
 		{"tel:22658125926", "", "tel:+22658125926"},
 
+		// valid rbms
+		{"rbm:0788383383", "RW", "rbm:+250788383383"},
+		{"rbm: +250788383383 ", "KE", "rbm:+250788383383"},
+		{"rbm:+250788383383", "", "rbm:+250788383383"},
+		{"rbm:250788383383", "", "rbm:+250788383383"},
+		{"rbm:2.50788383383E+11", "", "rbm:+250788383383"},
+		{"rbm:2.50788383383E+12", "", "rbm:+250788383383"},
+		{"rbm:(917)992-5253", "US", "rbm:+19179925253"},
+		{"rbm:19179925253", "", "rbm:+19179925253"},
+		{"rbm:+62877747666", "", "rbm:+62877747666"},
+		{"rbm:62877747666", "ID", "rbm:+62877747666"},
+		{"rbm:0877747666", "ID", "rbm:+62877747666"},
+		{"rbm:07531669965", "GB", "rbm:+447531669965"},
+		{"rbm:22658125926", "", "rbm:+22658125926"},
+
 		// un-normalizable tel numbers
 		{"tel:12345", "RW", "tel:12345"},
 		{"tel:0788383383", "", "tel:0788383383"},
@@ -172,6 +192,11 @@ func TestLocalize(t *testing.T) {
 		{"tel:+447531669965", "GB", "tel:7531669965"},
 		{"tel:+19179925253", "US", "tel:9179925253"},
 
+		// valid rbm numbers
+		{"rbm:+250788383383", "RW", "rbm:788383383"},
+		{"rbm:+447531669965", "GB", "rbm:7531669965"},
+		{"rbm:+19179925253", "US", "rbm:9179925253"},
+
 		// un-localizable tel numbers
 		{"tel:12345", "RW", "tel:12345"},
 		{"tel:0788383383", "", "tel:0788383383"},
@@ -207,6 +232,11 @@ func TestValidate(t *testing.T) {
 		{"tel:+250123", ""},
 		{"tel:1337", ""},
 		{"tel:PRIZES", ""},
+
+		// valid tel numbers
+		{"rbm:+250788383383", ""},
+		{"rbm:+250788383383", ""},
+		{"rbm:+250123", ""},
 
 		// invalid tel numbers
 		{"tel:07883 83383", "invalid tel number"},       // can't have spaces
@@ -355,6 +385,27 @@ func TestWhatsAppURNs(t *testing.T) {
 		}
 		if err != nil != tc.hasError {
 			t.Errorf("Failed WhatsApp URN, got error: %s when expecting: %s", err.Error(), tc.expected)
+		}
+	}
+}
+
+func TestRbmURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   string
+		hasError   bool
+	}{
+		{"12345", "rbm:+12345", false},
+		{"+12345", "", true},
+	}
+
+	for _, tc := range testCases {
+		urn, err := NewRbmURN(tc.identifier)
+		if urn != URN(tc.expected) {
+			t.Errorf("Failed RBM URN, got '%s', expected '%s' for '%s'", urn, tc.expected, tc.identifier)
+		}
+		if err != nil != tc.hasError {
+			t.Errorf("Failed RBM URN, got error: %s when expecting: %s", err.Error(), tc.expected)
 		}
 	}
 }
