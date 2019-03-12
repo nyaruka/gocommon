@@ -302,7 +302,9 @@ func TestTelURNs(t *testing.T) {
 		{"0788383383", "ZZ", "tel:0788383383", false},
 		{"PRIZES", "RW", "tel:prizes", false},
 		{"PRIZES!", "RW", "tel:prizes", false},
-		{"1", "RW", "", true},
+		{"1", "RW", "tel:1", false},
+		{"", "RW", "", true},
+		{"-", "RW", "", true},
 		{"123456789012345678901234567890", "RW", "", true},
 	}
 
