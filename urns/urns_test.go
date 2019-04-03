@@ -208,10 +208,10 @@ func TestValidate(t *testing.T) {
 		{"tel:1337", ""},
 		{"tel:PRIZES", ""},
 		{"tel:cellbroadcastchannel50", ""},
-		
+
 		// invalid tel numbers
-		{"tel:07883 83383", "invalid tel number"},       // can't have spaces
-		{"tel:12", "invalid tel number"},                // too short
+		{"tel:07883 83383", "invalid tel number"}, // can't have spaces
+		{"tel:12", "invalid tel number"},          // too short
 
 		// twitter handles
 		{"twitter:jimmyjo", ""},
@@ -302,7 +302,7 @@ func TestTelURNs(t *testing.T) {
 		{"PRIZES", "RW", "tel:prizes", false},
 		{"PRIZES!", "RW", "tel:prizes", false},
 		{"1", "RW", "", true},
-		{"123456789012345678901234567890", "RW", "", true},
+		{"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "RW", "", true},
 	}
 
 	for _, tc := range testCases {
