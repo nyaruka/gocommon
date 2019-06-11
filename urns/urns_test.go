@@ -206,12 +206,13 @@ func TestValidate(t *testing.T) {
 		{"tel:+250788383383", ""},
 		{"tel:+250123", ""},
 		{"tel:1337", ""},
+		{"tel:13", ""}, // two digit shortcodes are a thing
 		{"tel:PRIZES", ""},
 		{"tel:cellbroadcastchannel50", ""},
 
 		// invalid tel numbers
 		{"tel:07883 83383", "invalid tel number"}, // can't have spaces
-		{"tel:12", "invalid tel number"},          // too short
+		{"tel:1", "invalid tel number"},          // too short
 
 		// twitter handles
 		{"twitter:jimmyjo", ""},
