@@ -23,6 +23,9 @@ const (
 	// FCMScheme is the scheme used for Firebase Cloud Messaging identifiers
 	FCMScheme string = "fcm"
 
+	// FreshChatScheme is the scheme used for FreshChat Cloud Messaging identifiers
+	FreshChatScheme string = "freshchat"
+
 	// JiochatScheme is the scheme used for Jiochat identifiers
 	JiochatScheme string = "jiochat"
 
@@ -60,6 +63,7 @@ var ValidSchemes = map[string]bool{
 	ExternalScheme:  true,
 	FacebookScheme:  true,
 	FCMScheme:       true,
+	FreshChatScheme: true,
 	JiochatScheme:   true,
 	LineScheme:      true,
 	TelegramScheme:  true,
