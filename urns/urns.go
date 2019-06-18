@@ -256,15 +256,16 @@ func (u URN) Validate() error {
 		}
 
 	case FreshFreshChatScheme:
-	// validate path and query is a uuid
-	if !freshchatRegex.MatchString(path) {
-		return fmt.Errorf("invalid freshchat id: %s", path)
-	}
-	if !freshchatRegex.MatchString(query) {
-		return fmt.Errorf("invalid freshchat channel id: %s", query)
-	}
+		// validate path and query is a uuid
+		if !freshchatRegex.MatchString(path) {
+			return fmt.Errorf("invalid freshchat id: %s", path)
+		}
+		if !freshchatRegex.MatchString(query) {
+			return fmt.Errorf("invalid freshchat channel id: %s", query)
+		}
 
-	return nil // anything goes for external schemes
+		return nil // anything goes for external schemes
+	}
 }
 
 // Scheme returns the scheme portion for the URN
