@@ -261,7 +261,7 @@ func TestValidate(t *testing.T) {
 		{"whatsapp:+12067799294", "invalid whatsapp id"},
 
 		// freschat has to be two uuids separated by a colon
-		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22:6a2f41a3-c54c-fce8-32d2-0324e1c32e22", ""},
+		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22/6a2f41a3-c54c-fce8-32d2-0324e1c32e22", ""},
 		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22", "invalid freshchat id"},
 		{"freshchat:+12067799294", "invalid freshchat id"},
 	}
