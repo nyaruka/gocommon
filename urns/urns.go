@@ -139,6 +139,16 @@ func NewURNFromParts(scheme string, path string, query string, display string) (
 	return urn, nil
 }
 
+// Parse parses a URN from the given string. The returned URN is only guaranteed to be structurally valid.
+func Parse(s string) (URN, error) {
+	parsed, err := parseURN(s)
+	if err != nil {
+		return NilURN, err
+	}
+
+	return URN(parsed.String()), nil
+}
+
 // ToParts splits the URN into scheme, path and display parts
 func (u URN) ToParts() (string, string, string, string) {
 	parsed, err := parseURN(string(u))

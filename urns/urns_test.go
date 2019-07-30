@@ -192,6 +192,33 @@ func TestLocalize(t *testing.T) {
 	}
 }
 
+func TestParse(t *testing.T) {
+	testCases := []struct {
+		input         string
+		urn           URN
+		expectedError string
+	}{
+		{"xxxx", NilURN, "path cannot be empty"},
+		{"tel:", NilURN, "path cannot be empty"},
+		{":xxxx", NilURN, "scheme cannot be empty"},
+		{"tel:46362#rrh#gege", NilURN, "fragment component can only come after path or query components"},
+
+		// no semantic validation
+		{"xyz:abc", URN("xyz:abc"), ""},
+		{"tel:****", URN("tel:****"), ""},
+	}
+
+	for _, tc := range testCases {
+		actual, err := Parse(tc.input)
+		if tc.expectedError != "" {
+			assert.EqualError(t, err, tc.expectedError, "error mismatch for %s", tc.input)
+		} else {
+			assert.NoError(t, err, "unexpected error for %s", tc.input)
+			assert.Equal(t, tc.urn, actual, "parsed URN mismatch for %s", tc.input)
+		}
+	}
+}
+
 func TestValidate(t *testing.T) {
 	testCases := []struct {
 		urn           URN
