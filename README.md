@@ -7,5 +7,5 @@ Common functionality in [mailroom](https://github.com/nyaruka/mailroom), [goflow
 You can run all the tests with:
 
 ```
-% go test github.com/nyaruka/gocommon/...
+% go test ./...
 ```
