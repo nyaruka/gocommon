@@ -47,6 +47,9 @@ const (
 	// ViberScheme is the scheme used for Viber identifiers
 	ViberScheme string = "viber"
 
+	// VKScheme is the scheme used for VK user ids
+	VKScheme string = "vk"
+
 	// WhatsAppScheme is the scheme used for WhatsApp identifiers
 	WhatsAppScheme string = "whatsapp"
 
@@ -71,6 +74,7 @@ var ValidSchemes = map[string]bool{
 	TwitterIDScheme: true,
 	TwitterScheme:   true,
 	ViberScheme:     true,
+	VKScheme:        true,
 	WhatsAppScheme:  true,
 	WeChatScheme:    true,
 }
