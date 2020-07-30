@@ -58,6 +58,9 @@ const (
 
 	// FacebookRefPrefix is the path prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
+
+	// DiscordScheme is the scheme used for Discord identifiers (user IDs not usernames)
+	DiscordScheme string = "discord"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
@@ -77,6 +80,7 @@ var ValidSchemes = map[string]bool{
 	VKScheme:        true,
 	WhatsAppScheme:  true,
 	WeChatScheme:    true,
+	DiscordScheme:   true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -120,6 +124,11 @@ func NewFirebaseURN(identifier string) (URN, error) {
 // NewFacebookURN returns a URN for the passed in facebook identifier
 func NewFacebookURN(identifier string) (URN, error) {
 	return NewURNFromParts(FacebookScheme, identifier, "", "")
+}
+
+// NewDiscordURN returns a URN for the passed in Discord identifier
+func NewDiscordURN(identifier string) (URN, error) {
+	return NewURNFromParts(DiscordScheme, identifier, "", "")
 }
 
 // returns a new URN for the given scheme, path, query and display
@@ -273,6 +282,10 @@ func (u URN) Validate() error {
 		// validate path and query is a uuid
 		if !freshchatRegex.MatchString(path) {
 			return fmt.Errorf("invalid freshchat id: %s", path)
+		}
+	case DiscordScheme:
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid discord id: %s", path)
 		}
 	}
 	return nil // anything goes for external schemes
