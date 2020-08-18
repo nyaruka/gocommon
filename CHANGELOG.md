@@ -1,3 +1,8 @@
+v1.3.0
+----------
+ * Move some util packages from goflow
+ * Bump CI go versions
+
 v1.2.0
 ----------
  * Add VK scheme
