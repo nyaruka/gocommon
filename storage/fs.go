@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/nyaruka/gocommon/uuids"
 )
 
 type fsStorage struct {
@@ -21,12 +24,14 @@ func (s *fsStorage) Name() string {
 }
 
 func (s *fsStorage) Test() error {
-	path, err := s.Put("test.txt", "text/plain", []byte(`test`))
+	// write randomly named file
+	path := fmt.Sprintf("%s.txt", uuids.New())
+	fullPath, err := s.Put(path, "text/plain", []byte(`test`))
 	if err != nil {
 		return err
 	}
 
-	os.Remove(path)
+	os.Remove(fullPath)
 	return nil
 }
 

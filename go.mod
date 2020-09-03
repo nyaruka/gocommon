@@ -3,6 +3,7 @@ module github.com/nyaruka/gocommon
 require (
 	github.com/aws/aws-sdk-go v1.34.17
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/nyaruka/phonenumbers v1.0.34
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.2.0
