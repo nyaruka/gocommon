@@ -109,19 +109,10 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 	}
 
 	trace.Response = response
-
-	// save response trace without body which will be parsed separately
-	responseTrace, err := httputil.DumpResponse(response, false)
+	trace.ResponseTrace, trace.ResponseBody, err = dumpResponse(response, maxBodyBytes)
 	if err != nil {
 		return trace, err
 	}
-	trace.ResponseTrace = responseTrace
-
-	responseBody, err := readBody(response, maxBodyBytes)
-	if err != nil {
-		return trace, err
-	}
-	trace.ResponseBody = responseBody
 
 	if debug {
 		fmt.Println(trace.String())
@@ -142,6 +133,20 @@ func NewRequest(method string, url string, body io.Reader, headers map[string]st
 	}
 
 	return r, nil
+}
+
+func dumpResponse(response *http.Response, maxBodyBytes int) ([]byte, []byte, error) {
+	// dump response trace without body which will be parsed separately
+	responseTrace, err := httputil.DumpResponse(response, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	responseBody, err := readBody(response, maxBodyBytes)
+	if err != nil {
+		return responseTrace, nil, err
+	}
+
+	return responseTrace, responseBody, nil
 }
 
 // attempts to read the body of an HTTP response
