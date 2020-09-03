@@ -23,6 +23,7 @@ func TestURNProperties(t *testing.T) {
 		{"facebook:ref:12345?foo=bar&foo=zap", "ref:12345", "", "foo=bar&foo=zap", map[string][]string{"foo": {"bar", "zap"}}},
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foobar", "foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
+		{"discord:732326982863421591", "732326982863421591", "", "", map[string][]string{}},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, string(tc.urn), tc.urn.String())
@@ -44,6 +45,7 @@ func TestIsFacebookRef(t *testing.T) {
 		{"facebook:ref:12345", true, "12345"},
 		{"facebook:12345", false, ""},
 		{"tel:25078838383", false, ""},
+		{"discord:732326982863421591", false, ""},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, tc.isFacebookRef, tc.urn.IsFacebookRef(), "is facebook ref mismatch for %s", tc.urn)
@@ -66,6 +68,7 @@ func TestFromParts(t *testing.T) {
 		{"telegram", "12345", "Jane", URN("telegram:12345#Jane"), URN("telegram:12345"), false},
 		{"whatsapp", "12345", "", URN("whatsapp:12345"), URN("whatsapp:12345"), false},
 		{"viber", "", "", NilURN, ":", true},
+		{"discord", "732326982863421591", "", URN("discord:732326982863421591"), URN("discord:732326982863421591"), false},
 	}
 
 	for _, tc := range testCases {
@@ -397,6 +400,27 @@ func TestFirebaseURNs(t *testing.T) {
 			assert.Error(t, err, "expected error for %s", tc.identifier)
 		} else {
 			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
+			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
+		}
+	}
+}
+
+func TestDiscordURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   URN
+		hasError   bool
+	}{
+		{"732326982863421591", URN("discord:732326982863421591"), false},
+		{"notadiscordID", URN("discord:notadiscordID"), true},
+		{"", NilURN, true},
+	}
+	for _, tc := range testCases {
+		urn, err := NewDiscordURN(tc.identifier)
+		if tc.hasError {
+			assert.Error(t, err, "expected error for %s", tc.identifier)
+		} else {
+			assert.NoError(t, err, "expected error for %s", tc.identifier)
 			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
 		}
 	}
