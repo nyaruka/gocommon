@@ -1,3 +1,9 @@
+v1.4.0
+----------
+ * Add uuids package from goflow
+ * Add storage package from mailroom
+ * Add discord URN type
+
 v1.3.0
 ----------
  * Move some util packages from goflow
