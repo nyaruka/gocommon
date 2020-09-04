@@ -1,3 +1,8 @@
+v1.5.0
+----------
+ * Add gsm7 package
+ * Add httpx util for recording traces from http handlers
+
 v1.4.0
 ----------
  * Add uuids package from goflow
