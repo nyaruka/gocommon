@@ -1,3 +1,7 @@
+v1.5.1
+----------
+ * Use IsPossibleNumber instead of IsValidNumber
+
 v1.5.0
 ----------
  * Add gsm7 package
