@@ -403,7 +403,7 @@ func normalizeNumber(number string, country string) string {
 	}
 
 	// if it looks valid, return it
-	if phonenumbers.IsValidNumber(normalized) {
+	if phonenumbers.IsPossibleNumber(normalized) {
 		return phonenumbers.Format(normalized, phonenumbers.E164)
 	}
 
