@@ -1,3 +1,7 @@
+v1.5.2
+----------
+ * Test on 1.14.x and 1.15.x
+
 v1.5.1
 ----------
  * Use IsPossibleNumber instead of IsValidNumber
