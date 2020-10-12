@@ -1,3 +1,8 @@
+v1.5.3
+----------
+ * Update to latest phonenumbers
+ * If normalizing a number starting with a +, return it with a + if it's a possible number
+
 v1.5.2
 ----------
  * Test on 1.14.x and 1.15.x
