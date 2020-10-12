@@ -379,34 +379,29 @@ func (u URN) Format() string {
 var NilURN = URN("")
 
 func normalizeNumber(number string, country string) string {
-	number = strings.ToLower(number)
+	number = strings.TrimSpace(number)
+	normalized := strings.ToLower(number)
 
 	// if the number ends with e11, then that is Excel corrupting it, remove it
-	if strings.HasSuffix(number, "e+11") || strings.HasSuffix(number, "e+12") {
-		number = strings.Replace(number[0:len(number)-4], ".", "", -1)
+	if strings.HasSuffix(normalized, "e+11") || strings.HasSuffix(normalized, "e+12") {
+		normalized = strings.Replace(normalized[0:len(normalized)-4], ".", "", -1)
 	}
 
-	// remove other characters
-	number = nonTelCharsRegex.ReplaceAllString(strings.ToLower(strings.TrimSpace(number)), "")
-	parseNumber := number
+	// remove non alphanumeric characters
+	normalized = nonTelCharsRegex.ReplaceAllString(normalized, "")
 
-	// add on a plus if it looks like it could be a fully qualified number
-	if len(number) >= 11 && !(strings.HasPrefix(number, "+") || strings.HasPrefix(number, "0")) {
-		parseNumber = fmt.Sprintf("+%s", number)
+	parseAs := normalized
+
+	// if we started with + prefix, or we have a sufficiently long number that doesn't start with 0, add + prefix
+	if strings.HasPrefix(number, "+") || (len(normalized) >= 11 && !strings.HasPrefix(normalized, "0")) {
+		parseAs = fmt.Sprintf("+%s", normalized)
 	}
 
-	normalized, err := phonenumbers.Parse(parseNumber, country)
-
-	// couldn't parse it, use the original number
+	formatted, err := ParseNumber(parseAs, country)
 	if err != nil {
-		return number
+		// if it's not a possible number, just return what we have minus the +
+		return normalized
 	}
 
-	// if it looks valid, return it
-	if phonenumbers.IsPossibleNumber(normalized) {
-		return phonenumbers.Format(normalized, phonenumbers.E164)
-	}
-
-	// this doesn't look like anything we recognize, use the original number
-	return number
+	return formatted
 }

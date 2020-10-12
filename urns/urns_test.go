@@ -107,12 +107,14 @@ func TestNormalize(t *testing.T) {
 		{"tel:07531669965", "GB", "tel:+447531669965"},
 		{"tel:22658125926", "", "tel:+22658125926"},
 		{"tel:263780821000", "ZW", "tel:+263780821000"},
+		{"tel:+2203693333", "", "tel:+2203693333"},
 
 		// un-normalizable tel numbers
 		{"tel:12345", "RW", "tel:12345"},
 		{"tel:0788383383", "", "tel:0788383383"},
 		{"tel:0788383383", "ZZ", "tel:0788383383"},
 		{"tel:MTN", "RW", "tel:mtn"},
+		{"tel:+12345678901234567890", "", "tel:12345678901234567890"},
 
 		// twitter handles remove @
 		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
@@ -127,7 +129,7 @@ func TestNormalize(t *testing.T) {
 
 	for _, tc := range testCases {
 		normalized := tc.rawURN.Normalize(tc.country)
-		assert.Equal(t, tc.expected, normalized, "normalize mismatch for %s in country", tc.rawURN, tc.country)
+		assert.Equal(t, tc.expected, normalized, "normalize mismatch for '%s' with country '%s'", tc.rawURN, tc.country)
 	}
 }
 
