@@ -3,8 +3,7 @@ package rcache
 import (
 	"testing"
 
-	"github.com/nyaruka/mailroom/testsuite"
-
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,8 +29,14 @@ func TestMarker(t *testing.T) {
 		{"get", "tel", "foo", ""},
 	}
 
-	testsuite.ResetRP()
-	rc := testsuite.RC()
+	rc, err := redis.Dial("tcp", "localhost:6379")
+	if err != nil {
+		panic(err)
+	}
+	_, err = rc.Do("SELECT", 0)
+	if err != nil {
+		panic(err)
+	}
 	defer rc.Close()
 
 	for i, tc := range tcs {
