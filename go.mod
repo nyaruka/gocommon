@@ -2,7 +2,6 @@ module github.com/nyaruka/gocommon
 
 require (
 	github.com/aws/aws-sdk-go v1.34.31
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
