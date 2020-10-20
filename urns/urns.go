@@ -32,6 +32,9 @@ const (
 	// LineScheme is the scheme used for LINE identifiers
 	LineScheme string = "line"
 
+	// RocketChatScheme is the scheme used for RocketChat identifiers
+	RocketChatScheme string = "rocketchat"
+
 	// TelegramScheme is the scheme used for Telegram identifiers
 	TelegramScheme string = "telegram"
 
@@ -65,22 +68,23 @@ const (
 
 // ValidSchemes is the set of URN schemes understood by this library
 var ValidSchemes = map[string]bool{
-	EmailScheme:     true,
-	ExternalScheme:  true,
-	FacebookScheme:  true,
-	FCMScheme:       true,
-	FreshChatScheme: true,
-	JiochatScheme:   true,
-	LineScheme:      true,
-	TelegramScheme:  true,
-	TelScheme:       true,
-	TwitterIDScheme: true,
-	TwitterScheme:   true,
-	ViberScheme:     true,
-	VKScheme:        true,
-	WhatsAppScheme:  true,
-	WeChatScheme:    true,
-	DiscordScheme:   true,
+	EmailScheme:      true,
+	ExternalScheme:   true,
+	FacebookScheme:   true,
+	FCMScheme:        true,
+	FreshChatScheme:  true,
+	JiochatScheme:    true,
+	LineScheme:       true,
+	RocketChatScheme: true,
+	TelegramScheme:   true,
+	TelScheme:        true,
+	TwitterIDScheme:  true,
+	TwitterScheme:    true,
+	ViberScheme:      true,
+	VKScheme:         true,
+	WhatsAppScheme:   true,
+	WeChatScheme:     true,
+	DiscordScheme:    true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
