@@ -1,3 +1,8 @@
+v1.6.1
+----------
+ * Add RocketChat scheme
+ * Add rcache module
+
 v1.5.3
 ----------
  * Update to latest phonenumbers
