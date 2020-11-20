@@ -13,13 +13,15 @@ import (
 type AccessConfig struct {
 	ResolveTimeout time.Duration
 	DisallowedIPs  []net.IP
+	DisallowedNets []*net.IPNet
 }
 
 // NewAccessConfig creates a new access config
-func NewAccessConfig(resolveTimeout time.Duration, disallowedIPs []net.IP) *AccessConfig {
+func NewAccessConfig(resolveTimeout time.Duration, disallowedIPs []net.IP, disallowedNets []*net.IPNet) *AccessConfig {
 	return &AccessConfig{
 		ResolveTimeout: resolveTimeout,
 		DisallowedIPs:  disallowedIPs,
+		DisallowedNets: disallowedNets,
 	}
 }
 
@@ -39,6 +41,11 @@ func (c *AccessConfig) Allow(request *http.Request) (bool, error) {
 	for _, addr := range addrs {
 		for _, disallowed := range c.DisallowedIPs {
 			if addr.IP.Equal(disallowed) {
+				return false, nil
+			}
+		}
+		for _, disallowed := range c.DisallowedNets {
+			if disallowed.Contains(addr.IP) {
 				return false, nil
 			}
 		}
