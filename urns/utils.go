@@ -13,10 +13,10 @@ func ParseNumber(s, country string) (string, error) {
 		return "", errors.Wrap(err, "unable to parse number")
 	}
 
-	// if it looks like a possible number, return it formatted as E164
-	if phonenumbers.IsPossibleNumber(parsed) {
-		return phonenumbers.Format(parsed, phonenumbers.E164), nil
+	// check if this is possible number, excluding local-only options
+	if phonenumbers.IsPossibleNumberWithReason(parsed) != phonenumbers.IS_POSSIBLE {
+		return "", errors.New("not a possible number")
 	}
 
-	return "", errors.New("not a possible number")
+	return phonenumbers.Format(parsed, phonenumbers.E164), nil
 }
