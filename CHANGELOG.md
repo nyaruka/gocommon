@@ -1,3 +1,7 @@
+v1.7.1
+----------
+ * ParseNumber should ignore numbers which are only possible as local numbers
+
 v1.7.0
 ----------
  * Add support for IP networks in httpx.AccessConfig
