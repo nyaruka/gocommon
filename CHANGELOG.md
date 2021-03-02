@@ -1,3 +1,7 @@
+v1.7.2
+----------
+ * add option to save request immediately after creating recorder
+
 v1.7.1
 ----------
  * ParseNumber should ignore numbers which are only possible as local numbers
