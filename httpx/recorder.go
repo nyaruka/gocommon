@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -21,6 +22,8 @@ type Recorder struct {
 
 	startTime    time.Time
 	responseBody *bytes.Buffer
+
+	requestTrace []byte
 }
 
 // NewRecorder creates a new recorder for an HTTP request
@@ -37,11 +40,32 @@ func NewRecorder(r *http.Request, w http.ResponseWriter) *Recorder {
 	}
 }
 
+// SaveRequest immediately saves the request and body for later use. This can be called to guarantee the body
+// is available at a later time even if downstream users of the request do not clone the body
+func (r *Recorder) SaveRequest() error {
+	body, err := ioutil.ReadAll(r.Request.Body)
+	if err != nil {
+		return errors.Wrapf(err, "error reading body from request")
+	}
+	r.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	r.requestTrace, err = httputil.DumpRequest(r.Request, true)
+	if err != nil {
+		return errors.Wrapf(err, "error dumping request")
+	}
+	r.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	fmt.Println(string(r.requestTrace))
+	return nil
+}
+
 // End is called when the response has been written and generates the trace
 func (r *Recorder) End() (*Trace, error) {
-	requestTrace, err := httputil.DumpRequest(r.Request, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "error dumping request")
+	requestTrace := r.requestTrace
+	if requestTrace == nil {
+		trace, err := httputil.DumpRequest(r.Request, true)
+		if err != nil {
+			return nil, errors.Wrap(err, "error dumping request")
+		}
+		requestTrace = trace
 	}
 
 	wrapped := r.ResponseWriter.(middleware.WrapResponseWriter)
