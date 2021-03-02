@@ -53,7 +53,6 @@ func (r *Recorder) SaveRequest() error {
 		return errors.Wrapf(err, "error dumping request")
 	}
 	r.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-	fmt.Println(string(r.requestTrace))
 	return nil
 }
 
