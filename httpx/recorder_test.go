@@ -46,21 +46,31 @@ func TestRecorder(t *testing.T) {
 	su, _ := url.Parse(server.URL)
 
 	tcs := []struct {
+		Method       string
 		ReadBody     bool
 		SaveRequest  bool
 		RequestTrace string
 	}{
 		{
+			Method:       http.MethodGet,
+			ReadBody:     false,
+			SaveRequest:  false,
+			RequestTrace: fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
+		},
+		{
+			Method:       http.MethodPost,
 			ReadBody:     false,
 			SaveRequest:  false,
 			RequestTrace: fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\nSecret=Sesame", su.Hostname(), su.Port()),
 		},
 		{
+			Method:       http.MethodPost,
 			ReadBody:     true,
 			SaveRequest:  false,
 			RequestTrace: fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
 		},
 		{
+			Method:       http.MethodPost,
 			ReadBody:     true,
 			SaveRequest:  true,
 			RequestTrace: fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\nSecret=Sesame", su.Hostname(), su.Port()),
@@ -70,8 +80,13 @@ func TestRecorder(t *testing.T) {
 	for _, tc := range tcs {
 		readBody = tc.ReadBody
 		saveRequest = tc.SaveRequest
+		var req *http.Request
 
-		req, _ := httpx.NewRequest("POST", server.URL, strings.NewReader(url.Values{"Secret": []string{"Sesame"}}.Encode()), nil)
+		if tc.Method == http.MethodGet {
+			req, _ = httpx.NewRequest("GET", server.URL, nil, nil)
+		} else {
+			req, _ = httpx.NewRequest("POST", server.URL, strings.NewReader(url.Values{"Secret": []string{"Sesame"}}.Encode()), nil)
+		}
 		httpx.Do(http.DefaultClient, req, nil, nil)
 
 		assert.NoError(t, err)
