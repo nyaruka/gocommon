@@ -71,6 +71,10 @@ func TestMockRequestorMarshaling(t *testing.T) {
 		"http://google.com": {
 			httpx.NewMockResponse(200, nil, "this is google"),
 			httpx.NewMockResponse(201, nil, "this is google again"),
+			httpx.MockResponse{
+				Status: 202,
+				Body:   []byte(`{"foo": "bar"}`),
+			},
 		},
 		"http://yahoo.com": {
 			httpx.NewMockResponse(202, nil, "this is yahoo"),
@@ -81,7 +85,8 @@ func TestMockRequestorMarshaling(t *testing.T) {
 	asJSON := []byte(`{
 		"http://google.com": [
 			{"status": 200, "body": "this is google"},
-			{"status": 201, "body": "this is google again"}
+			{"status": 201, "body": "this is google again"},
+			{"status": 202, "body": {"foo": "bar"}}
 		],
 		"http://yahoo.com": [
 			{"status": 202, "body": "this is yahoo"},

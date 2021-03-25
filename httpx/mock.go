@@ -71,10 +71,11 @@ func (r *MockRequestor) UnmarshalJSON(data []byte) error {
 var _ Requestor = (*MockRequestor)(nil)
 
 type MockResponse struct {
-	Status     int
-	Headers    map[string]string
-	Body       []byte
-	BodyRepeat int
+	Status       int
+	Headers      map[string]string
+	Body         []byte
+	BodyIsString bool
+	BodyRepeat   int
 }
 
 // Make mocks making the given request and returning this as the response
@@ -103,11 +104,11 @@ func (m MockResponse) Make(request *http.Request) *http.Response {
 }
 
 // MockConnectionError mocks a connection error
-var MockConnectionError = MockResponse{Status: 0, Headers: nil, Body: []byte{}, BodyRepeat: 0}
+var MockConnectionError = MockResponse{Status: 0, Headers: nil, Body: []byte{}, BodyIsString: true, BodyRepeat: 0}
 
 // NewMockResponse creates a new mock response from a string
 func NewMockResponse(status int, headers map[string]string, body string) MockResponse {
-	return MockResponse{Status: status, Headers: headers, Body: []byte(body), BodyRepeat: 0}
+	return MockResponse{Status: status, Headers: headers, Body: []byte(body), BodyIsString: true, BodyRepeat: 0}
 }
 
 //------------------------------------------------------------------------------------------
@@ -117,15 +118,22 @@ func NewMockResponse(status int, headers map[string]string, body string) MockRes
 type mockResponseEnvelope struct {
 	Status     int               `json:"status" validate:"required"`
 	Headers    map[string]string `json:"headers,omitempty"`
-	Body       string            `json:"body" validate:"required"`
+	Body       json.RawMessage   `json:"body" validate:"required"`
 	BodyRepeat int               `json:"body_repeat,omitempty"`
 }
 
 func (m *MockResponse) MarshalJSON() ([]byte, error) {
+	var body []byte
+	if m.BodyIsString {
+		body, _ = jsonx.Marshal(string(m.Body))
+	} else {
+		body = m.Body
+	}
+
 	return jsonx.Marshal(&mockResponseEnvelope{
 		Status:     m.Status,
 		Headers:    m.Headers,
-		Body:       string(m.Body),
+		Body:       body,
 		BodyRepeat: m.BodyRepeat,
 	})
 }
@@ -138,7 +146,16 @@ func (m *MockResponse) UnmarshalJSON(data []byte) error {
 
 	m.Status = e.Status
 	m.Headers = e.Headers
-	m.Body = []byte(e.Body)
 	m.BodyRepeat = e.BodyRepeat
+
+	if len(e.Body) > 0 && e.Body[0] == '"' {
+		var bodyAsString string
+		json.Unmarshal(e.Body, &bodyAsString)
+		m.Body = []byte(bodyAsString)
+		m.BodyIsString = true
+	} else {
+		m.Body = e.Body
+	}
+
 	return nil
 }
