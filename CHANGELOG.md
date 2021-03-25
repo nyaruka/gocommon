@@ -1,3 +1,7 @@
+v1.8.0
+----------
+ * Allow http mocks in JSON to use actual JSON for the body
+
 v1.7.2
 ----------
  * add option to save request immediately after creating recorder
