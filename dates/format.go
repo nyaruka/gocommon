@@ -92,12 +92,12 @@ func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
 //  `YYYY`      - four digits of your 0000-9999
 //  `M`         - month 1-12
 //  `MM`        - month 01-12
-//  `MMM`       - month Jan-Dec
-//  `MMMM`      - month January-December
+//  `MMM`       - month Jan-Dec (localized using given locale)
+//  `MMMM`      - month January-December (localized using given locale)
 //  `D`         - day of month 1-31
 //  `DD`        - day of month, zero padded 0-31
-//  `EEE`       - day of week Mon-Sun
-//  `EEEE`      - day of week Monday-Sunday
+//  `EEE`       - day of week Mon-Sun (localized using given locale)
+//  `EEEE`      - day of week Monday-Sunday (localized using given locale)
 //
 // If mode is TimeOnlyFormatting or DateTimeFormatting, the following sequences are accepted:
 //
@@ -112,12 +112,16 @@ func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
 //  `fff`       - milliseconds
 //  `ffffff`    - microseconds
 //  `fffffffff` - nanoseconds
-//  `aa`        - am or pm
-//  `AA`        - AM or PM
+//  `aa`        - am or pm (localized using given locale)
+//  `AA`        - AM or PM (localized using given locale)
+//
+// If mode is DateTimeFormatting, the following sequences are accepted:
+//
 //  `Z`         - hour and minute offset from UTC, or Z for UTC
 //  `ZZZ`       - hour and minute offset from UTC
 //
-// ignored chars: ' ', ':', ',', 'T', '-', '_', '/'
+// The following chars are allowed and ignored: ' ', ':', ',', 'T', '-', '_', '/'
+//
 func Format(t time.Time, layout string, locale string, mode FormattingMode) (string, error) {
 	output := bytes.Buffer{}
 
