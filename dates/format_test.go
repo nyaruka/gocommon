@@ -88,7 +88,7 @@ func TestFormat(t *testing.T) {
 			assert.Equal(t, tc.expected, actual, "format mismatch for %s", desc)
 		} else {
 			assert.EqualError(t, err, tc.err, "error mismatch for %s", desc)
-			assert.Equal(t, actual, "")
+			assert.Equal(t, "", actual)
 		}
 	}
 }

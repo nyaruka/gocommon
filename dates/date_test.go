@@ -67,10 +67,6 @@ func TestDate(t *testing.T) {
 	assert.True(t, d3.Compare(d1) < 0)
 	assert.True(t, d1.Compare(d4) == 0)
 	assert.True(t, d4.Compare(d1) == 0)
-
-	parsed, err := dates.ParseDate("2006-01-02", "2018-12-30")
-	assert.NoError(t, err)
-	assert.Equal(t, dates.NewDate(2018, 12, 30), parsed)
 }
 
 func TestDateCalendarMethods(t *testing.T) {

@@ -80,13 +80,3 @@ func (d Date) String() string {
 
 // ZeroDate is our uninitialized date value
 var ZeroDate = Date{}
-
-// ParseDate parses the given string into a date
-func ParseDate(layout string, value string) (Date, error) {
-	dt, err := time.Parse(layout, value)
-	if err != nil {
-		return ZeroDate, err
-	}
-
-	return ExtractDate(dt), nil
-}

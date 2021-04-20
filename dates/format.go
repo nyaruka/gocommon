@@ -31,6 +31,7 @@ func (m FormattingMode) Includes(seqType int) bool {
 	return FormattingMode(seqType)&m != 0
 }
 
+// String converts formatting mode to a string - used for error messages
 func (m FormattingMode) String() string {
 	switch m {
 	case DateOnlyFormatting:
@@ -77,6 +78,11 @@ var layoutSequences = map[string]struct {
 
 // non-sequence runes that are permitted in layout strings
 var ignoredFormattingRunes = map[rune]bool{' ': true, ':': true, '/': true, '.': true, ',': true, 'T': true, '-': true, '_': true}
+
+// ValidateFormat parses a formatting layout string to validate it
+func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
+	return visitFormatLayout(layout, mode, parseable, nil)
+}
 
 // Format formats a date/time value using a layout string.
 //
@@ -158,19 +164,15 @@ func Format(t time.Time, layout string, locale string, mode FormattingMode) (str
 		output.WriteString(out)
 	}
 
-	if err := visitLayoutSequences(layout, mode, false, handleSeq); err != nil {
+	if err := visitFormatLayout(layout, mode, false, handleSeq); err != nil {
 		return "", err
 	}
 
 	return output.String(), nil
 }
 
-// parses a layout string to validate it
-func validateLayout(layout string, parseable bool, mode FormattingMode) error {
-	return visitLayoutSequences(layout, mode, parseable, nil)
-}
-
-func ConvertLayout(layout string, parseable bool, mode FormattingMode) (string, error) {
+// converts a format layout to the go/time syntax, e.g. "YYYY-MM" -> "2006-01"
+func convertFormat(layout string, parseable bool, mode FormattingMode) (string, error) {
 	output := bytes.Buffer{}
 
 	handleSeq := func(seq, mapped string) {
@@ -181,7 +183,7 @@ func ConvertLayout(layout string, parseable bool, mode FormattingMode) (string, 
 		}
 	}
 
-	if err := visitLayoutSequences(layout, mode, false, handleSeq); err != nil {
+	if err := visitFormatLayout(layout, mode, parseable, handleSeq); err != nil {
 		return "", err
 	}
 
@@ -189,7 +191,7 @@ func ConvertLayout(layout string, parseable bool, mode FormattingMode) (string, 
 }
 
 // parses a layout string, invoking the given callback for every mappable sequence or sequence of ignored chars
-func visitLayoutSequences(layout string, mode FormattingMode, parseable bool, callback func(string, string)) error {
+func visitFormatLayout(layout string, mode FormattingMode, parseable bool, callback func(string, string)) error {
 	runes := []rune(layout)
 	var seqLen int
 

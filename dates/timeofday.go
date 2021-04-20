@@ -64,13 +64,3 @@ func (t TimeOfDay) String() string {
 
 // ZeroTimeOfDay is our uninitialized time of day value
 var ZeroTimeOfDay = TimeOfDay{}
-
-// ParseTimeOfDay parses the given string into a time of day
-func ParseTimeOfDay(layout string, value string) (TimeOfDay, error) {
-	dt, err := time.Parse(layout, value)
-	if err != nil {
-		return ZeroTimeOfDay, err
-	}
-
-	return ExtractTimeOfDay(dt), nil
-}
