@@ -1,3 +1,8 @@
+v1.9.0
+----------
+ * Add custom date formatting code from goflow and add localization support
+ * Switch to go 1.16.x to get support for embed package
+
 v1.8.0
 ----------
  * Allow http mocks in JSON to use actual JSON for the body
