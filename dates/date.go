@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	ISO8601Date = "2006-01-02"
+	ISO8601Date = "YYYY-MM-DD"
 )
 
 // Date is a local gregorian calendar date
@@ -46,10 +46,10 @@ func (d Date) Combine(timeOfDay TimeOfDay, tz *time.Location) time.Time {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, tz)
 }
 
-// Format formats this date as a string
-func (d Date) Format(layout string) string {
+// Format formats this date as a string using the given layout
+func (d Date) Format(layout, locale string) (string, error) {
 	// upgrade us to a date time so we can use standard time.Time formatting
-	return d.Combine(ZeroTimeOfDay, time.UTC).Format(layout)
+	return Format(d.Combine(ZeroTimeOfDay, time.UTC), layout, locale, DateOnlyLayouts)
 }
 
 // Weekday returns the day of the week
@@ -74,18 +74,9 @@ func (d Date) WeekNum() int {
 
 // String returns the ISO8601 representation
 func (d Date) String() string {
-	return d.Format(ISO8601Date)
+	s, _ := d.Format(ISO8601Date, "")
+	return s
 }
 
 // ZeroDate is our uninitialized date value
 var ZeroDate = Date{}
-
-// ParseDate parses the given string into a date
-func ParseDate(layout string, value string) (Date, error) {
-	dt, err := time.Parse(layout, value)
-	if err != nil {
-		return ZeroDate, err
-	}
-
-	return ExtractDate(dt), nil
-}

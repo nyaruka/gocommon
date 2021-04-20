@@ -20,6 +20,17 @@ func TestDate(t *testing.T) {
 	assert.Equal(t, d1.YearDay(), 51)
 	assert.Equal(t, "2019-02-20", d1.String())
 
+	s, err := d1.Format("EEE, DD/MM/YYYY", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "Wed, 20/02/2019", s)
+
+	s, err = d1.Format("EEE, DD/MM/YYYY", "es_EC")
+	assert.NoError(t, err)
+	assert.Equal(t, "mié, 20/02/2019", s)
+
+	_, err = d1.Format("ss:mm", "")
+	assert.EqualError(t, err, "'ss' is not valid in a date formatting layout")
+
 	d2 := dates.NewDate(2020, 1, 1)
 
 	assert.Equal(t, d2.Year, 2020)
@@ -56,10 +67,6 @@ func TestDate(t *testing.T) {
 	assert.True(t, d3.Compare(d1) < 0)
 	assert.True(t, d1.Compare(d4) == 0)
 	assert.True(t, d4.Compare(d1) == 0)
-
-	parsed, err := dates.ParseDate("2006-01-02", "2018-12-30")
-	assert.NoError(t, err)
-	assert.Equal(t, dates.NewDate(2018, 12, 30), parsed)
 }
 
 func TestDateCalendarMethods(t *testing.T) {

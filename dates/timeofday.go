@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	iso8601Time = "15:04:05.000000"
+	iso8601Time = "tt:mm:ss.ffffff"
 )
 
 // TimeOfDay represents a local time of day value
@@ -51,25 +51,16 @@ func (t TimeOfDay) Combine(date Date, tz *time.Location) time.Time {
 }
 
 // Format formats this time of day as a string
-func (t TimeOfDay) Format(layout string) string {
+func (t TimeOfDay) Format(layout, locale string) (string, error) {
 	// upgrade us to a date time so we can use standard time.Time formatting
-	return t.Combine(ZeroDate, time.UTC).Format(layout)
+	return Format(t.Combine(ZeroDate, time.UTC), layout, locale, TimeOnlyLayouts)
 }
 
 // String returns the ISO8601 representation
 func (t TimeOfDay) String() string {
-	return t.Format(iso8601Time)
+	s, _ := t.Format(iso8601Time, "")
+	return s
 }
 
 // ZeroTimeOfDay is our uninitialized time of day value
 var ZeroTimeOfDay = TimeOfDay{}
-
-// ParseTimeOfDay parses the given string into a time of day
-func ParseTimeOfDay(layout string, value string) (TimeOfDay, error) {
-	dt, err := time.Parse(layout, value)
-	if err != nil {
-		return ZeroTimeOfDay, err
-	}
-
-	return ExtractTimeOfDay(dt), nil
-}
