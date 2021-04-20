@@ -16,31 +16,48 @@ const (
 	dateTimeSeq int = 4
 )
 
-// FormattingMode describes what layout sequences are permitted in a formatting operation
-type FormattingMode uint
+// LayoutType describes what layout sequences are permitted in a formatting operation
+type LayoutType uint
 
 // formatting mode constants
 const (
-	DateOnlyFormatting = FormattingMode(dateSeq)
-	TimeOnlyFormatting = FormattingMode(timeSeq)
-	DateTimeFormatting = FormattingMode(dateSeq | timeSeq | dateTimeSeq)
+	DateOnlyLayouts = LayoutType(dateSeq)
+	TimeOnlyLayouts = LayoutType(timeSeq)
+	DateTimeLayouts = LayoutType(dateSeq | timeSeq | dateTimeSeq)
 )
 
-// Includes returns whether the given sequence type is included in this formatting mode
-func (m FormattingMode) Includes(seqType int) bool {
-	return FormattingMode(seqType)&m != 0
+// Includes returns whether the given sequence type is included in this layout type
+func (t LayoutType) Includes(seqType int) bool {
+	return LayoutType(seqType)&t != 0
 }
 
-// String converts formatting mode to a string - used for error messages
-func (m FormattingMode) String() string {
-	switch m {
-	case DateOnlyFormatting:
+// String converts a layout type to a string - used for error messages
+func (t LayoutType) String() string {
+	switch t {
+	case DateOnlyLayouts:
 		return "date"
-	case TimeOnlyFormatting:
+	case TimeOnlyLayouts:
 		return "time"
 	default:
 		return "datetime"
 	}
+}
+
+// LayoutMode describes what a layout is being used for
+type LayoutMode int
+
+// formatting mode constants
+const (
+	FormattingMode LayoutMode = 1
+	ParsingMode    LayoutMode = 2
+)
+
+// String converts a layout mode to a string - used for error messages
+func (m LayoutMode) String() string {
+	if m == FormattingMode {
+		return "formatting"
+	}
+	return "parsing"
 }
 
 // valid sequences that can occur in a layout string
@@ -80,13 +97,13 @@ var layoutSequences = map[string]struct {
 var ignoredFormattingRunes = map[rune]bool{' ': true, ':': true, '/': true, '.': true, ',': true, 'T': true, '-': true, '_': true}
 
 // ValidateFormat parses a formatting layout string to validate it
-func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
-	return visitFormatLayout(layout, mode, parseable, nil)
+func ValidateFormat(layout string, type_ LayoutType, mode LayoutMode) error {
+	return visitLayout(layout, type_, mode, nil)
 }
 
 // Format formats a date/time value using a layout string.
 //
-// If mode is DateOnlyFormatting or DateTimeFormatting, the following sequences are accepted:
+// If type is DateOnlyLayouts or DateTimeLayouts, the following sequences are accepted:
 //
 //  `YY`        - last two digits of year 0-99
 //  `YYYY`      - four digits of your 0000-9999
@@ -99,7 +116,7 @@ func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
 //  `EEE`       - day of week Mon-Sun (localized using given locale)
 //  `EEEE`      - day of week Monday-Sunday (localized using given locale)
 //
-// If mode is TimeOnlyFormatting or DateTimeFormatting, the following sequences are accepted:
+// If type is TimeOnlyLayouts or DateTimeLayouts, the following sequences are accepted:
 //
 //  `h`         - hour of the day 1-12
 //  `hh`        - hour of the day 01-12
@@ -115,14 +132,14 @@ func ValidateFormat(layout string, parseable bool, mode FormattingMode) error {
 //  `aa`        - am or pm (localized using given locale)
 //  `AA`        - AM or PM (localized using given locale)
 //
-// If mode is DateTimeFormatting, the following sequences are accepted:
+// If type is DateTimeLayouts, the following sequences are accepted:
 //
 //  `Z`         - hour and minute offset from UTC, or Z for UTC
 //  `ZZZ`       - hour and minute offset from UTC
 //
 // The following chars are allowed and ignored: ' ', ':', ',', 'T', '-', '_', '/'
 //
-func Format(t time.Time, layout string, locale string, mode FormattingMode) (string, error) {
+func Format(t time.Time, layout string, locale string, type_ LayoutType) (string, error) {
 	output := bytes.Buffer{}
 
 	translation := GetTranslation(locale)
@@ -168,7 +185,7 @@ func Format(t time.Time, layout string, locale string, mode FormattingMode) (str
 		output.WriteString(out)
 	}
 
-	if err := visitFormatLayout(layout, mode, false, handleSeq); err != nil {
+	if err := visitLayout(layout, type_, FormattingMode, handleSeq); err != nil {
 		return "", err
 	}
 
@@ -176,7 +193,7 @@ func Format(t time.Time, layout string, locale string, mode FormattingMode) (str
 }
 
 // converts a format layout to the go/time syntax, e.g. "YYYY-MM" -> "2006-01"
-func convertFormat(layout string, parseable bool, mode FormattingMode) (string, error) {
+func convertLayout(layout string, type_ LayoutType, mode LayoutMode) (string, error) {
 	output := bytes.Buffer{}
 
 	handleSeq := func(seq, mapped string) {
@@ -187,7 +204,7 @@ func convertFormat(layout string, parseable bool, mode FormattingMode) (string, 
 		}
 	}
 
-	if err := visitFormatLayout(layout, mode, parseable, handleSeq); err != nil {
+	if err := visitLayout(layout, type_, mode, handleSeq); err != nil {
 		return "", err
 	}
 
@@ -195,7 +212,7 @@ func convertFormat(layout string, parseable bool, mode FormattingMode) (string, 
 }
 
 // parses a layout string, invoking the given callback for every mappable sequence or sequence of ignored chars
-func visitFormatLayout(layout string, mode FormattingMode, parseable bool, callback func(string, string)) error {
+func visitLayout(layout string, type_ LayoutType, mode LayoutMode, callback func(string, string)) error {
 	runes := []rune(layout)
 	var seqLen int
 
@@ -216,10 +233,10 @@ func visitFormatLayout(layout string, mode FormattingMode, parseable bool, callb
 
 		if !ignored {
 			layoutSeq, exists := layoutSequences[seq]
-			if exists && mode.Includes(layoutSeq.seqType) && (!parseable || layoutSeq.parseable) {
+			if exists && type_.Includes(layoutSeq.seqType) && (mode != ParsingMode || layoutSeq.parseable) {
 				mapped = layoutSeq.mapped
 			} else {
-				return errors.Errorf("'%s' is not valid in a %s format", seq, mode)
+				return errors.Errorf("'%s' is not valid in a %s %s layout", seq, type_, mode)
 			}
 		}
 

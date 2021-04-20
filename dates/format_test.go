@@ -67,22 +67,22 @@ func TestFormat(t *testing.T) {
 		{d1, "tt:mm:ss.fffffffff", "en_US", "15:04:05.123456789", ""},
 
 		// errors
-		{d1, "YYY-MM-DD", "en_US", "", "'YYY' is not valid in a datetime format"},
-		{d1, "YYYY-MMMMM-DD", "en_US", "", "'MMMMM' is not valid in a datetime format"},
-		{d1, "EE", "en_US", "", "'EE' is not valid in a datetime format"},
-		{d1, "tt:mm:ss.ffff", "en_US", "", "'ffff' is not valid in a datetime format"},
-		{d1, "tt:mmm:ss.ffff", "en_US", "", "'mmm' is not valid in a datetime format"},
-		{d1, "tt:mm:sss", "en_US", "", "'sss' is not valid in a datetime format"},
-		{d1, "tt:mm:ss a", "en_US", "", "'a' is not valid in a datetime format"},
-		{d1, "tt:mm:ss A", "en_US", "", "'A' is not valid in a datetime format"},
-		{d1, "tt:mm:ssZZZZ", "en_US", "", "'ZZZZ' is not valid in a datetime format"},
-		{d1, "2006-01-02", "en_US", "", "'2' is not valid in a datetime format"},
+		{d1, "YYY-MM-DD", "en_US", "", "'YYY' is not valid in a datetime formatting layout"},
+		{d1, "YYYY-MMMMM-DD", "en_US", "", "'MMMMM' is not valid in a datetime formatting layout"},
+		{d1, "EE", "en_US", "", "'EE' is not valid in a datetime formatting layout"},
+		{d1, "tt:mm:ss.ffff", "en_US", "", "'ffff' is not valid in a datetime formatting layout"},
+		{d1, "tt:mmm:ss.ffff", "en_US", "", "'mmm' is not valid in a datetime formatting layout"},
+		{d1, "tt:mm:sss", "en_US", "", "'sss' is not valid in a datetime formatting layout"},
+		{d1, "tt:mm:ss a", "en_US", "", "'a' is not valid in a datetime formatting layout"},
+		{d1, "tt:mm:ss A", "en_US", "", "'A' is not valid in a datetime formatting layout"},
+		{d1, "tt:mm:ssZZZZ", "en_US", "", "'ZZZZ' is not valid in a datetime formatting layout"},
+		{d1, "2006-01-02", "en_US", "", "'2' is not valid in a datetime formatting layout"},
 	}
 
 	for _, tc := range tests {
 		desc := fmt.Sprintf("%s as '%s' in '%s'", tc.value.String(), tc.layout, tc.locale)
 
-		actual, err := dates.Format(tc.value, tc.layout, tc.locale, dates.DateTimeFormatting)
+		actual, err := dates.Format(tc.value, tc.layout, tc.locale, dates.DateTimeLayouts)
 		if tc.err == "" {
 			assert.NoError(t, err, "unexpected error for %s", desc)
 			assert.Equal(t, tc.expected, actual, "format mismatch for %s", desc)

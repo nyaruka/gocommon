@@ -17,6 +17,7 @@ func TestGetTranslation(t *testing.T) {
 		january string
 		am      string
 	}{
+		{"", "Sun", "Sunday", "Jan", "January", "AM"},
 		{"en_US", "Sun", "Sunday", "Jan", "January", "AM"},
 		{"en_GB", "Sun", "Sunday", "Jan", "January", "am"},
 		{"en", "Sun", "Sunday", "Jan", "January", "am"},

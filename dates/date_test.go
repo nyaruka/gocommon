@@ -29,7 +29,7 @@ func TestDate(t *testing.T) {
 	assert.Equal(t, "mié, 20/02/2019", s)
 
 	_, err = d1.Format("ss:mm", "")
-	assert.EqualError(t, err, "'ss' is not valid in a date format")
+	assert.EqualError(t, err, "'ss' is not valid in a date formatting layout")
 
 	d2 := dates.NewDate(2020, 1, 1)
 

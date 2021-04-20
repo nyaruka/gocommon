@@ -27,7 +27,7 @@ func TestTimeOfDay(t *testing.T) {
 	assert.Equal(t, "09:38:30 M", s)
 
 	_, err = t1.Format("MM/YY", "")
-	assert.EqualError(t, err, "'MM' is not valid in a time format")
+	assert.EqualError(t, err, "'MM' is not valid in a time formatting layout")
 
 	t2 := dates.NewTimeOfDay(14, 56, 15, 0)
 

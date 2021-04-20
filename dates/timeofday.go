@@ -53,7 +53,7 @@ func (t TimeOfDay) Combine(date Date, tz *time.Location) time.Time {
 // Format formats this time of day as a string
 func (t TimeOfDay) Format(layout, locale string) (string, error) {
 	// upgrade us to a date time so we can use standard time.Time formatting
-	return Format(t.Combine(ZeroDate, time.UTC), layout, locale, TimeOnlyFormatting)
+	return Format(t.Combine(ZeroDate, time.UTC), layout, locale, TimeOnlyLayouts)
 }
 
 // String returns the ISO8601 representation

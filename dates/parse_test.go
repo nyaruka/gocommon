@@ -26,7 +26,7 @@ func TestParseDateTime(t *testing.T) {
 		{"YYYY-MM-DD t:mm", "2018-12-30 14:45", kigali, time.Date(2018, 12, 30, 14, 45, 0, 0, kigali), ""},
 		{"YY/M/D t:mm:ss.fff", "21/1/2 9:15:30.123", kigali, time.Date(2021, 1, 2, 9, 15, 30, 123000000, kigali), ""},
 
-		{"xxx", "Mon", time.UTC, dates.ZeroDateTime, "'xxx' is not valid in a datetime format"},
+		{"xxx", "Mon", time.UTC, dates.ZeroDateTime, "'xxx' is not valid in a datetime parsing layout"},
 	}
 
 	for _, tc := range tests {
@@ -53,9 +53,9 @@ func TestParseDate(t *testing.T) {
 		{"YYYY-MM-DD", "2018-12-30", dates.NewDate(2018, 12, 30), ""},
 		{"DD.MM.YYYY", "20.04.2021", dates.NewDate(2021, 4, 20), ""},
 
-		{"DD/MM/YY", "1/3/21", dates.ZeroDate, `parsing time "1/3/21" as "02/01/06": cannot parse "1/3/21" as "02"`}, // error because DD/02 requires zero-padding
-		{"tt", "11", dates.ZeroDate, "'tt' is not valid in a date format"},
-		{"EEE", "Mon", dates.ZeroDate, "'EEE' is not valid in a date format"},
+		{"D/MM/YY", "1/3/21", dates.ZeroDate, "cannot parse '3/21' as 'MM'"}, // error because DD/02 requires zero-padding
+		{"tt", "11", dates.ZeroDate, "'tt' is not valid in a date parsing layout"},
+		{"EEE", "Mon", dates.ZeroDate, "'EEE' is not valid in a date parsing layout"},
 	}
 
 	for _, tc := range tests {
@@ -82,8 +82,8 @@ func TestParseTimeOfDay(t *testing.T) {
 		{"tt:mm:ss.ffffff", "11:02:30.123456", dates.NewTimeOfDay(11, 2, 30, 123456000), ""},
 		{"h:mm aa", "3:45 pm", dates.NewTimeOfDay(15, 45, 0, 0), ""},
 
-		{"hh:mm aa", "3:45 pm", dates.ZeroTimeOfDay, `parsing time "3:45 pm" as "03:04 pm": cannot parse "3:45 pm" as "03"`}, // error because hh/03 requires zero-padding
-		{"MM:YY", "11:02:30.123456", dates.ZeroTimeOfDay, "'MM' is not valid in a time format"},
+		{"hh:mm aa", "3:45 pm", dates.ZeroTimeOfDay, "cannot parse '3:45 pm' as 'hh'"}, // error because hh/03 requires zero-padding
+		{"MM:YY", "11:02:30.123456", dates.ZeroTimeOfDay, "'MM' is not valid in a time parsing layout"},
 	}
 
 	for _, tc := range tests {

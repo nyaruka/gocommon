@@ -49,7 +49,7 @@ func (d Date) Combine(timeOfDay TimeOfDay, tz *time.Location) time.Time {
 // Format formats this date as a string using the given layout
 func (d Date) Format(layout, locale string) (string, error) {
 	// upgrade us to a date time so we can use standard time.Time formatting
-	return Format(d.Combine(ZeroTimeOfDay, time.UTC), layout, locale, DateOnlyFormatting)
+	return Format(d.Combine(ZeroTimeOfDay, time.UTC), layout, locale, DateOnlyLayouts)
 }
 
 // Weekday returns the day of the week
