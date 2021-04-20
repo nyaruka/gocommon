@@ -18,6 +18,17 @@ func TestTimeOfDay(t *testing.T) {
 	assert.Equal(t, t1.Nanos, 123456789)
 	assert.Equal(t, "09:38:30.123456", t1.String())
 
+	s, err := t1.Format("hh:mm:ss AA", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "09:38:30 AM", s)
+
+	s, err = t1.Format("hh:mm:ss AA", "gd")
+	assert.NoError(t, err)
+	assert.Equal(t, "09:38:30 M", s)
+
+	_, err = t1.Format("MM/YY", "")
+	assert.EqualError(t, err, "'MM' is not valid in a time format")
+
 	t2 := dates.NewTimeOfDay(14, 56, 15, 0)
 
 	assert.Equal(t, t2.Hour, 14)
