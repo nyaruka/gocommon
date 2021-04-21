@@ -1,3 +1,7 @@
+v1.9.1
+----------
+ * Use standard BCP47 (hypenated) locale codes
+
 v1.9.0
 ----------
  * Add custom date formatting code from goflow and add localization support
