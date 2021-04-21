@@ -24,7 +24,7 @@ func TestDate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Wed, 20/02/2019", s)
 
-	s, err = d1.Format("EEE, DD/MM/YYYY", "es_EC")
+	s, err = d1.Format("EEE, DD/MM/YYYY", "es-EC")
 	assert.NoError(t, err)
 	assert.Equal(t, "mié, 20/02/2019", s)
 

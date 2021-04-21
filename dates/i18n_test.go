@@ -18,20 +18,20 @@ func TestGetTranslation(t *testing.T) {
 		am      string
 	}{
 		{"", "Sun", "Sunday", "Jan", "January", "AM"},
-		{"en_US", "Sun", "Sunday", "Jan", "January", "AM"},
-		{"en_GB", "Sun", "Sunday", "Jan", "January", "am"},
+		{"en-US", "Sun", "Sunday", "Jan", "January", "AM"},
+		{"en-GB", "Sun", "Sunday", "Jan", "January", "am"},
 		{"en", "Sun", "Sunday", "Jan", "January", "am"},
-		{"es_EC", "dom", "domingo", "ene", "enero", "AM"},
+		{"es-EC", "dom", "domingo", "ene", "enero", "AM"},
 		{"es", "dom", "domingo", "ene", "enero", "AM"},
-		{"pt_BR", "dom", "domingo", "jan", "janeiro", "AM"},
-		{"pt_PT", "dom", "domingo", "jan", "janeiro", "AM"},
+		{"pt-BR", "dom", "domingo", "jan", "janeiro", "AM"},
+		{"pt-PT", "dom", "domingo", "jan", "janeiro", "AM"},
 		{"pt", "dom", "domingo", "jan", "janeiro", "AM"},
-		{"rw_RW", "Mwe", "Ku cyumweru", "Mut", "Mutarama", "AM"},
+		{"rw-RW", "Mwe", "Ku cyumweru", "Mut", "Mutarama", "AM"},
 		{"rw", "Mwe", "Ku cyumweru", "Mut", "Mutarama", "AM"},
-		{"zh_CN", "日", "星期日", "1月", "一月", "上午"},
-		{"zh_HK", "日", "星期日", "1月", "一月", "上午"},
-		{"zh_SG", "日", "星期日", "一月", "一月", "上午"},
-		{"zh_TW", "日", "週日", " 1月", "一月", "上午"},
+		{"zh-CN", "日", "星期日", "1月", "一月", "上午"},
+		{"zh-HK", "日", "星期日", "1月", "一月", "上午"},
+		{"zh-SG", "日", "星期日", "一月", "一月", "上午"},
+		{"zh-TW", "日", "週日", " 1月", "一月", "上午"},
 		{"zh", "日", "星期日", "1月", "一月", "上午"}, // backs down to first zh translation
 	}
 

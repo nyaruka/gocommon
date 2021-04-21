@@ -8,7 +8,7 @@ import (
 
 // file containing day and month translations, generated using https://github.com/nyaruka/go-locales
 //
-// ./localesdump --merge days=LC_TIME.day short_days=LC_TIME.abday months=LC_TIME.mon short_months=LC_TIME.abmon am_pm=LC_TIME.am_pm > dates.json
+// ./localesdump --bcp47 --merge days=LC_TIME.day short_days=LC_TIME.abday months=LC_TIME.mon short_months=LC_TIME.abmon am_pm=LC_TIME.am_pm > dates.json
 //
 //go:embed i18n/i18n.json
 var i18nJSON []byte
@@ -23,7 +23,7 @@ type Translation struct {
 
 var translations map[string]*Translation
 var backdowns = map[string]*Translation{} // language only backdowns for locales that have countries
-var defaultLang = "en_US"
+var defaultLocale = "en-US"
 
 func init() {
 	err := json.Unmarshal(i18nJSON, &translations)
@@ -58,7 +58,7 @@ func init() {
 // GetTranslation gets the best match translation for the given locale
 func GetTranslation(locale string) *Translation {
 	if locale == "" {
-		return translations[defaultLang]
+		return translations[defaultLocale]
 	}
 
 	// try extract xx_YY match
@@ -81,5 +81,5 @@ func GetTranslation(locale string) *Translation {
 	}
 
 	// use default
-	return translations[defaultLang]
+	return translations[defaultLocale]
 }
