@@ -136,7 +136,7 @@ var baseGSM7 = map[rune]byte{
 
 // extended gsm7 characters, these my be preceded by our escape
 var extendedGSM7 = map[rune]byte{
-	' ':  0x0A,
+	'\f': 0x0A,
 	'^':  0x14,
 	'{':  0x28,
 	'}':  0x29,

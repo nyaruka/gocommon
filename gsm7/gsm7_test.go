@@ -1,6 +1,7 @@
 package gsm7_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/nyaruka/gocommon/gsm7"
@@ -73,6 +74,10 @@ func TestSegments(t *testing.T) {
 		Segments int
 	}{
 		{"", 1},
+		{strings.Repeat(" ", 160), 1},
+		{strings.Repeat(" ", 161), 2},
+		{strings.Repeat("\f", 80), 1},
+		{strings.Repeat("\f", 81), 2},
 		{"hello", 1},
 		{"“word”", 1},
 		{hundredChars + fiftyChars + tenChars, 1},
