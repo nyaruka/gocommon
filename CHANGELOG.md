@@ -1,3 +1,7 @@
+v1.9.2
+----------
+ * gsm7: Fix U+000C, form feed(\f), instead of space, for 0x0A
+
 v1.9.1
 ----------
  * Use standard BCP47 (hypenated) locale codes
