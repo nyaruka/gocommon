@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,10 +24,10 @@ func (s *fsStorage) Name() string {
 	return "file system"
 }
 
-func (s *fsStorage) Test() error {
+func (s *fsStorage) Test(ctx context.Context) error {
 	// write randomly named file
 	path := fmt.Sprintf("%s.txt", uuids.New())
-	fullPath, err := s.Put(path, "text/plain", []byte(`test`))
+	fullPath, err := s.Put(ctx, path, "text/plain", []byte(`test`))
 	if err != nil {
 		return err
 	}
@@ -35,13 +36,13 @@ func (s *fsStorage) Test() error {
 	return nil
 }
 
-func (s *fsStorage) Get(path string) (string, []byte, error) {
+func (s *fsStorage) Get(ctx context.Context, path string) (string, []byte, error) {
 	fullPath := filepath.Join(s.directory, path)
 	contents, err := ioutil.ReadFile(fullPath)
 	return "", contents, err
 }
 
-func (s *fsStorage) Put(path string, contentType string, contents []byte) (string, error) {
+func (s *fsStorage) Put(ctx context.Context, path string, contentType string, contents []byte) (string, error) {
 	fullPath := filepath.Join(s.directory, path)
 
 	err := os.MkdirAll(filepath.Dir(fullPath), s.perms)
@@ -55,4 +56,16 @@ func (s *fsStorage) Put(path string, contentType string, contents []byte) (strin
 	}
 
 	return fullPath, nil
+}
+
+func (s *fsStorage) BatchPut(ctx context.Context, us []*Upload) error {
+	for _, upload := range us {
+		url, err := s.Put(ctx, upload.Path, upload.ContentType, upload.Body)
+		if err != nil {
+			upload.Error = err
+			return err
+		}
+		upload.URL = url
+	}
+	return nil
 }
