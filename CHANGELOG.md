@@ -1,3 +1,8 @@
+v1.10.0
+----------
+ * add BatchPut to storage
+ * add use of context for timeouts in storage
+
 v1.9.2
 ----------
  * gsm7: Fix U+000C, form feed(\f), instead of space, for 0x0A
