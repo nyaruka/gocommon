@@ -2,11 +2,15 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
@@ -16,9 +20,9 @@ var s3BucketURL = "https://%s.s3.amazonaws.com%s"
 
 // S3Client provides a mockable subset of the S3 API
 type S3Client interface {
-	HeadBucket(*s3.HeadBucketInput) (*s3.HeadBucketOutput, error)
-	GetObject(*s3.GetObjectInput) (*s3.GetObjectOutput, error)
-	PutObject(*s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	HeadBucketWithContext(ctx context.Context, input *s3.HeadBucketInput, opts ...request.Option) (*s3.HeadBucketOutput, error)
+	GetObjectWithContext(ctx context.Context, input *s3.GetObjectInput, opts ...request.Option) (*s3.GetObjectOutput, error)
+	PutObjectWithContext(ctx context.Context, input *s3.PutObjectInput, opts ...request.Option) (*s3.PutObjectOutput, error)
 }
 
 // S3Options are options for an S3 client
@@ -29,6 +33,7 @@ type S3Options struct {
 	Region             string
 	DisableSSL         bool
 	ForcePathStyle     bool
+	WorkersPerBatch    int
 }
 
 // NewS3Client creates a new S3 client
@@ -48,13 +53,15 @@ func NewS3Client(opts *S3Options) (S3Client, error) {
 }
 
 type s3Storage struct {
-	client S3Client
-	bucket string
+	client          S3Client
+	bucket          string
+	workersPerBatch int
 }
 
-// NewS3 creates a new S3 storage service
-func NewS3(client S3Client, bucket string) Storage {
-	return &s3Storage{client: client, bucket: bucket}
+// NewS3 creates a new S3 storage service. Callers can specify how many parallel uploads will take place at
+// once when calling BatchPut with workersPerBatch
+func NewS3(client S3Client, bucket string, workersPerBatch int) Storage {
+	return &s3Storage{client: client, bucket: bucket, workersPerBatch: workersPerBatch}
 }
 
 func (s *s3Storage) Name() string {
@@ -62,15 +69,15 @@ func (s *s3Storage) Name() string {
 }
 
 // Test tests whether our S3 client is properly configured
-func (s *s3Storage) Test() error {
-	_, err := s.client.HeadBucket(&s3.HeadBucketInput{
+func (s *s3Storage) Test(ctx context.Context) error {
+	_, err := s.client.HeadBucketWithContext(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(s.bucket),
 	})
 	return err
 }
 
-func (s *s3Storage) Get(path string) (string, []byte, error) {
-	out, err := s.client.GetObject(&s3.GetObjectInput{
+func (s *s3Storage) Get(ctx context.Context, path string) (string, []byte, error) {
+	out, err := s.client.GetObjectWithContext(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(path),
 	})
@@ -87,8 +94,8 @@ func (s *s3Storage) Get(path string) (string, []byte, error) {
 }
 
 // Put writes the passed in file to the bucket with the passed in content type
-func (s *s3Storage) Put(path string, contentType string, contents []byte) (string, error) {
-	_, err := s.client.PutObject(&s3.PutObjectInput{
+func (s *s3Storage) Put(ctx context.Context, path string, contentType string, contents []byte) (string, error) {
+	_, err := s.client.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
 		Body:        bytes.NewReader(contents),
 		Key:         aws.String(path),
@@ -100,6 +107,84 @@ func (s *s3Storage) Put(path string, contentType string, contents []byte) (strin
 	}
 
 	return s.url(path), nil
+}
+
+func (s *s3Storage) batchWorker(ctx context.Context, uploads chan *Upload, errors chan error, stop chan bool, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		select {
+		case u := <-uploads:
+			var err error
+			for tries := 0; tries < 3; tries++ {
+				// we use a short timeout per request, better to retry than wait on a stalled connection and waste all our time
+				// TODO: validate choice of 15 seconds against real world performance
+				uctx, cancel := context.WithTimeout(ctx, time.Second*15)
+				defer cancel()
+
+				_, err = s.client.PutObjectWithContext(uctx, &s3.PutObjectInput{
+					Bucket:      aws.String(s.bucket),
+					Body:        bytes.NewReader(u.Body),
+					Key:         aws.String(u.Path),
+					ContentType: aws.String(u.ContentType),
+					ACL:         aws.String(u.ACL),
+				})
+
+				if err == nil {
+					break
+				}
+			}
+
+			if err == nil {
+				u.URL = s.url(u.Path)
+			} else {
+				u.Error = err
+			}
+
+			errors <- err
+
+		case <-stop:
+			return
+		}
+	}
+}
+
+// BatchPut writes the entire batch of items to the passed in URLs, returning a map of errors if any.
+// Writes will be retried up to three times automatically.
+func (s *s3Storage) BatchPut(ctx context.Context, us []*Upload) error {
+	uploads := make(chan *Upload, len(us))
+	errors := make(chan error, len(us))
+	stop := make(chan bool)
+	wg := &sync.WaitGroup{}
+
+	// start our workers
+	for w := 0; w < s.workersPerBatch; w++ {
+		go s.batchWorker(ctx, uploads, errors, stop, wg)
+	}
+
+	// add all our uploads to our work queue
+	for _, u := range us {
+		uploads <- u
+	}
+
+	// read all our errors out, we'll stop everything if we encounter one
+	var err error
+	for i := 0; i < len(us); i++ {
+		e := <-errors
+		if e != nil {
+			err = e
+			break
+		}
+	}
+
+	// stop everyone
+	close(stop)
+
+	// wait for everything to finish up
+	wg.Wait()
+
+	return err
 }
 
 func (s *s3Storage) url(path string) string {
