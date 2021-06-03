@@ -37,11 +37,14 @@ func TestFS(t *testing.T) {
 	assert.Equal(t, []byte(`hello world`), data)
 
 	require.NoError(t, os.RemoveAll("_testing"))
+	require.NoError(t, os.MkdirAll("_testing", 0777))
 }
 
 func TestFSBatchPut(t *testing.T) {
-
 	ctx := context.Background()
+	uuids.SetGenerator(uuids.NewSeededGenerator(12345))
+	defer uuids.SetGenerator(uuids.DefaultGenerator)
+
 	s := storage.NewFS("_testing")
 
 	uploads := []*storage.Upload{
@@ -77,4 +80,7 @@ func TestFSBatchPut(t *testing.T) {
 
 	assert.NotEmpty(t, uploads[0].URL)
 	assert.NotEmpty(t, uploads[1].URL)
+
+	require.NoError(t, os.RemoveAll("_testing"))
+	require.NoError(t, os.MkdirAll("_testing", 0777))
 }
