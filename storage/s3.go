@@ -168,7 +168,7 @@ func (s *s3Storage) BatchPut(ctx context.Context, us []*Upload) error {
 		uploads <- u
 	}
 
-	// read all our errors out, we'll stop everything if we encouter one
+	// read all our errors out, we'll stop everything if we encounter one
 	var err error
 	for i := 0; i < len(us); i++ {
 		e := <-errors
