@@ -1,3 +1,7 @@
+v1.11.0
+----------
+ * Add Must* versions of jsonx.Marshal and jsonx.Unmarshal
+
 v1.10.0
 ----------
  * add BatchPut to storage
