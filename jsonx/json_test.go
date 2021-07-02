@@ -3,6 +3,7 @@ package jsonx_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -10,6 +11,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+type badThing struct{}
+
+func (b *badThing) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("I can't be marshaled")
+}
+
+func (b *badThing) UnmarshalJSON() error {
+	return fmt.Errorf("I can't be unmarshaled")
+}
 
 func TestMarshaling(t *testing.T) {
 	j, err := jsonx.Marshal(nil)
@@ -21,9 +32,14 @@ func TestMarshaling(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`"Rwanda > Kigali & Ecuador"`), j)
 
+	// check an object that can be marshaled
 	j, err = jsonx.Marshal(map[string]string{"foo": "bar"})
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`{"foo":"bar"}`), j)
+
+	// and one that can't
+	_, err = jsonx.Marshal(&badThing{})
+	assert.EqualError(t, err, "json: error calling MarshalJSON for type *jsonx_test.badThing: I can't be marshaled")
 
 	j, err = jsonx.MarshalPretty(map[string]string{"foo": "bar"})
 	assert.NoError(t, err)
@@ -32,6 +48,39 @@ func TestMarshaling(t *testing.T) {
 	j, err = jsonx.MarshalMerged(map[string]string{"foo": "bar"}, map[string]string{"zed": "xyz"})
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`{"foo":"bar","zed":"xyz"}`), j)
+}
+
+func TestMustMarshal(t *testing.T) {
+	// check an object that can be marshaled
+	j := jsonx.MustMarshal(map[string]string{"foo": "bar"})
+	assert.Equal(t, []byte(`{"foo":"bar"}`), j)
+
+	// and one that can't
+	assert.PanicsWithError(t, "json: error calling MarshalJSON for type *jsonx_test.badThing: I can't be marshaled", func() {
+		jsonx.MustMarshal(&badThing{})
+	})
+}
+
+func TestUnmarshal(t *testing.T) {
+	var s string
+	err := jsonx.Unmarshal([]byte(`"test"`), &s)
+	assert.NoError(t, err)
+	assert.Equal(t, "test", s)
+
+	var b badThing
+	err = jsonx.Unmarshal([]byte(`"test"`), &b)
+	assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type jsonx_test.badThing")
+}
+
+func TestMustUnmarshal(t *testing.T) {
+	var s string
+	jsonx.MustUnmarshal([]byte(`"test"`), &s)
+	assert.Equal(t, "test", s)
+
+	assert.PanicsWithError(t, "json: cannot unmarshal string into Go value of type jsonx_test.badThing", func() {
+		var b badThing
+		jsonx.MustUnmarshal([]byte(`"test"`), &b)
+	})
 }
 
 func TestUnmarshalArray(t *testing.T) {

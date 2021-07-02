@@ -32,6 +32,15 @@ func MarshalMerged(v1 interface{}, v2 interface{}) ([]byte, error) {
 	return b, nil
 }
 
+// MustMarshal marshals the given object to JSON, panicking on an error
+func MustMarshal(v interface{}) []byte {
+	data, err := marshal(v, "")
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
 func marshal(v interface{}, indent string) ([]byte, error) {
 	buffer := &bytes.Buffer{}
 	encoder := json.NewEncoder(buffer)
@@ -70,6 +79,13 @@ func UnmarshalWithLimit(reader io.ReadCloser, s interface{}, limit int64) error 
 		return err
 	}
 	return Unmarshal(body, &s)
+}
+
+// MustUnmarshal unmarshals the given JSON, panicking on an error
+func MustUnmarshal(data json.RawMessage, v interface{}) {
+	if err := json.Unmarshal(data, v); err != nil {
+		panic(err)
+	}
 }
 
 // DecodeGeneric decodes the given JSON as a generic map or slice
