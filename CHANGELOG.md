@@ -1,3 +1,7 @@
+v1.12.0
+----------
+ * Add support for sanitizing a response trace by stripping nulls as well as invalid UTF8
+
 v1.11.0
 ----------
  * Add Must* versions of jsonx.Marshal and jsonx.Unmarshal
