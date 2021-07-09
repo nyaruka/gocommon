@@ -80,7 +80,7 @@ func (t *Trace) SanitizedResponse(placeholder string) []byte {
 	b := &bytes.Buffer{}
 
 	// ensure headers section is valid
-	b.Write(replaceNullChars(bytes.ToValidUTF8(t.ResponseTrace, nil)))
+	b.Write(replaceNullChars(bytes.ToValidUTF8(t.ResponseTrace, []byte(`�`))))
 
 	// only include body if it's valid UTF-8 as it could be a binary file or anything
 	if utf8.Valid(t.ResponseBody) {
