@@ -30,7 +30,7 @@ func newTestHTTPServer(port int) *httptest.Server {
 			data = []byte(`{ "ok": "true" }`)
 		case "nullchars":
 			contentType = "text/plain; charset=utf-8"
-			data = []byte("ab\x00cd\x00")
+			data = []byte("ab\x00cd\x00\x00")
 		case "binary":
 			contentType = "application/octet-stream"
 			data = make([]byte, 1000)
@@ -100,9 +100,9 @@ func TestDoTrace(t *testing.T) {
 	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
 	assert.NoError(t, err)
 	assert.Equal(t, "GET /?cmd=nullchars HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, 6, len(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\nabcd", string(trace.SanitizedResponse("...")))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
+	assert.Equal(t, 7, len(trace.ResponseBody))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\nab�cd��", string(trace.SanitizedResponse("...")))
 }
 
 func TestMaxBodyBytes(t *testing.T) {
