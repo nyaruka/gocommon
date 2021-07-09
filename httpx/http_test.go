@@ -28,6 +28,13 @@ func newTestHTTPServer(port int) *httptest.Server {
 		case "success":
 			contentType = "text/plain; charset=utf-8"
 			data = []byte(`{ "ok": "true" }`)
+		case "nullchars":
+			contentType = "text/plain; charset=utf-8"
+			data = []byte("ab\x00cd\x00\x00")
+		case "badutf8":
+			w.Header().Set("Bad-Header", "\x80\x81")
+			contentType = "text/plain; charset=utf-8"
+			data = []byte("ab\x80\x81cd")
 		case "binary":
 			contentType = "application/octet-stream"
 			data = make([]byte, 1000)
@@ -76,7 +83,7 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), trace.StartTime)
 	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 31, 123456789, time.UTC), trace.EndTime)
 
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", string(trace.ResponseTraceUTF8("...")))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", string(trace.SanitizedResponse("...")))
 	assert.Equal(t, ">>>>>>>> GET http://127.0.0.1:52025?cmd=success\nGET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n\n<<<<<<<<\nHTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", trace.String())
 
 	// test with a binary response
@@ -88,7 +95,29 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, "GET /?cmd=binary HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, 1000, len(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.ResponseTraceUTF8("...")))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
+
+	// test with a response containing null chars
+	request, err = httpx.NewRequest("GET", server.URL+"?cmd=nullchars", nil, nil)
+	require.NoError(t, err)
+
+	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, "GET /?cmd=nullchars HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
+	assert.Equal(t, 7, len(trace.ResponseBody))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\nab�cd��", string(trace.SanitizedResponse("...")))
+
+	// test with a response containing invalid UTF8 sequences
+	request, err = httpx.NewRequest("GET", server.URL+"?cmd=badutf8", nil, nil)
+	require.NoError(t, err)
+
+	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, "GET /?cmd=badutf8 HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: \x80\x81\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
+	assert.Equal(t, 6, len(trace.ResponseBody))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: �\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
 }
 
 func TestMaxBodyBytes(t *testing.T) {

@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -73,19 +74,26 @@ func (t *Trace) String() string {
 	return b.String()
 }
 
-// ResponseTraceUTF8 returns a valid UTF-8 string version of trace, substituting the body with placeholder if it isn't valid UTF-8
-func (t *Trace) ResponseTraceUTF8(placeholder string) string {
-	// headers part assumed to be valid UTF-8
-	s := string(t.ResponseTrace)
+// SanitizedResponse returns a valid UTF-8 string version of trace, substituting the body with a placeholder
+// if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
+func (t *Trace) SanitizedResponse(placeholder string) []byte {
+	b := &bytes.Buffer{}
 
-	// if body is valid UTF-8, include it
+	// ensure headers section is valid
+	b.Write(replaceNullChars(bytes.ToValidUTF8(t.ResponseTrace, []byte(`�`))))
+
+	// only include body if it's valid UTF-8 as it could be a binary file or anything
 	if utf8.Valid(t.ResponseBody) {
-		s += string(t.ResponseBody)
+		b.Write(replaceNullChars(t.ResponseBody))
 	} else {
-		s += placeholder
+		b.Write([]byte(placeholder))
 	}
 
-	return s
+	return b.Bytes()
+}
+
+func replaceNullChars(b []byte) []byte {
+	return bytes.ReplaceAll(b, []byte{0}, []byte(`�`))
 }
 
 // DoTrace makes the given request saving traces of the complete request and response
