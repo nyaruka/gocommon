@@ -43,7 +43,7 @@ func (c *testS3Client) PutObjectWithContext(ctx context.Context, input *s3.PutOb
 
 func TestS3Test(t *testing.T) {
 	client := &testS3Client{}
-	s3 := storage.NewS3(client, "mybucket", 1)
+	s3 := storage.NewS3(client, "mybucket", "us-east-1", 1)
 
 	assert.NoError(t, s3.Test(context.Background()))
 
@@ -55,7 +55,7 @@ func TestS3Test(t *testing.T) {
 func TestS3Get(t *testing.T) {
 	ctx := context.Background()
 	client := &testS3Client{}
-	s := storage.NewS3(client, "mybucket", 1)
+	s := storage.NewS3(client, "mybucket", "us-east-1", 1)
 
 	client.getObjectReturnValue = &s3.GetObjectOutput{
 		ContentType: aws.String("text/plain"),
@@ -76,11 +76,11 @@ func TestS3Get(t *testing.T) {
 func TestS3Put(t *testing.T) {
 	ctx := context.Background()
 	client := &testS3Client{}
-	s := storage.NewS3(client, "mybucket", 1)
+	s := storage.NewS3(client, "mybucket", "us-east-1", 1)
 
 	url, err := s.Put(ctx, "/foo/things", "text/plain", []byte(`HELLOWORLD`))
 	assert.NoError(t, err)
-	assert.Equal(t, "https://mybucket.s3.amazonaws.com/foo/things", url)
+	assert.Equal(t, "https://mybucket.s3.us-east-1.amazonaws.com/foo/things", url)
 
 	client.returnError = errors.New("boom")
 
@@ -92,17 +92,17 @@ func TestS3BatchPut(t *testing.T) {
 
 	ctx := context.Background()
 	client := &testS3Client{}
-	s := storage.NewS3(client, "mybucket", 10)
+	s := storage.NewS3(client, "mybucket", "us-east-1", 10)
 
 	uploads := []*storage.Upload{
-		&storage.Upload{
-			Path:        "https://mybucket.s3.amazonaws.com/foo/thing1",
+		{
+			Path:        "https://mybucket.s3.us-east-1.amazonaws.com/foo/thing1",
 			Body:        []byte(`HELLOWORLD`),
 			ContentType: "text/plain",
 			ACL:         s3.BucketCannedACLPrivate,
 		},
-		&storage.Upload{
-			Path:        "https://mybucket.s3.amazonaws.com/foo/thing2",
+		{
+			Path:        "https://mybucket.s3.us-east-1.amazonaws.com/foo/thing2",
 			Body:        []byte(`HELLOWORLD2`),
 			ContentType: "text/plain",
 			ACL:         s3.BucketCannedACLPrivate,
@@ -116,7 +116,7 @@ func TestS3BatchPut(t *testing.T) {
 	assert.NotEmpty(t, uploads[1].URL)
 
 	// try again, with a single thread and throwing an error
-	s = storage.NewS3(client, "mybucket", 1)
+	s = storage.NewS3(client, "mybucket", "us-east-1", 1)
 	client.returnError = errors.New("boom")
 
 	uploads[0].URL = ""
