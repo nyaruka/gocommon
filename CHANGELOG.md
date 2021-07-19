@@ -1,3 +1,7 @@
+v1.13.0
+----------
+ * Include AWS region in storage URLs
+
 v1.12.0
 ----------
  * Add support for sanitizing a response trace by stripping nulls as well as invalid UTF8
