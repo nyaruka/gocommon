@@ -59,6 +59,9 @@ const (
 	// WeChatScheme is the scheme used for WeChat identifiers
 	WeChatScheme string = "wechat"
 
+	// WeniWebChatScheme is the scheme used for Weni Web Chat identifiers
+	WeniWebChatScheme string = "weniwebchat"
+
 	// FacebookRefPrefix is the path prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
 
