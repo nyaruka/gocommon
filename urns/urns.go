@@ -59,14 +59,14 @@ const (
 	// WeChatScheme is the scheme used for WeChat identifiers
 	WeChatScheme string = "wechat"
 
-	// WeniWebChatScheme is the scheme used for Weni Web Chat identifiers
-	WeniWebChatScheme string = "weniwebchat"
-
 	// FacebookRefPrefix is the path prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
 
 	// DiscordScheme is the scheme used for Discord identifiers (user IDs not usernames)
 	DiscordScheme string = "discord"
+
+	// WebChatScheme is the scheme used for any Web Chat identifiers
+	WebChatScheme string = "webchat"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
@@ -88,6 +88,7 @@ var ValidSchemes = map[string]bool{
 	WhatsAppScheme:   true,
 	WeChatScheme:     true,
 	DiscordScheme:    true,
+	WebChatScheme:    true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -104,6 +105,7 @@ var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=/+]{1,24}$`)
 var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
 var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
 var freshchatRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$`)
+var webchatRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
@@ -136,6 +138,10 @@ func NewFacebookURN(identifier string) (URN, error) {
 // NewDiscordURN returns a URN for the passed in Discord identifier
 func NewDiscordURN(identifier string) (URN, error) {
 	return NewURNFromParts(DiscordScheme, identifier, "", "")
+}
+
+func NewWebChatURN(identifier string) (URN, error) {
+	return NewURNFromParts(WebChatScheme, identifier, "", "")
 }
 
 // returns a new URN for the given scheme, path, query and display
@@ -290,9 +296,15 @@ func (u URN) Validate() error {
 		if !freshchatRegex.MatchString(path) {
 			return fmt.Errorf("invalid freshchat id: %s", path)
 		}
+
 	case DiscordScheme:
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid discord id: %s", path)
+		}
+
+	case WebChatScheme:
+		if !webchatRegex.MatchString(path) {
+			return fmt.Errorf("invalid webchat id: %s", path)
 		}
 	}
 	return nil // anything goes for external schemes

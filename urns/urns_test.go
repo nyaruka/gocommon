@@ -24,6 +24,7 @@ func TestURNProperties(t *testing.T) {
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foobar", "foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
 		{"discord:732326982863421591", "732326982863421591", "", "", map[string][]string{}},
+		{"webchat:123456@foo", "123456@foo", "", "", map[string][]string{}},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, string(tc.urn), tc.urn.String())
@@ -46,6 +47,7 @@ func TestIsFacebookRef(t *testing.T) {
 		{"facebook:12345", false, ""},
 		{"tel:25078838383", false, ""},
 		{"discord:732326982863421591", false, ""},
+		{"discord:foo", false, ""},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, tc.isFacebookRef, tc.urn.IsFacebookRef(), "is facebook ref mismatch for %s", tc.urn)
@@ -69,6 +71,7 @@ func TestFromParts(t *testing.T) {
 		{"whatsapp", "12345", "", URN("whatsapp:12345"), URN("whatsapp:12345"), false},
 		{"viber", "", "", NilURN, ":", true},
 		{"discord", "732326982863421591", "", URN("discord:732326982863421591"), URN("discord:732326982863421591"), false},
+		{"webchat", "12345@foo", "", URN("webchat:12345@foo"), URN("webchat:12345@foo"), false},
 	}
 
 	for _, tc := range testCases {
@@ -420,6 +423,28 @@ func TestDiscordURNs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		urn, err := NewDiscordURN(tc.identifier)
+		if tc.hasError {
+			assert.Error(t, err, "expected error for %s", tc.identifier)
+		} else {
+			assert.NoError(t, err, "expected error for %s", tc.identifier)
+			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
+		}
+	}
+}
+
+func TestWebChatURNs(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		expected   URN
+		hasError   bool
+	}{
+		{"123456@foo", URN("webchat:123456@foo"), false},
+		{"matricula:123456@foo", URN("webchat:matricula:123456@foo"), false},
+		{"123456", URN("webchat:123456@foo"), true},
+	}
+
+	for _, tc := range testCases {
+		urn, err := NewWebChatURN(tc.identifier)
 		if tc.hasError {
 			assert.Error(t, err, "expected error for %s", tc.identifier)
 		} else {
