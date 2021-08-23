@@ -1,3 +1,7 @@
+v1.13.1
+----------
+ * Add webchat URN scheme
+
 v1.13.0
 ----------
  * Include AWS region in storage URLs
