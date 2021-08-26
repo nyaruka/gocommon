@@ -1,3 +1,7 @@
+v1.13.2
+----------
+ * Update to latest phonenumbers
+
 v1.13.1
 ----------
  * Add webchat URN scheme
