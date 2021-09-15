@@ -99,35 +99,41 @@ func TestDoWithRetries(t *testing.T) {
 	trace := call("GET", "http://temba.io/1/", nil, nil)
 	assert.Equal(t, 502, trace.Response.StatusCode)
 
-	// a retry config which can make 3 attempts
+	// a retry config which can make 2 retries
 	retries := httpx.NewFixedRetries(1*time.Millisecond, 2*time.Millisecond)
 
 	// retrying thats ends with failure
 	trace = call("GET", "http://temba.io/2/", nil, retries)
 	assert.Equal(t, 505, trace.Response.StatusCode)
+	assert.Equal(t, 2, trace.Retries)
 
 	// retrying not needed
 	trace = call("GET", "http://temba.io/3/", nil, retries)
 	assert.Equal(t, 200, trace.Response.StatusCode)
+	assert.Equal(t, 0, trace.Retries)
 
 	// retrying not used for POSTs
 	trace = call("POST", "http://temba.io/4/", nil, retries)
 	assert.Equal(t, 502, trace.Response.StatusCode)
+	assert.Equal(t, 0, trace.Retries)
 
 	// unless idempotency declared via request header
 	trace = call("POST", "http://temba.io/5/", map[string]string{"Idempotency-Key": "123"}, retries)
 	assert.Equal(t, 200, trace.Response.StatusCode)
+	assert.Equal(t, 1, trace.Retries)
 
-	// a retry config which can make 2 attempts (need a longer delay so that the Retry-After header value can be used)
+	// a retry config which can make 1 retry (need a longer delay so that the Retry-After header value can be used)
 	retries = httpx.NewFixedRetries(1 * time.Second)
 
 	// retrying due to Retry-After header
 	trace = call("POST", "http://temba.io/6/", nil, retries)
 	assert.Equal(t, 201, trace.Response.StatusCode)
+	assert.Equal(t, 1, trace.Retries)
 
 	// ignoring Retry-After header when it's too long
 	trace = call("GET", "http://temba.io/7/", nil, retries)
 	assert.Equal(t, 429, trace.Response.StatusCode)
+	assert.Equal(t, 0, trace.Retries)
 
 	assert.False(t, mocks.HasUnused())
 }

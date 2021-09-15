@@ -20,13 +20,18 @@ var debug = false
 
 // Do makes the given HTTP request using the current requestor and retry config
 func Do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, error) {
+	r, _, err := do(client, request, retries, access)
+	return r, err
+}
+
+func do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, int, error) {
 	if access != nil {
 		allowed, err := access.Allow(request)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if !allowed {
-			return nil, errors.Errorf("request to %s denied", request.URL.Hostname())
+			return nil, 0, errors.Errorf("request to %s denied", request.URL.Hostname())
 		}
 	}
 
@@ -50,7 +55,7 @@ func Do(client *http.Client, request *http.Request, retries *RetryConfig, access
 		break
 	}
 
-	return response, err
+	return response, retry, err
 }
 
 // Trace holds the complete trace of an HTTP request/response
@@ -62,6 +67,7 @@ type Trace struct {
 	ResponseBody  []byte // response body stored separately
 	StartTime     time.Time
 	EndTime       time.Time
+	Retries       int
 }
 
 func (t *Trace) String() string {
@@ -109,8 +115,9 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 		StartTime:    dates.Now(),
 	}
 
-	response, err := Do(client, request, retries, access)
+	response, retryCount, err := do(client, request, retries, access)
 	trace.EndTime = dates.Now()
+	trace.Retries = retryCount
 
 	if err != nil {
 		return trace, err
