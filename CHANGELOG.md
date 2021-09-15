@@ -1,3 +1,8 @@
+v1.14.0
+----------
+ * HTTP traces should include number of retries made
+ * Build and test with go 1.17
+
 v1.13.2
 ----------
  * Update to latest phonenumbers
