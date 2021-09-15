@@ -14,4 +14,11 @@ require (
 	golang.org/x/text v0.3.3 // indirect
 )
 
-go 1.16
+require (
+	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+)
+
+go 1.17
