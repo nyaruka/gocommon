@@ -33,7 +33,7 @@ type S3Options struct {
 	Region             string
 	DisableSSL         bool
 	ForcePathStyle     bool
-	WorkersPerBatch    int
+	MaxRetries         int
 }
 
 // NewS3Client creates a new S3 client
@@ -44,6 +44,7 @@ func NewS3Client(opts *S3Options) (S3Client, error) {
 		Region:           aws.String(opts.Region),
 		DisableSSL:       aws.Bool(opts.DisableSSL),
 		S3ForcePathStyle: aws.Bool(opts.ForcePathStyle),
+		MaxRetries:       aws.Int(opts.MaxRetries),
 	})
 	if err != nil {
 		return nil, err
