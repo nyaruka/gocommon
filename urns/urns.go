@@ -67,6 +67,9 @@ const (
 
 	// WebChatScheme is the scheme used for any Web Chat identifiers
 	WebChatScheme string = "webchat"
+
+	// InstagramScheme is the scheme used for any Web Chat identifiers
+	InstagramScheme string = "instagram"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
@@ -89,6 +92,7 @@ var ValidSchemes = map[string]bool{
 	WeChatScheme:     true,
 	DiscordScheme:    true,
 	WebChatScheme:    true,
+	InstagramScheme:  true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -265,6 +269,10 @@ func (u URN) Validate() error {
 		// otherwise, this should be an int
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid facebook id: %s", path)
+		}
+	case InstagramScheme:
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid instagram id: %s", path)
 		}
 	case JiochatScheme:
 		if !allDigitsRegex.MatchString(path) {
