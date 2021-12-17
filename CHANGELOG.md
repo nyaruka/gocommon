@@ -1,3 +1,7 @@
+v1.15.0
+----------
+ * Make random functions threadsafe
+
 v1.14.1
 ----------
  * Allow specifying max retries for S3 clients and update client library
