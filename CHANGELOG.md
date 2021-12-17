@@ -1,3 +1,7 @@
+v1.15.1
+----------
+ * Add URN scheme for instagram
+
 v1.15.0
 ----------
  * Make random functions threadsafe
