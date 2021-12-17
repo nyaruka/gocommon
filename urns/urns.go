@@ -148,6 +148,11 @@ func NewWebChatURN(identifier string) (URN, error) {
 	return NewURNFromParts(WebChatScheme, identifier, "", "")
 }
 
+// NewInstagramURN returns a URN for the passed in instagram identifier
+func NewInstagramURN(identifier string) (URN, error) {
+	return NewURNFromParts(InstagramScheme, identifier, "", "")
+}
+
 // returns a new URN for the given scheme, path, query and display
 func newURNFromParts(scheme string, path string, query string, display string) URN {
 	u := &parsedURN{
