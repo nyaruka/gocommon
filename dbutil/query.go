@@ -42,7 +42,7 @@ func BulkQuery(ctx context.Context, tx Queryer, query string, structs []interfac
 
 			err = rows.StructScan(s)
 			if err != nil {
-				return errors.Wrap(err, "error scanning for insert id")
+				return errors.Wrap(err, "error scanning for returned values")
 			}
 		}
 	}

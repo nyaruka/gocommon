@@ -10,23 +10,31 @@ import (
 
 var validate = validator.New()
 
-// ReadJSONRow reads a row which is JSON into a destination struct
-func ReadJSONRow(rows *sqlx.Rows, destination interface{}) error {
-	var jsonBlob string
-	err := rows.Scan(&jsonBlob)
+// ScanJSON scans a row which is JSON into a destination struct
+func ScanJSON(rows *sqlx.Rows, destination interface{}) error {
+	var raw json.RawMessage
+	err := rows.Scan(&raw)
 	if err != nil {
 		return errors.Wrap(err, "error scanning row JSON")
 	}
 
-	err = json.Unmarshal([]byte(jsonBlob), destination)
+	err = json.Unmarshal(raw, destination)
 	if err != nil {
 		return errors.Wrap(err, "error unmarshalling row JSON")
 	}
 
-	// validate our final struct
-	err = validate.Struct(destination)
+	return nil
+}
+
+// ScanAndValidateJSON scans a row which is JSON into a destination struct and validates it
+func ScanAndValidateJSON(rows *sqlx.Rows, destination interface{}) error {
+	if err := ScanJSON(rows, destination); err != nil {
+		return err
+	}
+
+	err := validate.Struct(destination)
 	if err != nil {
-		return errors.Wrapf(err, "failed validation for JSON: %s", jsonBlob)
+		return errors.Wrapf(err, "error validating unmarsalled JSON")
 	}
 
 	return nil
