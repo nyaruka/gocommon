@@ -1,3 +1,7 @@
+v1.16.0
+----------
+ * Add dbutil package previously in mailroom
+
 v1.15.1
 ----------
  * Add URN scheme for instagram
