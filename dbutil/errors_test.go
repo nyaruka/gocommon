@@ -14,6 +14,7 @@ func TestIsUniqueViolation(t *testing.T) {
 	var err error = &pq.Error{Code: pq.ErrorCode("23505")}
 
 	assert.True(t, dbutil.IsUniqueViolation(err))
+	assert.True(t, dbutil.IsUniqueViolation(errors.Wrap(err, "wrapped")))
 	assert.False(t, dbutil.IsUniqueViolation(errors.New("boom")))
 }
 
