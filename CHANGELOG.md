@@ -1,3 +1,7 @@
+v1.16.2
+----------
+ * Return QueryError if error during row iteration
+
 v1.16.1
 ----------
  * Fix IsUniqueViolation for wrapped errors
