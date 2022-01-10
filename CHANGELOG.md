@@ -1,3 +1,7 @@
+v1.16.1
+----------
+ * Fix IsUniqueViolation for wrapped errors
+
 v1.16.0
 ----------
  * Add dbutil package previously in mailroom
