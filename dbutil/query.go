@@ -53,7 +53,7 @@ func BulkQuery(ctx context.Context, tx Queryer, query string, structs []interfac
 
 	// check for any error
 	if rows.Err() != nil {
-		return errors.Wrapf(rows.Err(), "error in row cursor")
+		return NewQueryErrorf(rows.Err(), bulkQuery, args, "error during row iteration")
 	}
 
 	return nil
