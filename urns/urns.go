@@ -11,74 +11,39 @@ import (
 )
 
 const (
-	// EmailScheme is the scheme used for email addresses
-	EmailScheme string = "mailto"
-
-	// ExternalScheme is the scheme used for externally defined identifiers
-	ExternalScheme string = "ext"
-
-	// FacebookScheme is the scheme used for Facebook identifiers
-	FacebookScheme string = "facebook"
-
-	// FCMScheme is the scheme used for Firebase Cloud Messaging identifiers
-	FCMScheme string = "fcm"
-
-	// FreshChatScheme is the scheme used for FreshChat Cloud Messaging identifiers
-	FreshChatScheme string = "freshchat"
-
-	// JiochatScheme is the scheme used for Jiochat identifiers
-	JiochatScheme string = "jiochat"
-
-	// LineScheme is the scheme used for LINE identifiers
-	LineScheme string = "line"
-
-	// RocketChatScheme is the scheme used for RocketChat identifiers
+	DiscordScheme    string = "discord" // (user IDs not usernames)
+	EmailScheme      string = "mailto"
+	ExternalScheme   string = "ext"
+	FacebookScheme   string = "facebook"
+	FCMScheme        string = "fcm"
+	FreshChatScheme  string = "freshchat"
+	InstagramScheme  string = "instagram"
+	JiochatScheme    string = "jiochat"
+	LineScheme       string = "line"
 	RocketChatScheme string = "rocketchat"
+	TelegramScheme   string = "telegram"
+	TelScheme        string = "tel"
+	TwitterIDScheme  string = "twitterid" // Twitter user ids
+	TwitterScheme    string = "twitter"   // Twitter handles
+	ViberScheme      string = "viber"
+	VKScheme         string = "vk"
+	WebChatScheme    string = "webchat"
+	WeChatScheme     string = "wechat"
+	WhatsAppScheme   string = "whatsapp"
 
-	// TelegramScheme is the scheme used for Telegram identifiers
-	TelegramScheme string = "telegram"
-
-	// TelScheme is the scheme used for telephone numbers
-	TelScheme string = "tel"
-
-	// TwitterIDScheme is the scheme used for Twitter user ids
-	TwitterIDScheme string = "twitterid"
-
-	// TwitterScheme is the scheme used for Twitter handles
-	TwitterScheme string = "twitter"
-
-	// ViberScheme is the scheme used for Viber identifiers
-	ViberScheme string = "viber"
-
-	// VKScheme is the scheme used for VK user ids
-	VKScheme string = "vk"
-
-	// WhatsAppScheme is the scheme used for WhatsApp identifiers
-	WhatsAppScheme string = "whatsapp"
-
-	// WeChatScheme is the scheme used for WeChat identifiers
-	WeChatScheme string = "wechat"
-
-	// FacebookRefPrefix is the path prefix used for facebook referral URNs
+	// FacebookRefPrefix is prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
-
-	// DiscordScheme is the scheme used for Discord identifiers (user IDs not usernames)
-	DiscordScheme string = "discord"
-
-	// WebChatScheme is the scheme used for any Web Chat identifiers
-	WebChatScheme string = "webchat"
-
-	// InstagramScheme is the scheme used for any Web Chat identifiers
-	InstagramScheme string = "instagram"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
 var ValidSchemes = map[string]bool{
+	DiscordScheme:    true,
 	EmailScheme:      true,
 	ExternalScheme:   true,
 	FacebookScheme:   true,
 	FCMScheme:        true,
 	FreshChatScheme:  true,
+	InstagramScheme:  true,
 	JiochatScheme:    true,
 	LineScheme:       true,
 	RocketChatScheme: true,
@@ -88,11 +53,9 @@ var ValidSchemes = map[string]bool{
 	TwitterScheme:    true,
 	ViberScheme:      true,
 	VKScheme:         true,
-	WhatsAppScheme:   true,
-	WeChatScheme:     true,
-	DiscordScheme:    true,
 	WebChatScheme:    true,
-	InstagramScheme:  true,
+	WeChatScheme:     true,
+	WhatsAppScheme:   true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
