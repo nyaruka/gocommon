@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/nyaruka/gocommon/dates"
 
 	"github.com/pkg/errors"
@@ -212,4 +213,10 @@ func SetRequestor(requestor Requestor) {
 // SetDebug enables debugging
 func SetDebug(enabled bool) {
 	debug = enabled
+}
+
+// DetectContentType is a drop in replacement for http.DetectContentType which leans on
+// the github.com/gabriel-vasile/mimetype library
+func DetectContentType(d []byte) string {
+	return mimetype.Detect(d).String()
 }
