@@ -1,3 +1,8 @@
+v1.18.0
+----------
+ * CI with go 1.17 and 1.18
+ * Add httpx.DetectContentType which wraps functionality from github.com/gabriel-vasile/mimetype
+
 v1.17.1
 ----------
  * Fix race condition in S3Storage.BatchPut
