@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/gabriel-vasile/mimetype v1.4.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect

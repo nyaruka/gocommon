@@ -181,3 +181,25 @@ func TestNonUTF8(t *testing.T) {
 	assert.True(t, utf8.Valid(trace.ResponseTrace))
 	assert.False(t, utf8.Valid(trace.ResponseBody))
 }
+
+func TestDetectContentType(t *testing.T) {
+	tcs := []struct {
+		intput []byte
+		stdlib string // for comparison
+		output string
+	}{
+		{nil, "text/plain; charset=utf-8", "text/plain"},
+		{[]byte(`hello`), "text/plain; charset=utf-8", "text/plain; charset=utf-8"},
+		{[]byte(`{"foo": "bar"}`), "text/plain; charset=utf-8", "application/json"},
+		{[]byte{0x1f, 0x8b}, "application/octet-stream", "application/gzip"},
+		{[]byte("GIF87a"), "image/gif", "image/gif"},
+		{[]byte{0xFF, 0xD8, 0xFF}, "image/jpeg", "image/jpeg"},
+		{[]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, "image/png", "image/png"},
+		{[]byte{0xFF, 0xF1}, "text/plain; charset=utf-8", "audio/aac"},
+	}
+
+	for _, tc := range tcs {
+		assert.Equal(t, tc.stdlib, http.DetectContentType(tc.intput), "stdlib content type mismatch for input %s", string(tc.intput))
+		assert.Equal(t, tc.output, httpx.DetectContentType(tc.intput), "content type mismatch for input %s", string(tc.intput))
+	}
+}
