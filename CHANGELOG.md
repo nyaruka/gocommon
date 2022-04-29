@@ -1,3 +1,8 @@
+v1.19.0
+----------
+ * Update to go 1.18 and make dbutil.Bulk functions generic
+ * Tidy up scheme list to make it easier to see what is there
+
 v1.18.0
 ----------
  * CI with go 1.17 and 1.18
