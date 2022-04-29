@@ -15,7 +15,7 @@ type Queryer interface {
 }
 
 // BulkQuery runs the query as a bulk operation with the given structs
-func BulkQuery(ctx context.Context, tx Queryer, query string, structs []interface{}) error {
+func BulkQuery[T any](ctx context.Context, tx Queryer, query string, structs []T) error {
 	// no structs, nothing to do
 	if len(structs) == 0 {
 		return nil
@@ -61,7 +61,7 @@ func BulkQuery(ctx context.Context, tx Queryer, query string, structs []interfac
 
 // BulkSQL takes a query which uses VALUES with struct bindings and rewrites it as a bulk operation.
 // It returns the new SQL query and the args to pass to it.
-func BulkSQL(tx Queryer, sql string, structs []interface{}) (string, []interface{}, error) {
+func BulkSQL[T any](tx Queryer, sql string, structs []T) (string, []interface{}, error) {
 	if len(structs) == 0 {
 		return "", nil, errors.New("can't generate bulk sql with zero structs")
 	}
