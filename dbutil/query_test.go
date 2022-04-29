@@ -81,11 +81,11 @@ func TestBulkQuery(t *testing.T) {
 	sql := `INSERT INTO foo (name, age) VALUES(:name, :age) RETURNING id`
 
 	// noop with zero structs
-	err = dbutil.BulkQuery(ctx, db, sql, nil)
+	err = dbutil.BulkQuery(ctx, db, sql, []*foo{})
 	assert.NoError(t, err)
 
 	// returned ids are scanned into structs
-	err = dbutil.BulkQuery(ctx, db, sql, []interface{}{foo1, foo2})
+	err = dbutil.BulkQuery(ctx, db, sql, []*foo{foo1, foo2})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, foo1.ID)
 	assert.Equal(t, 2, foo2.ID)
