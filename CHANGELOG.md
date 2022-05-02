@@ -1,3 +1,7 @@
+v1.19.1
+----------
+ * Update to latest phonenumbers
+
 v1.19.0
 ----------
  * Update to go 1.18 and make dbutil.Bulk functions generic
