@@ -1,3 +1,7 @@
+v1.20.0
+----------
+ * Add support for db serialization to dates.Date
+
 v1.19.1
 ----------
  * Update to latest phonenumbers
