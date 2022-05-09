@@ -1,6 +1,7 @@
 package dates
 
 import (
+	"database/sql/driver"
 	"time"
 )
 
@@ -76,6 +77,17 @@ func (d Date) WeekNum() int {
 func (d Date) String() string {
 	s, _ := d.Format(ISO8601Date, "")
 	return s
+}
+
+// Value returns the value used in db writes
+func (d Date) Value() (driver.Value, error) {
+	return d.String(), nil
+}
+
+// Scan scans from the db value
+func (d *Date) Scan(value interface{}) error {
+	*d = ExtractDate(value.(time.Time))
+	return nil
 }
 
 // ZeroDate is our uninitialized date value
