@@ -1,3 +1,7 @@
+v1.21.0
+----------
+ * Add analytics package which provides abstraction layer for librato
+
 v1.20.0
 ----------
  * Add support for db serialization to dates.Date
