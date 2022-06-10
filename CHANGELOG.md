@@ -1,3 +1,7 @@
+v1.22.0
+----------
+ * Add Slack Scheme
+
 v1.21.0
 ----------
  * Add analytics package which provides abstraction layer for librato
