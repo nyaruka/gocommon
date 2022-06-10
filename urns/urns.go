@@ -21,6 +21,7 @@ const (
 	JiochatScheme    string = "jiochat"
 	LineScheme       string = "line"
 	RocketChatScheme string = "rocketchat"
+	SlackScheme      string = "slack"
 	TelegramScheme   string = "telegram"
 	TelScheme        string = "tel"
 	TwitterIDScheme  string = "twitterid" // Twitter user ids
@@ -47,6 +48,7 @@ var ValidSchemes = map[string]bool{
 	JiochatScheme:    true,
 	LineScheme:       true,
 	RocketChatScheme: true,
+	SlackScheme:      true,
 	TelegramScheme:   true,
 	TelScheme:        true,
 	TwitterIDScheme:  true,
