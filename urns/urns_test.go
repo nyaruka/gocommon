@@ -272,6 +272,8 @@ func TestValidate(t *testing.T) {
 		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22/6a2f41a3-c54c-fce8-32d2-0324e1c32e22", ""},
 		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22", "invalid freshchat id"},
 		{"freshchat:+12067799294", "invalid freshchat id"},
+
+		{"slack:U0123ABCDEF", ""},
 	}
 
 	for _, tc := range testCases {
