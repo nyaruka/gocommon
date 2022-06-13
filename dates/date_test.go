@@ -68,6 +68,10 @@ func TestDate(t *testing.T) {
 	assert.True(t, d3.Compare(d1) < 0)
 	assert.True(t, d1.Compare(d4) == 0)
 	assert.True(t, d4.Compare(d1) == 0)
+
+	kgl, _ := time.LoadLocation("Africa/Kigali")
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC), dates.NewDate(2020, 1, 2).Combine(dates.NewTimeOfDay(3, 4, 5, 6), time.UTC))
+	assert.Equal(t, time.Date(2020, 1, 2, 3, 4, 5, 6, kgl), dates.NewDate(2020, 1, 2).Combine(dates.NewTimeOfDay(3, 4, 5, 6), kgl))
 }
 
 func TestDateCalendarMethods(t *testing.T) {
