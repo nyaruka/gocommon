@@ -43,8 +43,8 @@ func (d Date) Compare(other Date) int {
 }
 
 // Combine combines this date and a time to make a datetime
-func (d Date) Combine(timeOfDay TimeOfDay, tz *time.Location) time.Time {
-	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, tz)
+func (d Date) Combine(tod TimeOfDay, tz *time.Location) time.Time {
+	return time.Date(d.Year, d.Month, d.Day, tod.Hour, tod.Minute, tod.Second, tod.Nanos, tz)
 }
 
 // Format formats this date as a string using the given layout
