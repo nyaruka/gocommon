@@ -1,3 +1,7 @@
+v1.22.1
+----------
+ * Fix dates.Date.Combine
+
 v1.22.0
 ----------
  * Add Slack Scheme
