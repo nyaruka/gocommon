@@ -1,3 +1,7 @@
+v1.22.2
+----------
+ * Update dependencies
+
 v1.22.1
 ----------
  * Fix dates.Date.Combine
