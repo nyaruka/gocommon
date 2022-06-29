@@ -1,3 +1,7 @@
+v1.22.3
+----------
+ * Add mock analytics backend for testing
+
 v1.22.2
 ----------
  * Update dependencies
