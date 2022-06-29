@@ -1,3 +1,7 @@
+v1.22.4
+----------
+ * Add dates.Since to match time.Since
+
 v1.22.3
 ----------
  * Add mock analytics backend for testing
