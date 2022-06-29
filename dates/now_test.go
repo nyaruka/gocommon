@@ -23,4 +23,6 @@ func TestTimeSources(t *testing.T) {
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC), dates.Now())
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 31, 123456, time.UTC), dates.Now())
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 32, 123456, time.UTC), dates.Now())
+
+	assert.Equal(t, time.Second*3, dates.Since(time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC)))
 }

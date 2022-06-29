@@ -9,6 +9,11 @@ func Now() time.Time {
 	return currentNowSource.Now()
 }
 
+// Since returns the time elapsed since t
+func Since(t time.Time) time.Duration {
+	return Now().Sub(t)
+}
+
 // NowSource is something that can provide a now result
 type NowSource interface {
 	Now() time.Time
