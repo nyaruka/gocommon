@@ -22,6 +22,7 @@ const (
 	LineScheme       string = "line"
 	RocketChatScheme string = "rocketchat"
 	SlackScheme      string = "slack"
+	TeamsScheme      string = "teams"
 	TelegramScheme   string = "telegram"
 	TelScheme        string = "tel"
 	TwitterIDScheme  string = "twitterid" // Twitter user ids
@@ -34,6 +35,9 @@ const (
 
 	// FacebookRefPrefix is prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
+
+	// TeamsServiceURLPrefix is the path prefix used for serviceURL in Teams URN
+	TeamsServiceURLPrefix string = ":serviceURL:"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
@@ -49,6 +53,7 @@ var ValidSchemes = map[string]bool{
 	LineScheme:       true,
 	RocketChatScheme: true,
 	SlackScheme:      true,
+	TeamsScheme:      true,
 	TelegramScheme:   true,
 	TelScheme:        true,
 	TwitterIDScheme:  true,
@@ -75,6 +80,7 @@ var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
 var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
 var freshchatRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$`)
 var webchatRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
+var teamsRegex = regexp.MustCompile(`^a:\w[a-zA-Z0-9\w-]+:(serviceURL):(http[s]?:\/\/(www\.)?(.*)?\/?(.)*(/[a-zA-Z]+)?)`)
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
@@ -116,6 +122,11 @@ func NewWebChatURN(identifier string) (URN, error) {
 // NewInstagramURN returns a URN for the passed in instagram identifier
 func NewInstagramURN(identifier string) (URN, error) {
 	return NewURNFromParts(InstagramScheme, identifier, "", "")
+}
+
+// NewTeamsURN returns a URN for the passed in teams identifier
+func NewTeamsURN(identifier string) (URN, error) {
+	return NewURNFromParts(TeamsScheme, identifier, "", "")
 }
 
 // returns a new URN for the given scheme, path, query and display
@@ -284,6 +295,10 @@ func (u URN) Validate() error {
 		if !webchatRegex.MatchString(path) {
 			return fmt.Errorf("invalid webchat id: %s", path)
 		}
+	case TeamsScheme:
+		if !teamsRegex.MatchString(path) {
+			return fmt.Errorf("invalid teams id: %s", path)
+		}
 	}
 	return nil // anything goes for external schemes
 
@@ -349,6 +364,12 @@ func (u URN) FacebookRef() string {
 		return strings.TrimPrefix(u.Path(), FacebookRefPrefix)
 	}
 	return ""
+}
+
+// TeamsServiceURL returns the teams serviceURL part of our path, this empty return string in case we are not a teams schema
+func (u URN) TeamsServiceURL() string {
+	serviceUrl := strings.Split(u.Path(), TeamsServiceURLPrefix)
+	return serviceUrl[1]
 }
 
 // String returns the string representation of this URN
