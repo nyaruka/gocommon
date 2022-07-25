@@ -1,3 +1,7 @@
+v1.22.5
+----------
+ * Add URN type for Teams channel
+
 v1.22.4
 ----------
  * Add dates.Since to match time.Since
