@@ -1,3 +1,7 @@
+v1.23.0
+----------
+ * Add syncx.HashedMutexMap
+
 v1.22.5
 ----------
  * Add URN type for Teams channel
