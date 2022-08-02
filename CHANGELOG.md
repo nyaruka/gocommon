@@ -1,3 +1,7 @@
+v1.24.0
+----------
+ * Allow use of AWS credential chain for S3 storage
+
 v1.23.0
 ----------
  * Add syncx.HashedMutexMap
