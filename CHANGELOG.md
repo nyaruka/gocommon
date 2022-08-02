@@ -1,3 +1,7 @@
+v1.24.1
+----------
+ * Tweak syncx naming and comments
+
 v1.24.0
 ----------
  * Allow use of AWS credential chain for S3 storage
