@@ -38,14 +38,17 @@ type S3Options struct {
 
 // NewS3Client creates a new S3 client
 func NewS3Client(opts *S3Options) (S3Client, error) {
-	s3Session, err := session.NewSession(&aws.Config{
-		Credentials:      credentials.NewStaticCredentials(opts.AWSAccessKeyID, opts.AWSSecretAccessKey, ""),
+	config := &aws.Config{
 		Endpoint:         aws.String(opts.Endpoint),
 		Region:           aws.String(opts.Region),
 		DisableSSL:       aws.Bool(opts.DisableSSL),
 		S3ForcePathStyle: aws.Bool(opts.ForcePathStyle),
 		MaxRetries:       aws.Int(opts.MaxRetries),
-	})
+	}
+	if opts.AWSAccessKeyID != "" && opts.AWSSecretAccessKey != "" {
+		config.Credentials = credentials.NewStaticCredentials(opts.AWSAccessKeyID, opts.AWSSecretAccessKey, "")
+	}
+	s3Session, err := session.NewSession(config)
 	if err != nil {
 		return nil, err
 	}
