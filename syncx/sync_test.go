@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMutexMap(t *testing.T) {
+func TestKeyMutex(t *testing.T) {
 	wg := sync.WaitGroup{}
-	m := syncx.MutexMap{}
+	m := syncx.KeyMutex{}
 
 	counters := make(map[string]int)
 	countersMutex := sync.Mutex{}
@@ -59,7 +59,7 @@ func TestMutexMap(t *testing.T) {
 	wg.Wait()
 }
 
-func TestHashedMutexMap(t *testing.T) {
+func TestHashMutex(t *testing.T) {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 	randString := func(n int) string {
@@ -70,7 +70,7 @@ func TestHashedMutexMap(t *testing.T) {
 		return string(b)
 	}
 
-	m := syncx.NewHashedMutexMap(4)
+	m := syncx.NewHashMutex(4)
 
 	for i := 0; i < 1000; i++ {
 		unlock := m.Lock(randString(10))

@@ -6,24 +6,25 @@ import (
 	"sync"
 )
 
-// MutexMap is a thread-safe map that provides a mutex for each key.
+// KeyMutex is a key based mutual exclusion lock. Different keys can hold the lock at the same time, same keys block.
 //
-// m := MutexMap{}
+// m := KeyMutex{}
 // unlock := m.Lock("key1")
 // defer unlock()
 //
-// Note that mutexes are not removed from the map when they are unlocked.
+// Note that mutexes are not removed from the map when they are unlocked. Therefore the underlying map of mutexes can
+// grow indefinitely.
 //
-type MutexMap struct {
+type KeyMutex struct {
 	mutexes sync.Map
 }
 
 // Lock locks on the given key and returns a function to unlock.
-func (m *MutexMap) Lock(key string) func() {
+func (m *KeyMutex) Lock(key string) func() {
 	return m.lock(key)
 }
 
-func (m *MutexMap) lock(k any) func() {
+func (m *KeyMutex) lock(k any) func() {
 	value, _ := m.mutexes.LoadOrStore(k, &sync.Mutex{})
 	mtx := value.(*sync.Mutex)
 	mtx.Lock()
@@ -32,24 +33,25 @@ func (m *MutexMap) lock(k any) func() {
 }
 
 // Range is the same as sync.Map.Range.
-func (m *MutexMap) Range(f func(key, value any) bool) {
+func (m *KeyMutex) Range(f func(key, value any) bool) {
 	m.mutexes.Range(f)
 }
 
-// HashedMutexMap is a MutexMap which reduces keys to a fixed number of bits so that there will only ever be a fixed
+// HashMutex is a KeyMutex which reduces keys to a fixed number of bits so that there will only ever be a fixed
 // number of mutexes. This means that there's no guarantee that two disctinct keys will use separate locks, but it is
 // guaranteed that different calls with the same key, will use the same lock.
-type HashedMutexMap struct {
-	MutexMap
+type HashMutex struct {
+	KeyMutex
 	keybits int
 }
 
-// NewHashedMutexMap
-func NewHashedMutexMap(keybits int) *HashedMutexMap {
-	return &HashedMutexMap{keybits: keybits}
+// NewHashMutex creates a new hash mutex with keys reduced to the given number of bits, e.g. if bits is 4, then keys
+// be reduced to 16 possible values.
+func NewHashMutex(keybits int) *HashMutex {
+	return &HashMutex{keybits: keybits}
 }
 
-func (m *HashedMutexMap) Lock(key string) func() {
+func (m *HashMutex) Lock(key string) func() {
 	return m.lock(hashToBits(key, m.keybits))
 }
 
