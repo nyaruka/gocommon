@@ -11,68 +11,55 @@ import (
 )
 
 const (
-	// EmailScheme is the scheme used for email addresses
-	EmailScheme string = "mailto"
+	DiscordScheme    string = "discord" // (user IDs not usernames)
+	EmailScheme      string = "mailto"
+	ExternalScheme   string = "ext"
+	FacebookScheme   string = "facebook"
+	FCMScheme        string = "fcm"
+	FreshChatScheme  string = "freshchat"
+	InstagramScheme  string = "instagram"
+	JiochatScheme    string = "jiochat"
+	LineScheme       string = "line"
+	RocketChatScheme string = "rocketchat"
+	SlackScheme      string = "slack"
+	TeamsScheme      string = "teams"
+	TelegramScheme   string = "telegram"
+	TelScheme        string = "tel"
+	TwitterIDScheme  string = "twitterid" // Twitter user ids
+	TwitterScheme    string = "twitter"   // Twitter handles
+	ViberScheme      string = "viber"
+	VKScheme         string = "vk"
+	WebChatScheme    string = "webchat"
+	WeChatScheme     string = "wechat"
+	WhatsAppScheme   string = "whatsapp"
 
-	// ExternalScheme is the scheme used for externally defined identifiers
-	ExternalScheme string = "ext"
-
-	// FacebookScheme is the scheme used for Facebook identifiers
-	FacebookScheme string = "facebook"
-
-	// FCMScheme is the scheme used for Firebase Cloud Messaging identifiers
-	FCMScheme string = "fcm"
-
-	// FreshChatScheme is the scheme used for FreshChat Cloud Messaging identifiers
-	FreshChatScheme string = "freshchat"
-
-	// JiochatScheme is the scheme used for Jiochat identifiers
-	JiochatScheme string = "jiochat"
-
-	// LineScheme is the scheme used for LINE identifiers
-	LineScheme string = "line"
-
-	// TelegramScheme is the scheme used for Telegram identifiers
-	TelegramScheme string = "telegram"
-
-	// TelScheme is the scheme used for telephone numbers
-	TelScheme string = "tel"
-
-	// TwitterIDScheme is the scheme used for Twitter user ids
-	TwitterIDScheme string = "twitterid"
-
-	// TwitterScheme is the scheme used for Twitter handles
-	TwitterScheme string = "twitter"
-
-	// ViberScheme is the scheme used for Viber identifiers
-	ViberScheme string = "viber"
-
-	// WhatsAppScheme is the scheme used for WhatsApp identifiers
-	WhatsAppScheme string = "whatsapp"
-
-	// WeChatScheme is the scheme used for WeChat identifiers
-	WeChatScheme string = "wechat"
-
-	// FacebookRefPrefix is the path prefix used for facebook referral URNs
+	// FacebookRefPrefix is prefix used for facebook referral URNs
 	FacebookRefPrefix string = "ref:"
 )
 
 // ValidSchemes is the set of URN schemes understood by this library
 var ValidSchemes = map[string]bool{
-	EmailScheme:     true,
-	ExternalScheme:  true,
-	FacebookScheme:  true,
-	FCMScheme:       true,
-	FreshChatScheme: true,
-	JiochatScheme:   true,
-	LineScheme:      true,
-	TelegramScheme:  true,
-	TelScheme:       true,
-	TwitterIDScheme: true,
-	TwitterScheme:   true,
-	ViberScheme:     true,
-	WhatsAppScheme:  true,
-	WeChatScheme:    true,
+	DiscordScheme:    true,
+	EmailScheme:      true,
+	ExternalScheme:   true,
+	FacebookScheme:   true,
+	FCMScheme:        true,
+	FreshChatScheme:  true,
+	InstagramScheme:  true,
+	JiochatScheme:    true,
+	LineScheme:       true,
+	RocketChatScheme: true,
+	SlackScheme:      true,
+	TeamsScheme:      true,
+	TelegramScheme:   true,
+	TelScheme:        true,
+	TwitterIDScheme:  true,
+	TwitterScheme:    true,
+	ViberScheme:      true,
+	VKScheme:         true,
+	WebChatScheme:    true,
+	WeChatScheme:     true,
+	WhatsAppScheme:   true,
 }
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -89,6 +76,8 @@ var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=/+]{1,24}$`)
 var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
 var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
 var freshchatRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$`)
+var webchatRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
+var teamsRegex = regexp.MustCompile(`^\w[a-zA-Z0-9\w-]+:((www\.)?(.*)?\/?(.)*(/[a-zA-Z]+)?)`)
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
@@ -118,6 +107,25 @@ func NewFacebookURN(identifier string) (URN, error) {
 	return NewURNFromParts(FacebookScheme, identifier, "", "")
 }
 
+// NewDiscordURN returns a URN for the passed in Discord identifier
+func NewDiscordURN(identifier string) (URN, error) {
+	return NewURNFromParts(DiscordScheme, identifier, "", "")
+}
+
+func NewWebChatURN(identifier string) (URN, error) {
+	return NewURNFromParts(WebChatScheme, identifier, "", "")
+}
+
+// NewInstagramURN returns a URN for the passed in instagram identifier
+func NewInstagramURN(identifier string) (URN, error) {
+	return NewURNFromParts(InstagramScheme, identifier, "", "")
+}
+
+// NewTeamsURN returns a URN for the passed in teams identifier
+func NewTeamsURN(identifier string) (URN, error) {
+	return NewURNFromParts(TeamsScheme, identifier, "", "")
+}
+
 // returns a new URN for the given scheme, path, query and display
 func newURNFromParts(scheme string, path string, query string, display string) URN {
 	u := &parsedURN{
@@ -137,6 +145,16 @@ func NewURNFromParts(scheme string, path string, query string, display string) (
 		return NilURN, err
 	}
 	return urn, nil
+}
+
+// Parse parses a URN from the given string. The returned URN is only guaranteed to be structurally valid.
+func Parse(s string) (URN, error) {
+	parsed, err := parseURN(s)
+	if err != nil {
+		return NilURN, err
+	}
+
+	return URN(parsed.String()), nil
 }
 
 // ToParts splits the URN into scheme, path and display parts
@@ -230,6 +248,10 @@ func (u URN) Validate() error {
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid facebook id: %s", path)
 		}
+	case InstagramScheme:
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid instagram id: %s", path)
+		}
 	case JiochatScheme:
 		if !allDigitsRegex.MatchString(path) {
 			return fmt.Errorf("invalid jiochat id: %s", path)
@@ -259,6 +281,20 @@ func (u URN) Validate() error {
 		// validate path and query is a uuid
 		if !freshchatRegex.MatchString(path) {
 			return fmt.Errorf("invalid freshchat id: %s", path)
+		}
+
+	case DiscordScheme:
+		if !allDigitsRegex.MatchString(path) {
+			return fmt.Errorf("invalid discord id: %s", path)
+		}
+
+	case WebChatScheme:
+		if !webchatRegex.MatchString(path) {
+			return fmt.Errorf("invalid webchat id: %s", path)
+		}
+	case TeamsScheme:
+		if !teamsRegex.MatchString(path) {
+			return fmt.Errorf("invalid teams id: %s", path)
 		}
 	}
 	return nil // anything goes for external schemes
@@ -327,6 +363,12 @@ func (u URN) FacebookRef() string {
 	return ""
 }
 
+// TeamsServiceURL returns the teams serviceURL part of our path, this empty return string in case we are not a teams schema
+func (u URN) TeamsServiceURL() string {
+	serviceUrl := strings.Split(u.Path(), ":")
+	return serviceUrl[1]
+}
+
 // String returns the string representation of this URN
 func (u URN) String() string { return string(u) }
 
@@ -352,34 +394,29 @@ func (u URN) Format() string {
 var NilURN = URN("")
 
 func normalizeNumber(number string, country string) string {
-	number = strings.ToLower(number)
+	number = strings.TrimSpace(number)
+	normalized := strings.ToLower(number)
 
 	// if the number ends with e11, then that is Excel corrupting it, remove it
-	if strings.HasSuffix(number, "e+11") || strings.HasSuffix(number, "e+12") {
-		number = strings.Replace(number[0:len(number)-4], ".", "", -1)
+	if strings.HasSuffix(normalized, "e+11") || strings.HasSuffix(normalized, "e+12") {
+		normalized = strings.Replace(normalized[0:len(normalized)-4], ".", "", -1)
 	}
 
-	// remove other characters
-	number = nonTelCharsRegex.ReplaceAllString(strings.ToLower(strings.TrimSpace(number)), "")
-	parseNumber := number
+	// remove non alphanumeric characters
+	normalized = nonTelCharsRegex.ReplaceAllString(normalized, "")
 
-	// add on a plus if it looks like it could be a fully qualified number
-	if len(number) >= 11 && !(strings.HasPrefix(number, "+") || strings.HasPrefix(number, "0")) {
-		parseNumber = fmt.Sprintf("+%s", number)
+	parseAs := normalized
+
+	// if we started with + prefix, or we have a sufficiently long number that doesn't start with 0, add + prefix
+	if strings.HasPrefix(number, "+") || (len(normalized) >= 11 && !strings.HasPrefix(normalized, "0")) {
+		parseAs = fmt.Sprintf("+%s", normalized)
 	}
 
-	normalized, err := phonenumbers.Parse(parseNumber, country)
-
-	// couldn't parse it, use the original number
+	formatted, err := ParseNumber(parseAs, country)
 	if err != nil {
-		return number
+		// if it's not a possible number, just return what we have minus the +
+		return normalized
 	}
 
-	// if it looks valid, return it
-	if phonenumbers.IsValidNumber(normalized) {
-		return phonenumbers.Format(normalized, phonenumbers.E164)
-	}
-
-	// this doesn't look like anything we recognize, use the original number
-	return number
+	return formatted
 }
