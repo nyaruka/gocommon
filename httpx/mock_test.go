@@ -18,11 +18,11 @@ func TestMockRequestor(t *testing.T) {
 	// can create requestor with constructor
 	requestor1 := httpx.NewMockRequestor(map[string][]httpx.MockResponse{
 		"http://google.com": {
-			httpx.NewMockResponse(200, nil, "this is google"),
-			httpx.NewMockResponse(201, nil, "this is google again"),
+			httpx.NewMockResponse(200, nil, []byte("this is google")),
+			httpx.NewMockResponse(201, nil, []byte("this is google again")),
 		},
 		"http://yahoo.com": {
-			httpx.NewMockResponse(202, nil, "this is yahoo"),
+			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
 			httpx.MockConnectionError,
 		},
 	})
@@ -69,15 +69,15 @@ func TestMockRequestorMarshaling(t *testing.T) {
 	// can create requestor with constructor
 	requestor1 := httpx.NewMockRequestor(map[string][]httpx.MockResponse{
 		"http://google.com": {
-			httpx.NewMockResponse(200, nil, "this is google"),
-			httpx.NewMockResponse(201, nil, "this is google again"),
+			httpx.NewMockResponse(200, nil, []byte("this is google")),
+			httpx.NewMockResponse(201, nil, []byte("this is google again")),
 			httpx.MockResponse{
 				Status: 202,
 				Body:   []byte(`{"foo": "bar"}`),
 			},
 		},
 		"http://yahoo.com": {
-			httpx.NewMockResponse(202, nil, "this is yahoo"),
+			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
 			httpx.MockConnectionError,
 		},
 	})
