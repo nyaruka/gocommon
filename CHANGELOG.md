@@ -1,3 +1,7 @@
+v1.25.0
+----------
+ * Tweak httpx.NewMockResponse to take a byte slice
+
 v1.24.1
 ----------
  * Tweak syncx naming and comments
