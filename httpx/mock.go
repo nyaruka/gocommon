@@ -106,9 +106,9 @@ func (m MockResponse) Make(request *http.Request) *http.Response {
 // MockConnectionError mocks a connection error
 var MockConnectionError = MockResponse{Status: 0, Headers: nil, Body: []byte{}, BodyIsString: true, BodyRepeat: 0}
 
-// NewMockResponse creates a new mock response from a string
-func NewMockResponse(status int, headers map[string]string, body string) MockResponse {
-	return MockResponse{Status: status, Headers: headers, Body: []byte(body), BodyIsString: true, BodyRepeat: 0}
+// NewMockResponse creates a new mock response
+func NewMockResponse(status int, headers map[string]string, body []byte) MockResponse {
+	return MockResponse{Status: status, Headers: headers, Body: body, BodyIsString: true, BodyRepeat: 0}
 }
 
 //------------------------------------------------------------------------------------------

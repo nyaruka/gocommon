@@ -124,7 +124,7 @@ func TestDoTrace(t *testing.T) {
 func TestMaxBodyBytes(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
-	testBody := `abcdefghijklmnopqrstuvwxyz`
+	testBody := []byte(`abcdefghijklmnopqrstuvwxyz`)
 
 	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]httpx.MockResponse{
 		"https://temba.io": {
@@ -143,17 +143,17 @@ func TestMaxBodyBytes(t *testing.T) {
 	trace, err := call(-1) // no body limit
 	assert.NoError(t, err)
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, testBody, string(trace.ResponseBody))
+	assert.Equal(t, string(testBody), string(trace.ResponseBody))
 
 	trace, err = call(1000) // limit bigger than body
 	assert.NoError(t, err)
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, testBody, string(trace.ResponseBody))
+	assert.Equal(t, string(testBody), string(trace.ResponseBody))
 
 	trace, err = call(len(testBody)) // limit same as body
 	assert.NoError(t, err)
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, testBody, string(trace.ResponseBody))
+	assert.Equal(t, string(testBody), string(trace.ResponseBody))
 
 	trace, err = call(10) // limit smaller than body
 	assert.EqualError(t, err, `webhook response body exceeds 10 bytes limit`)
