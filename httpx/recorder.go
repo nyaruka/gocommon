@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -43,16 +43,16 @@ func NewRecorder(r *http.Request, w http.ResponseWriter) *Recorder {
 // SaveRequest immediately saves the request and body for later use. This can be called to guarantee the body
 // is available at a later time even if downstream users of the request do not clone the body
 func (r *Recorder) SaveRequest() error {
-	body, err := ioutil.ReadAll(r.Request.Body)
+	body, err := io.ReadAll(r.Request.Body)
 	if err != nil {
 		return errors.Wrapf(err, "error reading body from request")
 	}
-	r.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	r.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 	r.requestTrace, err = httputil.DumpRequest(r.Request, true)
 	if err != nil {
 		return errors.Wrapf(err, "error dumping request")
 	}
-	r.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	r.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 	return nil
 }
 

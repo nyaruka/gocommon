@@ -2,7 +2,7 @@ package httpx_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -16,7 +16,7 @@ func TestMockRequestor(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
 	// can create requestor with constructor
-	requestor1 := httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	requestor1 := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"http://google.com": {
 			httpx.NewMockResponse(200, nil, []byte("this is google")),
 			httpx.NewMockResponse(201, nil, []byte("this is google again")),
@@ -34,7 +34,7 @@ func TestMockRequestor(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, response1.StatusCode)
 
-	body, err := ioutil.ReadAll(response1.Body)
+	body, err := io.ReadAll(response1.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "this is google", string(body))
 
@@ -67,11 +67,11 @@ func TestMockRequestor(t *testing.T) {
 
 func TestMockRequestorMarshaling(t *testing.T) {
 	// can create requestor with constructor
-	requestor1 := httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	requestor1 := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"http://google.com": {
 			httpx.NewMockResponse(200, nil, []byte("this is google")),
 			httpx.NewMockResponse(201, nil, []byte("this is google again")),
-			httpx.MockResponse{
+			&httpx.MockResponse{
 				Status: 202,
 				Body:   []byte(`{"foo": "bar"}`),
 			},
@@ -102,5 +102,6 @@ func TestMockRequestorMarshaling(t *testing.T) {
 
 	// test re-marshaling
 	marshaled, err := jsonx.Marshal(requestor2)
+	assert.NoError(t, err)
 	assert.JSONEq(t, string(asJSON), string(marshaled))
 }

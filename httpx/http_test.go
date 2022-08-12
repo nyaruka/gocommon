@@ -126,7 +126,7 @@ func TestMaxBodyBytes(t *testing.T) {
 
 	testBody := []byte(`abcdefghijklmnopqrstuvwxyz`)
 
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://temba.io": {
 			httpx.NewMockResponse(200, nil, testBody),
 			httpx.NewMockResponse(200, nil, testBody),
@@ -164,9 +164,9 @@ func TestMaxBodyBytes(t *testing.T) {
 func TestNonUTF8(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://temba.io": {
-			httpx.MockResponse{Status: 200, Headers: nil, Body: []byte{'\xc3', '\x28'}},
+			&httpx.MockResponse{Status: 200, Headers: nil, Body: []byte{'\xc3', '\x28'}},
 		},
 	}))
 

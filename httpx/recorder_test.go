@@ -2,7 +2,7 @@ package httpx_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -32,7 +32,7 @@ func TestRecorder(t *testing.T) {
 		}
 
 		if readBody {
-			ioutil.ReadAll(r.Body)
+			io.ReadAll(r.Body)
 		}
 
 		w.Header().Set("Date", "Wed, 11 Apr 2018 18:24:30 GMT")

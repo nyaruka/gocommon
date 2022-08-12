@@ -56,7 +56,7 @@ func TestNewExponentialRetries(t *testing.T) {
 func TestDoWithRetries(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
-	mocks := httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	mocks := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"http://temba.io/1/": {
 			httpx.NewMockResponse(502, nil, []byte("a")),
 		},
