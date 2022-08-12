@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -173,7 +172,7 @@ func readBody(response *http.Response, maxBodyBytes int) ([]byte, error) {
 		// we will only read up to our max body bytes limit
 		bodyReader := io.LimitReader(response.Body, int64(maxBodyBytes)+1)
 
-		bodyBytes, err := ioutil.ReadAll(bodyReader)
+		bodyBytes, err := io.ReadAll(bodyReader)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +186,7 @@ func readBody(response *http.Response, maxBodyBytes int) ([]byte, error) {
 	}
 
 	// if there is no limit, read the entire body
-	return ioutil.ReadAll(response.Body)
+	return io.ReadAll(response.Body)
 }
 
 // Requestor is anything that can make an HTTP request with a client

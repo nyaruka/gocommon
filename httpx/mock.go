@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/nyaruka/gocommon/jsonx"
@@ -98,7 +98,7 @@ func (m MockResponse) Make(request *http.Request) *http.Response {
 		ProtoMajor:    1,
 		ProtoMinor:    0,
 		Header:        header,
-		Body:          ioutil.NopCloser(bytes.NewReader(body)),
+		Body:          io.NopCloser(bytes.NewReader(body)),
 		ContentLength: int64(len(body)),
 	}
 }
