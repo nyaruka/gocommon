@@ -14,7 +14,7 @@ import (
 func TestLogs(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]httpx.MockResponse{
+	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"http://temba.io/code/987654321/long-url/rwhrehreh/erhether/yreyrreyeyreureuetutrurtueyre/y": {
 			httpx.NewMockResponse(400, nil, []byte("long response long response long response long response long response long response long response")),
 		},
