@@ -1,3 +1,8 @@
+v1.26.0
+----------
+ * Use pointers to httpx.MockResponse
+ * Add HTTP Log support to httpx
+
 v1.25.0
 ----------
  * Tweak httpx.NewMockResponse to take a byte slice
