@@ -1,3 +1,7 @@
+v1.27.0
+----------
+ * Simplify httpx.Recorder so it always dumps request first
+
 v1.26.0
 ----------
  * Use pointers to httpx.MockResponse
