@@ -1,3 +1,7 @@
+v1.28.0
+----------
+ * Give httpx.Recorder the option to try to reconstruct the original request
+
 v1.27.0
 ----------
  * Simplify httpx.Recorder so it always dumps request first
