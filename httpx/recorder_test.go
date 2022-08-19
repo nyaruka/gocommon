@@ -18,16 +18,16 @@ import (
 func TestRecorder(t *testing.T) {
 	var trace *httpx.Trace
 
-	readBody := false
+	// set by each test case
+	var testOriginalRequest bool
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		recorder, err := httpx.NewRecorder(r, w)
+		recorder, err := httpx.NewRecorder(r, w, testOriginalRequest)
 		require.NoError(t, err)
 		w = recorder.ResponseWriter
 
-		if readBody {
-			io.ReadAll(r.Body)
-		}
+		// read body to ensure that we still dump it even if it's been read
+		io.ReadAll(r.Body)
 
 		w.Header().Set("Date", "Wed, 11 Apr 2018 18:24:30 GMT")
 		w.Header().Set("Content-Type", "application/json")
@@ -44,43 +44,76 @@ func TestRecorder(t *testing.T) {
 
 	tcs := []struct {
 		method                string
+		url                   string
+		headers               map[string]string
 		requestBody           io.Reader
-		readBody              bool
+		originalRequest       bool
+		expectedRequestURL    string
 		expectedRequestTrace  string
 		expectedResponseTrace string
 	}{
 		{
-			method:                http.MethodGet,
-			readBody:              false,
-			expectedRequestTrace:  fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
-			expectedResponseTrace: "",
+			method:               http.MethodGet,
+			url:                  server.URL,
+			headers:              map[string]string{"X-Nyaruka-Test": "true"},
+			originalRequest:      false,
+			expectedRequestURL:   "/",
+			expectedRequestTrace: fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nUser-Agent: Go-http-client/1.1\r\nX-Nyaruka-Test: true\r\n\r\n", su.Hostname(), su.Port()),
 		},
 		{
-			method:                http.MethodPost,
-			requestBody:           strings.NewReader(url.Values{"Secret": []string{"Sesame"}}.Encode()),
-			readBody:              false,
-			expectedRequestTrace:  fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\nSecret=Sesame", su.Hostname(), su.Port()),
-			expectedResponseTrace: "",
+			method:               http.MethodGet,
+			url:                  server.URL,
+			headers:              map[string]string{"Host": "textit.com"}, // will be overwritten by client request
+			originalRequest:      true,
+			expectedRequestURL:   fmt.Sprintf("http://%s:%s/", su.Hostname(), su.Port()),
+			expectedRequestTrace: fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
 		},
 		{
-			method:                http.MethodPost,
-			requestBody:           strings.NewReader(url.Values{"Secret": []string{"Sesame"}}.Encode()),
-			readBody:              true,
-			expectedRequestTrace:  fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\nSecret=Sesame", su.Hostname(), su.Port()),
-			expectedResponseTrace: "",
+			method:               http.MethodPost,
+			url:                  server.URL + "/path/test.json?q=1",
+			headers:              map[string]string{},
+			requestBody:          strings.NewReader(url.Values{"Secret": []string{"Sesame"}}.Encode()),
+			originalRequest:      false,
+			expectedRequestURL:   "/path/test.json?q=1",
+			expectedRequestTrace: fmt.Sprintf("POST /path/test.json?q=1 HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 13\r\nUser-Agent: Go-http-client/1.1\r\n\r\nSecret=Sesame", su.Hostname(), su.Port()),
+		},
+		{
+			method:               http.MethodPost,
+			url:                  server.URL + "/path/test.json?q=1",
+			headers:              map[string]string{"X-Forwarded-Path": "/original/path.json?q=1"},
+			originalRequest:      false,
+			expectedRequestURL:   "/path/test.json?q=1",
+			expectedRequestTrace: fmt.Sprintf("POST /path/test.json?q=1 HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 0\r\nUser-Agent: Go-http-client/1.1\r\nX-Forwarded-Path: /original/path.json?q=1\r\n\r\n", su.Hostname(), su.Port()),
+		},
+		{
+			method:               http.MethodPost,
+			url:                  server.URL + "/path/test.json?q=1",
+			headers:              map[string]string{"X-Forwarded-Path": "/original/path.json?z=1"},
+			originalRequest:      true,
+			expectedRequestURL:   fmt.Sprintf("http://%s:%s/original/path.json?z=1", su.Hostname(), su.Port()),
+			expectedRequestTrace: fmt.Sprintf("POST /original/path.json?z=1 HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 0\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
+		},
+		{
+			method:               http.MethodPost,
+			url:                  server.URL + "/path/test.json?q=1",
+			headers:              map[string]string{"X-Forwarded-Proto": "https", "X-Forwarded-Host": "textit.in"},
+			originalRequest:      true,
+			expectedRequestURL:   "https://textit.in/path/test.json?q=1",
+			expectedRequestTrace: fmt.Sprintf("POST /path/test.json?q=1 HTTP/1.1\r\nHost: %s:%s\r\nAccept-Encoding: gzip\r\nContent-Length: 0\r\nUser-Agent: Go-http-client/1.1\r\n\r\n", su.Hostname(), su.Port()),
 		},
 	}
 
-	for _, tc := range tcs {
-		readBody = tc.readBody
-		var req *http.Request
+	for i, tc := range tcs {
+		testOriginalRequest = tc.originalRequest
 
-		req, _ = httpx.NewRequest(tc.method, server.URL, tc.requestBody, nil)
+		req, err := httpx.NewRequest(tc.method, tc.url, tc.requestBody, tc.headers)
+		require.NoError(t, err)
 
-		_, err := httpx.Do(http.DefaultClient, req, nil, nil)
+		_, err = httpx.Do(http.DefaultClient, req, nil, nil)
 		assert.NoError(t, err)
 
-		assert.Equal(t, tc.expectedRequestTrace, string(trace.RequestTrace))
+		assert.Equal(t, tc.expectedRequestURL, trace.Request.URL.String(), "url mismatch in test case %d", i)
+		assert.Equal(t, tc.expectedRequestTrace, string(trace.RequestTrace), "response trace mismatch in test case %d", i)
 		assert.Equal(t, 200, trace.Response.StatusCode)
 		assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
 		assert.Equal(t, `{"status": "OK"}`, string(trace.ResponseBody))

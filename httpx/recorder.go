@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 
 	"github.com/nyaruka/gocommon/dates"
 
@@ -21,8 +22,13 @@ type Recorder struct {
 	responseBody   *bytes.Buffer
 }
 
-// NewRecorder creates a new recorder for an HTTP request
-func NewRecorder(r *http.Request, w http.ResponseWriter) (*Recorder, error) {
+// NewRecorder creates a new recorder for an HTTP request. If `originalRequest` is true, it tries to reconstruct the
+// original request object.
+func NewRecorder(r *http.Request, w http.ResponseWriter, originalRequest bool) (*Recorder, error) {
+	if originalRequest {
+		r = reconstructOriginalRequest(r)
+	}
+
 	requestTrace, err := httputil.DumpRequest(r, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "error dumping request")
@@ -64,4 +70,48 @@ func (r *Recorder) End() error {
 	r.Trace.ResponseBody = r.responseBody.Bytes()
 	r.Trace.EndTime = dates.Now()
 	return nil
+}
+
+func reconstructOriginalRequest(r *http.Request) *http.Request {
+	// create copy of request as we'll be modifying the headers and URL
+	o := &http.Request{}
+	*o = *r
+	header := r.Header.Clone()
+
+	host := r.URL.Host
+	if host == "" {
+		host = r.Host
+	}
+	if h := r.Header.Get("Host"); h != "" {
+		host = h
+	}
+	if h := r.Header.Get("X-Forwarded-Host"); h != "" {
+		host = h
+		header.Del("X-Forwarded-Host")
+	}
+
+	scheme := r.URL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	if h := r.Header.Get("X-Forwarded-Proto"); h != "" {
+		scheme = h
+		header.Del("X-Forwarded-Proto")
+	}
+
+	path := r.RequestURI
+	if h := r.Header.Get("X-Forwarded-Path"); h != "" {
+		path = h
+		header.Del("X-Forwarded-Path")
+	}
+
+	// if all that gives us a valid URL, replace it on the request
+	u, _ := url.Parse(fmt.Sprintf("%s://%s%s", scheme, host, path))
+	if u != nil {
+		o.URL = u
+		o.RequestURI = path
+		o.Header = header
+	}
+
+	return o
 }
