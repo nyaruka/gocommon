@@ -1,3 +1,7 @@
+v1.28.1
+----------
+ * Fix cloning of request bodies passed to httpx.NewRecorder
+
 v1.28.0
 ----------
  * Give httpx.Recorder the option to try to reconstruct the original request
