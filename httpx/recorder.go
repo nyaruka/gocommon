@@ -24,15 +24,20 @@ type Recorder struct {
 
 // NewRecorder creates a new recorder for an HTTP request. If `originalRequest` is true, it tries to reconstruct the
 // original request object.
-func NewRecorder(r *http.Request, w http.ResponseWriter, originalRequest bool) (*Recorder, error) {
-	if originalRequest {
-		r = reconstructOriginalRequest(r)
+func NewRecorder(r *http.Request, w http.ResponseWriter, reconstruct bool) (*Recorder, error) {
+	or := r
+	if reconstruct {
+		or = reconstructOriginal(r)
 	}
 
-	requestTrace, err := httputil.DumpRequest(r, true)
+	requestTrace, err := httputil.DumpRequest(or, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "error dumping request")
 	}
+
+	// if we cloned the request above, DumpRequest will have drained the body and saved a copy on the reconstructed
+	// request, so put that copy on the passed request as well
+	r.Body = or.Body
 
 	responseBody := &bytes.Buffer{}
 	wrapped := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
@@ -40,7 +45,7 @@ func NewRecorder(r *http.Request, w http.ResponseWriter, originalRequest bool) (
 
 	return &Recorder{
 		Trace: &Trace{
-			Request:      r,
+			Request:      or,
 			RequestTrace: requestTrace,
 			StartTime:    dates.Now(),
 		},
@@ -72,10 +77,10 @@ func (r *Recorder) End() error {
 	return nil
 }
 
-func reconstructOriginalRequest(r *http.Request) *http.Request {
+// tries to reconstruct the original client request from the received server request.
+func reconstructOriginal(r *http.Request) *http.Request {
 	// create copy of request as we'll be modifying the headers and URL
-	o := &http.Request{}
-	*o = *r
+	o := r.Clone(r.Context())
 	header := r.Header.Clone()
 
 	host := r.URL.Host
