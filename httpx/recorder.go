@@ -8,9 +8,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"github.com/nyaruka/gocommon/dates"
-
 	"github.com/go-chi/chi/middleware"
+	"github.com/nyaruka/gocommon/dates"
 	"github.com/pkg/errors"
 )
 
@@ -92,7 +91,6 @@ func reconstructOriginal(r *http.Request) *http.Request {
 	}
 	if h := r.Header.Get("X-Forwarded-Host"); h != "" {
 		host = h
-		header.Del("X-Forwarded-Host")
 	}
 
 	scheme := r.URL.Scheme
@@ -101,13 +99,15 @@ func reconstructOriginal(r *http.Request) *http.Request {
 	}
 	if h := r.Header.Get("X-Forwarded-Proto"); h != "" {
 		scheme = h
-		header.Del("X-Forwarded-Proto")
 	}
 
 	path := r.RequestURI
 	if h := r.Header.Get("X-Forwarded-Path"); h != "" {
 		path = h
-		header.Del("X-Forwarded-Path")
+	}
+
+	for _, h := range stripHeaders {
+		header.Del(h)
 	}
 
 	// if all that gives us a valid URL, replace it on the request
@@ -119,4 +119,14 @@ func reconstructOriginal(r *http.Request) *http.Request {
 	}
 
 	return o
+}
+
+// headers to strip from reconstructed requests (these are nginx and ELB additions)
+var stripHeaders = []string{
+	"X-Forwarded-Proto",
+	"X-Forwarded-Host",
+	"X-Forwarded-Port",
+	"X-Forwarded-Path",
+	"X-Forwarded-For",
+	"X-Amzn-Trace-Id",
 }

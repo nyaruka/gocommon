@@ -106,7 +106,7 @@ func TestRecorder(t *testing.T) {
 		{ // 5
 			method:               http.MethodPost,
 			url:                  server.URL + "/path/test.json?q=1",
-			headers:              map[string]string{"X-Forwarded-Proto": "https", "X-Forwarded-Host": "textit.in"},
+			headers:              map[string]string{"X-Forwarded-Proto": "https", "X-Forwarded-Host": "textit.in", "X-Forwarded-Port": "443"},
 			reconstruct:          true,
 			expectedReadBody:     "",
 			expectedRequestURL:   "https://textit.in/path/test.json?q=1",
