@@ -1,3 +1,7 @@
+v1.28.2
+----------
+ * Strip more headers from reconstructed requests
+
 v1.28.1
 ----------
  * Fix cloning of request bodies passed to httpx.NewRecorder
