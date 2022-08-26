@@ -22,8 +22,8 @@ type LogWithoutTime struct {
 // NewLogWithoutTime creates a new log
 func NewLogWithoutTime(trace *Trace, trimURLTo, trimTracesTo int, redact stringsx.Redactor) *LogWithoutTime {
 	url := trace.Request.URL.String()
-	request := string(trace.RequestTrace)
-	response := string(ReplaceEscapedNulls(trace.SanitizedResponse("..."), []byte(`�`)))
+	request := trace.SanitizedRequest("...")
+	response := ReplaceEscapedNulls(trace.SanitizedResponse("..."), `�`)
 
 	statusCode := 0
 	if trace.Response != nil {
@@ -62,15 +62,15 @@ func NewLog(trace *Trace, trimURLTo, trimTracesTo int, redact stringsx.Redactor)
 
 // replaces any `\u0000` sequences with the given replacement sequence which may be empty.
 // A sequence such as `\\u0000` is preserved as it is an escaped slash followed by the sequence `u0000`
-func ReplaceEscapedNulls(data []byte, repl []byte) []byte {
-	return nullEscapeRegex.ReplaceAllFunc(data, func(m []byte) []byte {
+func ReplaceEscapedNulls(data string, repl string) string {
+	return string(nullEscapeRegex.ReplaceAllFunc([]byte(data), func(m []byte) []byte {
 		slashes := bytes.Count(m, []byte(`\`))
 		if slashes%2 == 0 {
 			return m
 		}
 
-		return append(bytes.Repeat([]byte(`\`), slashes-1), repl...)
-	})
+		return append(bytes.Repeat([]byte(`\`), slashes-1), []byte(repl)...)
+	}))
 }
 
 var nullEscapeRegex = regexp.MustCompile(`\\+u0{4}`)

@@ -80,22 +80,43 @@ func (t *Trace) String() string {
 	return b.String()
 }
 
-// SanitizedResponse returns a valid UTF-8 string version of trace, substituting the body with a placeholder
+// SanitizedRequest returns a valid UTF-8 string version of the request, substituting the body with a placeholder
 // if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
-func (t *Trace) SanitizedResponse(placeholder string) []byte {
+func (t *Trace) SanitizedRequest(placeholder string) string {
+	// split request trace into headers and body
+	var headers, body []byte
+	parts := bytes.SplitN(t.RequestTrace, []byte("\r\n\r\n"), 2)
+	headers = append(parts[0], []byte("\r\n\r\n")...)
+
+	if len(parts) > 1 {
+		body = parts[1]
+	} else {
+		body = nil
+	}
+
+	return santizedTrace(headers, body, placeholder)
+}
+
+// SanitizedResponse returns a valid UTF-8 string version of the response, substituting the body with a placeholder
+// if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
+func (t *Trace) SanitizedResponse(placeholder string) string {
+	return santizedTrace(t.ResponseTrace, t.ResponseBody, placeholder)
+}
+
+func santizedTrace(header []byte, body []byte, bodyPlaceHolder string) string {
 	b := &bytes.Buffer{}
 
 	// ensure headers section is valid
-	b.Write(replaceNullChars(bytes.ToValidUTF8(t.ResponseTrace, []byte(`�`))))
+	b.Write(replaceNullChars(bytes.ToValidUTF8(header, []byte(`�`))))
 
 	// only include body if it's valid UTF-8 as it could be a binary file or anything
-	if utf8.Valid(t.ResponseBody) {
-		b.Write(replaceNullChars(t.ResponseBody))
+	if utf8.Valid(body) {
+		b.Write(replaceNullChars(body))
 	} else {
-		b.Write([]byte(placeholder))
+		b.Write([]byte(bodyPlaceHolder))
 	}
 
-	return b.Bytes()
+	return string(b.Bytes())
 }
 
 func replaceNullChars(b []byte) []byte {

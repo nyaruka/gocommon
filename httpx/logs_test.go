@@ -65,10 +65,10 @@ func TestLogs(t *testing.T) {
 }
 
 func TestReplaceEscapedNulls(t *testing.T) {
-	assert.Equal(t, []byte(nil), httpx.ReplaceEscapedNulls(nil, []byte(`?`)))
-	assert.Equal(t, []byte(`abcdef`), httpx.ReplaceEscapedNulls([]byte(`abc\u0000def`), nil))
-	assert.Equal(t, []byte(`abc?def`), httpx.ReplaceEscapedNulls([]byte(`abc\u0000def`), []byte(`?`)))
-	assert.Equal(t, []byte(`�ɇ�ɇ`), httpx.ReplaceEscapedNulls([]byte(`\u0000\u0000`), []byte(`�ɇ`)))
-	assert.Equal(t, []byte(`abc  \\u0000 \\ \\\\u0000 def`), httpx.ReplaceEscapedNulls([]byte(`abc \u0000 \\u0000 \\\u0000 \\\\u0000 def`), nil))
-	assert.Equal(t, []byte(`0000`), httpx.ReplaceEscapedNulls([]byte(`\u00000000`), nil))
+	assert.Equal(t, ``, httpx.ReplaceEscapedNulls(``, `?`))
+	assert.Equal(t, `abcdef`, httpx.ReplaceEscapedNulls(`abc\u0000def`, ``))
+	assert.Equal(t, `abc?def`, httpx.ReplaceEscapedNulls(`abc\u0000def`, `?`))
+	assert.Equal(t, `�ɇ�ɇ`, httpx.ReplaceEscapedNulls(`\u0000\u0000`, `�ɇ`))
+	assert.Equal(t, `abc  \\u0000 \\ \\\\u0000 def`, httpx.ReplaceEscapedNulls(`abc \u0000 \\u0000 \\\u0000 \\\\u0000 def`, ``))
+	assert.Equal(t, `0000`, httpx.ReplaceEscapedNulls(`\u00000000`, ``))
 }
