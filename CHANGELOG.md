@@ -1,3 +1,7 @@
+v1.29.0
+----------
+ * Add SantizedRequest to httpx.Trace to match SanitizedResponse
+
 v1.28.2
 ----------
  * Strip more headers from reconstructed requests
