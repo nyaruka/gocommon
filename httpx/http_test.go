@@ -12,7 +12,6 @@ import (
 
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/nyaruka/gocommon/httpx"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,4 +232,9 @@ func TestDetectContentType(t *testing.T) {
 		assert.Equal(t, tc.stdlib, http.DetectContentType(tc.intput), "stdlib content type mismatch for input %s", string(tc.intput))
 		assert.Equal(t, tc.output, httpx.DetectContentType(tc.intput), "content type mismatch for input %s", string(tc.intput))
 	}
+}
+
+func TestBasicAuth(t *testing.T) {
+	assert.Equal(t, "Og==", httpx.BasicAuth("", ""))
+	assert.Equal(t, "Ym9iOnBhc3MxMjM=", httpx.BasicAuth("bob", "pass123"))
 }

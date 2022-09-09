@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/nyaruka/gocommon/dates"
-
 	"github.com/pkg/errors"
 )
 
@@ -239,4 +239,10 @@ func SetDebug(enabled bool) {
 // the github.com/gabriel-vasile/mimetype library
 func DetectContentType(d []byte) string {
 	return mimetype.Detect(d).String()
+}
+
+// BasicAuth returns the Authorization header value for HTTP Basic auth
+func BasicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
