@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"testing"
-
-	"github.com/nyaruka/gocommon/storage"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/nyaruka/gocommon/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,7 +58,7 @@ func TestS3Get(t *testing.T) {
 
 	client.getObjectReturnValue = &s3.GetObjectOutput{
 		ContentType: aws.String("text/plain"),
-		Body:        ioutil.NopCloser(bytes.NewReader([]byte(`HELLOWORLD`))),
+		Body:        io.NopCloser(bytes.NewReader([]byte(`HELLOWORLD`))),
 	}
 
 	contentType, contents, err := s.Get(ctx, "/foo/things")

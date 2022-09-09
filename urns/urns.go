@@ -181,9 +181,7 @@ func (u URN) Normalize(country string) URN {
 		normPath = strings.ToLower(normPath)
 
 		// strip @ prefix if provided
-		if strings.HasPrefix(normPath, "@") {
-			normPath = normPath[1:]
-		}
+		normPath = strings.TrimPrefix(normPath, "@")
 
 	case TwitterIDScheme:
 		if display != "" {

@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/nyaruka/gocommon/jsonx"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +17,7 @@ func (b *badThing) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("I can't be marshaled")
 }
 
-func (b *badThing) UnmarshalJSON() error {
+func (b *badThing) UnmarshalJSON([]byte) error {
 	return fmt.Errorf("I can't be unmarshaled")
 }
 
@@ -69,7 +68,7 @@ func TestUnmarshal(t *testing.T) {
 
 	var b badThing
 	err = jsonx.Unmarshal([]byte(`"test"`), &b)
-	assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type jsonx_test.badThing")
+	assert.EqualError(t, err, "I can't be unmarshaled")
 }
 
 func TestMustUnmarshal(t *testing.T) {
@@ -77,7 +76,7 @@ func TestMustUnmarshal(t *testing.T) {
 	jsonx.MustUnmarshal([]byte(`"test"`), &s)
 	assert.Equal(t, "test", s)
 
-	assert.PanicsWithError(t, "json: cannot unmarshal string into Go value of type jsonx_test.badThing", func() {
+	assert.PanicsWithError(t, "I can't be unmarshaled", func() {
 		var b badThing
 		jsonx.MustUnmarshal([]byte(`"test"`), &b)
 	})
@@ -92,7 +91,7 @@ func TestUnmarshalArray(t *testing.T) {
 
 func TestUnmarshalWithLimit(t *testing.T) {
 	data := []byte(`{"foo": "Hello"}`)
-	buffer := ioutil.NopCloser(bytes.NewReader(data))
+	buffer := io.NopCloser(bytes.NewReader(data))
 
 	// try with sufficiently large limit
 	s := &struct {
@@ -103,7 +102,7 @@ func TestUnmarshalWithLimit(t *testing.T) {
 	assert.Equal(t, "Hello", s.Foo)
 
 	// try with limit that's smaller than the input
-	buffer = ioutil.NopCloser(bytes.NewReader(data))
+	buffer = io.NopCloser(bytes.NewReader(data))
 	s = &struct {
 		Foo string `json:"foo"`
 	}{}

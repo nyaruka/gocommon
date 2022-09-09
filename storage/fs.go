@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -38,7 +37,7 @@ func (s *fsStorage) Test(ctx context.Context) error {
 
 func (s *fsStorage) Get(ctx context.Context, path string) (string, []byte, error) {
 	fullPath := filepath.Join(s.directory, path)
-	contents, err := ioutil.ReadFile(fullPath)
+	contents, err := os.ReadFile(fullPath)
 	return "", contents, err
 }
 
@@ -50,7 +49,7 @@ func (s *fsStorage) Put(ctx context.Context, path string, contentType string, co
 		return "", err
 	}
 
-	err = ioutil.WriteFile(fullPath, contents, s.perms)
+	err = os.WriteFile(fullPath, contents, s.perms)
 	if err != nil {
 		return "", err
 	}

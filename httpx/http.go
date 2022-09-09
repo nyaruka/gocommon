@@ -16,8 +16,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var debug = false
-
 // Do makes the given HTTP request using the current requestor and retry config
 func Do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, error) {
 	r, _, err := do(client, request, retries, access)
@@ -116,7 +114,7 @@ func santizedTrace(header []byte, body []byte, bodyPlaceHolder string) string {
 		b.Write([]byte(bodyPlaceHolder))
 	}
 
-	return string(b.Bytes())
+	return b.String()
 }
 
 func replaceNullChars(b []byte) []byte {
@@ -148,10 +146,6 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 	trace.ResponseTrace, trace.ResponseBody, err = dumpResponse(response, maxBodyBytes)
 	if err != nil {
 		return trace, err
-	}
-
-	if debug {
-		fmt.Println(trace.String())
 	}
 
 	return trace, nil
@@ -228,11 +222,6 @@ var currentRequestor = DefaultRequestor
 // SetRequestor sets the requestor used by Request
 func SetRequestor(requestor Requestor) {
 	currentRequestor = requestor
-}
-
-// SetDebug enables debugging
-func SetDebug(enabled bool) {
-	debug = enabled
 }
 
 // DetectContentType is a drop in replacement for http.DetectContentType which leans on
