@@ -48,13 +48,13 @@ func TestFSBatchPut(t *testing.T) {
 	s := storage.NewFS("_testing")
 
 	uploads := []*storage.Upload{
-		&storage.Upload{
+		{
 			Path:        "https://mybucket.s3.amazonaws.com/foo/thing1",
 			Body:        []byte(`HELLOWORLD`),
 			ContentType: "text/plain",
 			ACL:         s3.BucketCannedACLPrivate,
 		},
-		&storage.Upload{
+		{
 			Path:        "https://mybucket.s3.amazonaws.com/foo/thing2",
 			Body:        []byte(`HELLOWORLD2`),
 			ContentType: "text/plain",

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"sync"
 	"time"
 
@@ -90,7 +90,7 @@ func (s *s3Storage) Get(ctx context.Context, path string) (string, []byte, error
 		return "", nil, errors.Wrapf(err, "error getting S3 object")
 	}
 
-	contents, err := ioutil.ReadAll(out.Body)
+	contents, err := io.ReadAll(out.Body)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error reading S3 object")
 	}

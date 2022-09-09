@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 )
 
 // Marshal marshals the given object to JSON
@@ -71,7 +70,7 @@ func UnmarshalArray(data json.RawMessage) ([]json.RawMessage, error) {
 
 // UnmarshalWithLimit unmarsmals a struct with a limit on how many bytes can be read from the given reader
 func UnmarshalWithLimit(reader io.ReadCloser, s interface{}, limit int64) error {
-	body, err := ioutil.ReadAll(io.LimitReader(reader, limit))
+	body, err := io.ReadAll(io.LimitReader(reader, limit))
 	if err != nil {
 		return err
 	}

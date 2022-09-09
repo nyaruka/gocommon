@@ -278,7 +278,7 @@ func Decode(gsm7 []byte) (str string) {
 	var r rune
 
 	for _, b := range gsm7 {
-		if b > max || b < 0 {
+		if b > max {
 			r = '?'
 		} else if escaped {
 			r, found = gsm7ToExtended[b]
@@ -290,7 +290,7 @@ func Decode(gsm7 []byte) (str string) {
 			escaped = true
 			continue
 		} else {
-			r, _ = gsm7ToBase[b]
+			r = gsm7ToBase[b]
 		}
 		str += string(r)
 	}
