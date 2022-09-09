@@ -1,3 +1,9 @@
+v1.30.0
+----------
+ * Use go 1.19
+ * Fix linter warnings
+ * Add httpx.BasicAuth util
+
 v1.29.0
 ----------
  * Add SantizedRequest to httpx.Trace to match SanitizedResponse
