@@ -121,7 +121,11 @@ func replaceNullChars(b []byte) []byte {
 	return bytes.ReplaceAll(b, []byte{0}, []byte(`�`))
 }
 
-// DoTrace makes the given request saving traces of the complete request and response
+// DoTrace makes the given request saving traces of the complete request and response.
+//
+//   - If the request is successful, the trace will have a response and response body
+//   - If reading the body errors, the trace will have a response but no response body
+//   - If connection fails, the trace will have a request but no response or response body
 func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig, maxBodyBytes int) (*Trace, error) {
 	requestTrace, err := httputil.DumpRequestOut(request, true)
 	if err != nil {
@@ -133,16 +137,16 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 		RequestTrace: requestTrace,
 		StartTime:    dates.Now(),
 	}
+	defer func() { trace.EndTime = dates.Now() }()
 
 	response, retryCount, err := do(client, request, retries, access)
-	trace.EndTime = dates.Now()
+	trace.Response = response
 	trace.Retries = retryCount
 
 	if err != nil {
 		return trace, err
 	}
 
-	trace.Response = response
 	trace.ResponseTrace, trace.ResponseBody, err = dumpResponse(response, maxBodyBytes)
 	if err != nil {
 		return trace, err
