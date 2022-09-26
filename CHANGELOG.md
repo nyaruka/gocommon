@@ -1,3 +1,7 @@
+v1.30.1
+----------
+ * Time for an HTTP trace should include reading the entire body
+
 v1.30.0
 ----------
  * Use go 1.19
