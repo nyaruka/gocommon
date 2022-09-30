@@ -14,7 +14,8 @@ import (
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
 type MockRequestor struct {
-	mocks map[string][]*MockResponse
+	mocks    map[string][]*MockResponse
+	requests []*http.Request
 }
 
 // NewMockRequestor creates a new mock requestor with the given mocks
@@ -24,6 +25,8 @@ func NewMockRequestor(mocks map[string][]*MockResponse) *MockRequestor {
 
 // Do returns the mocked reponse for the given request
 func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Response, error) {
+	r.requests = append(r.requests, request)
+
 	url := request.URL.String()
 	mockedResponses := r.mocks[url]
 	if len(mockedResponses) == 0 {
@@ -39,6 +42,11 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 	}
 
 	return mocked.Make(request), nil
+}
+
+// Requests returns the received requests
+func (r *MockRequestor) Requests() []*http.Request {
+	return r.requests
 }
 
 // HasUnused returns true if there are unused mocks leftover

@@ -38,6 +38,7 @@ func TestMockRequestor(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "this is google", string(body))
 
+	assert.Equal(t, []*http.Request{req1}, requestor1.Requests())
 	assert.True(t, requestor1.HasUnused())
 
 	// request another mocked URL
@@ -45,6 +46,7 @@ func TestMockRequestor(t *testing.T) {
 	response2, err := httpx.Do(http.DefaultClient, req2, nil, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 202, response2.StatusCode)
+	assert.Equal(t, []*http.Request{req1, req2}, requestor1.Requests())
 
 	// request second mock for first URL
 	req3, _ := http.NewRequest("GET", "http://google.com", nil)
