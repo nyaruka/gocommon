@@ -1,3 +1,7 @@
+v1.30.2
+----------
+ * MockRequestor should log requests
+
 v1.30.1
 ----------
  * Time for an HTTP trace should include reading the entire body
