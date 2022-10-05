@@ -214,23 +214,30 @@ func TestNonUTF8Response(t *testing.T) {
 
 func TestDetectContentType(t *testing.T) {
 	tcs := []struct {
-		intput []byte
-		stdlib string // for comparison
-		output string
+		intput       []byte
+		stdlib       string // for comparison
+		expectedType string
+		expectedExt  string
 	}{
-		{nil, "text/plain; charset=utf-8", "text/plain"},
-		{[]byte(`hello`), "text/plain; charset=utf-8", "text/plain; charset=utf-8"},
-		{[]byte(`{"foo": "bar"}`), "text/plain; charset=utf-8", "application/json"},
-		{[]byte{0x1f, 0x8b}, "application/octet-stream", "application/gzip"},
-		{[]byte("GIF87a"), "image/gif", "image/gif"},
-		{[]byte{0xFF, 0xD8, 0xFF}, "image/jpeg", "image/jpeg"},
-		{[]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, "image/png", "image/png"},
-		{[]byte{0xFF, 0xF1}, "text/plain; charset=utf-8", "audio/aac"},
+		{nil, "text/plain; charset=utf-8", "text/plain", ".txt"},
+		{[]byte(`hello`), "text/plain; charset=utf-8", "text/plain; charset=utf-8", ".txt"},
+		{[]byte(`{"foo": "bar"}`), "text/plain; charset=utf-8", "application/json", ".json"},
+		{[]byte{0x1f, 0x8b}, "application/octet-stream", "application/gzip", ".gz"},
+		{[]byte("GIF87a"), "image/gif", "image/gif", ".gif"},
+		{[]byte{0xFF, 0xD8, 0xFF}, "image/jpeg", "image/jpeg", ".jpg"},
+		{[]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, "image/png", "image/png", ".png"},
+		{[]byte{0xFF, 0xF1}, "text/plain; charset=utf-8", "audio/aac", ".aac"},
+
+		// 10 random bytes
+		{[]byte{0x83, 0x6f, 0x04, 0xf9, 0x1c, 0x8a, 0x72, 0xd5, 0xe9, 0xe8}, "application/octet-stream", "application/octet-stream", ""},
 	}
 
 	for _, tc := range tcs {
+		actualType, actualExt := httpx.DetectContentType(tc.intput)
+
 		assert.Equal(t, tc.stdlib, http.DetectContentType(tc.intput), "stdlib content type mismatch for input %s", string(tc.intput))
-		assert.Equal(t, tc.output, httpx.DetectContentType(tc.intput), "content type mismatch for input %s", string(tc.intput))
+		assert.Equal(t, tc.expectedType, actualType, "content type mismatch for input %s", string(tc.intput))
+		assert.Equal(t, tc.expectedExt, actualExt, "extension mismatch for input %s", string(tc.intput))
 	}
 }
 
