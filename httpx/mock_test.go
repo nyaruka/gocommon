@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/nyaruka/gocommon/httpx"
@@ -15,6 +16,13 @@ import (
 func TestMockRequestor(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
+	// start a real HTTP server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`COOL`))
+	}))
+	defer server.Close()
+
 	// can create requestor with constructor
 	requestor1 := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"http://google.com": {
@@ -24,6 +32,9 @@ func TestMockRequestor(t *testing.T) {
 		"http://yahoo.com": {
 			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
 			httpx.MockConnectionError,
+		},
+		server.URL + "/thing": {
+			httpx.NewMockResponse(203, nil, []byte("this is local")),
 		},
 	})
 
@@ -60,11 +71,25 @@ func TestMockRequestor(t *testing.T) {
 	assert.EqualError(t, err, "unable to connect to server")
 	assert.Nil(t, response4)
 
+	// request mocked localhost request
+	req5, _ := http.NewRequest("GET", server.URL+"/thing", nil)
+	response5, err := httpx.Do(http.DefaultClient, req5, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 203, response5.StatusCode)
+
 	assert.False(t, requestor1.HasUnused())
 
 	// panic if we've run out of mocks for a URL
-	req5, _ := http.NewRequest("GET", "http://google.com", nil)
-	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req5, nil, nil) })
+	req6, _ := http.NewRequest("GET", "http://google.com", nil)
+	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req6, nil, nil) })
+
+	requestor1.SetIgnoreLocal(true)
+
+	// now a request to the local server should actually get there
+	req7, _ := http.NewRequest("GET", server.URL+"/thing", nil)
+	response7, err := httpx.Do(http.DefaultClient, req7, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, response7.StatusCode)
 }
 
 func TestMockRequestorMarshaling(t *testing.T) {
