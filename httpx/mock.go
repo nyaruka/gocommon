@@ -8,14 +8,14 @@ import (
 	"net/http"
 
 	"github.com/nyaruka/gocommon/jsonx"
-
 	"github.com/pkg/errors"
 )
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
 type MockRequestor struct {
-	mocks    map[string][]*MockResponse
-	requests []*http.Request
+	mocks       map[string][]*MockResponse
+	requests    []*http.Request
+	ignoreLocal bool
 }
 
 // NewMockRequestor creates a new mock requestor with the given mocks
@@ -23,8 +23,18 @@ func NewMockRequestor(mocks map[string][]*MockResponse) *MockRequestor {
 	return &MockRequestor{mocks: mocks}
 }
 
+// SetIgnoreLocal sets whether the requestor should ignore requests on localhost and delegate these
+// the the default requestor.
+func (r *MockRequestor) SetIgnoreLocal(ignore bool) {
+	r.ignoreLocal = ignore
+}
+
 // Do returns the mocked reponse for the given request
 func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Response, error) {
+	if r.ignoreLocal && isLocalRequest(request) {
+		return DefaultRequestor.Do(client, request)
+	}
+
 	r.requests = append(r.requests, request)
 
 	url := request.URL.String()
@@ -117,6 +127,11 @@ var MockConnectionError = &MockResponse{Status: 0, Headers: nil, Body: []byte{},
 // NewMockResponse creates a new mock response
 func NewMockResponse(status int, headers map[string]string, body []byte) *MockResponse {
 	return &MockResponse{Status: status, Headers: headers, Body: body, BodyIsString: true, BodyRepeat: 0}
+}
+
+func isLocalRequest(r *http.Request) bool {
+	hostname := r.URL.Hostname()
+	return hostname == "localhost" || hostname == "127.0.0.1"
 }
 
 //------------------------------------------------------------------------------------------
