@@ -1,3 +1,8 @@
+v1.31.0
+----------
+ * Update httpx.DetectContentType to also return extension
+ * Allow mock requestors to ignore localhost requests
+
 v1.30.2
 ----------
  * MockRequestor should log requests
