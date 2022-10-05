@@ -228,10 +228,12 @@ func SetRequestor(requestor Requestor) {
 	currentRequestor = requestor
 }
 
-// DetectContentType is a drop in replacement for http.DetectContentType which leans on
-// the github.com/gabriel-vasile/mimetype library
-func DetectContentType(d []byte) string {
-	return mimetype.Detect(d).String()
+// DetectContentType is a replacement for http.DetectContentType which leans on the github.com/gabriel-vasile/mimetype
+// library to support more types, and additionally returns the extension (including leading period) associated with the
+// detected type.
+func DetectContentType(d []byte) (string, string) {
+	mime := mimetype.Detect(d)
+	return mime.String(), mime.Extension()
 }
 
 // BasicAuth returns the Authorization header value for HTTP Basic auth
