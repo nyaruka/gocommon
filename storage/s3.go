@@ -60,12 +60,13 @@ type s3Storage struct {
 	client          S3Client
 	bucket          string
 	region          string
+	acl             string
 	workersPerBatch int
 }
 
 // NewS3 creates a new S3 storage service. Callers can specify how many parallel uploads will take place at
 // once when calling BatchPut with workersPerBatch
-func NewS3(client S3Client, bucket, region string, workersPerBatch int) Storage {
+func NewS3(client S3Client, bucket, region, acl string, workersPerBatch int) Storage {
 	return &s3Storage{client: client, bucket: bucket, region: region, workersPerBatch: workersPerBatch}
 }
 
@@ -90,22 +91,22 @@ func (s *s3Storage) Get(ctx context.Context, path string) (string, []byte, error
 		return "", nil, errors.Wrapf(err, "error getting S3 object")
 	}
 
-	contents, err := io.ReadAll(out.Body)
+	body, err := io.ReadAll(out.Body)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error reading S3 object")
 	}
 
-	return aws.StringValue(out.ContentType), contents, nil
+	return aws.StringValue(out.ContentType), body, nil
 }
 
 // Put writes the passed in file to the bucket with the passed in content type
-func (s *s3Storage) Put(ctx context.Context, path string, contentType string, contents []byte) (string, error) {
+func (s *s3Storage) Put(ctx context.Context, path string, contentType string, body []byte) (string, error) {
 	_, err := s.client.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
-		Body:        bytes.NewReader(contents),
+		Body:        bytes.NewReader(body),
 		Key:         aws.String(path),
 		ContentType: aws.String(contentType),
-		ACL:         aws.String(s3.BucketCannedACLPublicRead),
+		ACL:         aws.String(s.acl),
 	})
 	if err != nil {
 		return "", errors.Wrapf(err, "error putting S3 object")
@@ -132,7 +133,7 @@ func (s *s3Storage) batchWorker(ctx context.Context, uploads chan *Upload, error
 					Body:        bytes.NewReader(u.Body),
 					Key:         aws.String(u.Path),
 					ContentType: aws.String(u.ContentType),
-					ACL:         aws.String(u.ACL),
+					ACL:         aws.String(s.acl),
 				})
 
 				if err == nil {
