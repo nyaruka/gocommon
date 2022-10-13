@@ -1,3 +1,7 @@
+v1.32.0
+----------
+ * Storage types should have object permissions/acl set via constructor
+
 v1.31.0
 ----------
  * Update httpx.DetectContentType to also return extension
