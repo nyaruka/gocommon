@@ -15,8 +15,8 @@ type fsStorage struct {
 }
 
 // NewFS creates a new file system storage service suitable for use in tests
-func NewFS(directory string) Storage {
-	return &fsStorage{directory: directory, perms: 0766}
+func NewFS(directory string, perms os.FileMode) Storage {
+	return &fsStorage{directory: directory, perms: perms}
 }
 
 func (s *fsStorage) Name() string {
@@ -37,11 +37,11 @@ func (s *fsStorage) Test(ctx context.Context) error {
 
 func (s *fsStorage) Get(ctx context.Context, path string) (string, []byte, error) {
 	fullPath := filepath.Join(s.directory, path)
-	contents, err := os.ReadFile(fullPath)
-	return "", contents, err
+	body, err := os.ReadFile(fullPath)
+	return "", body, err
 }
 
-func (s *fsStorage) Put(ctx context.Context, path string, contentType string, contents []byte) (string, error) {
+func (s *fsStorage) Put(ctx context.Context, path string, contentType string, body []byte) (string, error) {
 	fullPath := filepath.Join(s.directory, path)
 
 	err := os.MkdirAll(filepath.Dir(fullPath), s.perms)
@@ -49,7 +49,7 @@ func (s *fsStorage) Put(ctx context.Context, path string, contentType string, co
 		return "", err
 	}
 
-	err = os.WriteFile(fullPath, contents, s.perms)
+	err = os.WriteFile(fullPath, body, s.perms)
 	if err != nil {
 		return "", err
 	}

@@ -14,18 +14,19 @@ type Storage interface {
 	Get(ctx context.Context, path string) (string, []byte, error)
 
 	// Put stores the given file at the given path
-	Put(ctx context.Context, path string, contentType string, contents []byte) (string, error)
+	Put(ctx context.Context, path string, contentType string, body []byte) (string, error)
 
 	// BatchPut stores the given uploads, returning the URLs of the files after upload
 	BatchPut(ctx context.Context, uploads []*Upload) error
 }
 
-// Upload is our type for a file to upload
+// Upload is our type for a file in a batch upload
 type Upload struct {
 	Path        string
-	Body        []byte
 	ContentType string
-	ACL         string
-	URL         string
-	Error       error
+	Body        []byte
+
+	// set by BatchPut
+	URL   string
+	Error error
 }
