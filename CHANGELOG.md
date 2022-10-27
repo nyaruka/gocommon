@@ -1,3 +1,7 @@
+v1.32.1
+----------
+ * Update deps including phonenumbers
+
 v1.32.0
 ----------
  * Storage types should have object permissions/acl set via constructor
