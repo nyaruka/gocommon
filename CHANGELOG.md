@@ -1,3 +1,7 @@
+v1.32.2
+----------
+ * Fix passing ACL to S3 puts
+
 v1.32.1
 ----------
  * Update deps including phonenumbers
