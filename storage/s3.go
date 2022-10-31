@@ -67,7 +67,7 @@ type s3Storage struct {
 // NewS3 creates a new S3 storage service. Callers can specify how many parallel uploads will take place at
 // once when calling BatchPut with workersPerBatch
 func NewS3(client S3Client, bucket, region, acl string, workersPerBatch int) Storage {
-	return &s3Storage{client: client, bucket: bucket, region: region, workersPerBatch: workersPerBatch}
+	return &s3Storage{client: client, bucket: bucket, region: region, acl: acl, workersPerBatch: workersPerBatch}
 }
 
 func (s *s3Storage) Name() string {
