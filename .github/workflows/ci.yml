@@ -6,11 +6,11 @@ jobs:
     strategy:
       matrix:
         go-version: [1.19.x]
-        pg-version: ["12", "13"]
+        pg-version: ["13", "14"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install PostgreSQL
         uses: harmon758/postgresql-action@v1
@@ -26,10 +26,10 @@ jobs:
       - name: Install Redis
         uses: zhulik/redis-action@v1.0.0
         with:
-          redis version: "5"
+          redis version: "6.2"
 
       - name: Install Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go-version }}
 
