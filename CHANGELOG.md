@@ -1,3 +1,7 @@
+v1.33.0
+----------
+ * Add util function dbutil.ToValidUTF8
+
 v1.32.2
 ----------
  * Fix passing ACL to S3 puts
