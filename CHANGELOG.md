@@ -1,3 +1,7 @@
+v1.34.0 (2023-01-26)
+-------------------------
+ * Add util functions for working with nullable string types
+
 v1.33.1 (2022-11-28)
 -------------------------
  * Update deps
