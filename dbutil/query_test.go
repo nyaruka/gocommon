@@ -14,9 +14,7 @@ import (
 func TestBulkSQL(t *testing.T) {
 	db := getTestDB()
 
-	defer func() {
-		db.MustExec(`DROP TABLE foo`)
-	}()
+	defer func() { db.MustExec(`DROP TABLE foo`) }()
 
 	db.MustExec(`CREATE TABLE foo (id serial NOT NULL PRIMARY KEY, name VARCHAR(10))`)
 	db.MustExec(`INSERT INTO foo (name) VALUES('Bob')`)
