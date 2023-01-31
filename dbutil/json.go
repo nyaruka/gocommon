@@ -3,9 +3,9 @@ package dbutil
 import (
 	"encoding/json"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 var validate = validator.New()
