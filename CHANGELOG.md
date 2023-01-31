@@ -1,3 +1,7 @@
+v1.34.1 (2023-01-31)
+-------------------------
+ * Update dependencies including phonenumbers
+
 v1.34.0 (2023-01-26)
 -------------------------
  * Add util functions for working with nullable string types
