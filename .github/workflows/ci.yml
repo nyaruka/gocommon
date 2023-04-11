@@ -17,8 +17,8 @@ jobs:
         with:
           postgresql version: ${{ matrix.pg-version }}
           postgresql db: gocommon_test
-          postgresql user: nyaruka
-          postgresql password: nyaruka
+          postgresql user: gocommon_test
+          postgresql password: temba
 
       - name: Install Linux packages
         run: sudo apt install -y --no-install-recommends pandoc
