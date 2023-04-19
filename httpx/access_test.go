@@ -47,7 +47,7 @@ func TestAccessConfig(t *testing.T) {
 		{"https://LOCALHOST:80", "request to LOCALHOST denied"},
 		{"http://foo.localtest.me", "request to foo.localtest.me denied"},
 		{"https://127.0.0.1", "request to 127.0.0.1 denied"},
-		{"https://127.0.00.1", "request to 127.0.00.1 denied"},
+		{"https://127.0.00.1", "?"}, // Go 1.19: "request to 127.0.00.1 denied", Go 1.20: "lookup 127.0.00.1: no such host"
 		{"https://[::1]:80", "request to ::1 denied"},
 		{"https://[0:0:0:0:0:0:0:1]:80", "request to 0:0:0:0:0:0:0:1 denied"},
 		{"https://[0000:0000:0000:0000:0000:0000:0000:0001]:80", "request to 0000:0000:0000:0000:0000:0000:0000:0001 denied"},
@@ -63,7 +63,11 @@ func TestAccessConfig(t *testing.T) {
 		_, err := httpx.DoTrace(http.DefaultClient, request, nil, access, -1)
 
 		if tc.err != "" {
-			assert.EqualError(t, err, tc.err, "error message mismatch for url %s", tc.url)
+			if tc.err == "?" {
+				assert.Error(t, err)
+			} else {
+				assert.EqualError(t, err, tc.err, "error message mismatch for url %s", tc.url)
+			}
 		} else {
 			assert.NoError(t, err)
 		}
