@@ -3,30 +3,32 @@ on: [push, pull_request]
 jobs:
   test:
     name: Test
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.19.x]
-        pg-version: ["13", "14"]
-    runs-on: ubuntu-latest
+        go-version: [1.19.x, 1.20.x]
+
+    services:
+      redis:
+        image: redis:6.2-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgis/postgis:14-3.3-alpine
+        env:
+          POSTGRES_DB: gocommon_test
+          POSTGRES_USER: gocommon_test
+          POSTGRES_PASSWORD: temba
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install PostgreSQL
-        uses: harmon758/postgresql-action@v1
-        with:
-          postgresql version: ${{ matrix.pg-version }}
-          postgresql db: gocommon_test
-          postgresql user: gocommon_test
-          postgresql password: temba
-
       - name: Install Linux packages
         run: sudo apt install -y --no-install-recommends pandoc
-
-      - name: Install Redis
-        uses: zhulik/redis-action@v1.0.0
-        with:
-          redis version: "6.2"
 
       - name: Install Go
         uses: actions/setup-go@v3
@@ -38,7 +40,7 @@ jobs:
 
       - name: Upload coverage
         if: success()
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
