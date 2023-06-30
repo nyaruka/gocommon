@@ -1,3 +1,8 @@
+v1.36.0 (2023-06-30)
+-------------------------
+ * Add syncx.Batcher
+ * Use services for github CI
+
 v1.35.0 (2023-02-18)
 -------------------------
  * bump golang.org/x/net from 0.5.0 to 0.7.0
