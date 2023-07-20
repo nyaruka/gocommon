@@ -27,11 +27,11 @@ func TestFS(t *testing.T) {
 
 	require.NoError(t, os.Chmod("_testing", 0777))
 
-	url, err := s.Put(ctx, "/foo/bar.txt", "text/plain", []byte(`hello world`))
+	url, err := s.Put(ctx, "foo/bar.txt", "text/plain", []byte(`hello world`))
 	assert.NoError(t, err)
 	assert.Equal(t, "_testing/foo/bar.txt", url)
 
-	_, data, err := s.Get(ctx, "/foo/bar.txt")
+	_, data, err := s.Get(ctx, "foo/bar.txt")
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`hello world`), data)
 

@@ -71,18 +71,18 @@ func TestS3Get(t *testing.T) {
 		Body:        io.NopCloser(bytes.NewReader([]byte(`HELLOWORLD`))),
 	}
 
-	contentType, contents, err := s.Get(ctx, "/foo/things")
+	contentType, contents, err := s.Get(ctx, "foo/things")
 	assert.NoError(t, err)
 	assert.Equal(t, "text/plain", contentType)
 	assert.Equal(t, []byte(`HELLOWORLD`), contents)
 
 	assert.Len(t, client.getObjectInputs, 1)
 	assert.Equal(t, aws.String("mybucket"), client.getObjectInputs[0].Bucket)
-	assert.Equal(t, aws.String("/foo/things"), client.getObjectInputs[0].Key)
+	assert.Equal(t, aws.String("foo/things"), client.getObjectInputs[0].Key)
 
 	client.returnError = errors.New("boom")
 
-	_, _, err = s.Get(ctx, "/foo/things")
+	_, _, err = s.Get(ctx, "foo/things")
 	assert.EqualError(t, err, "error getting S3 object: boom")
 }
 
@@ -91,18 +91,18 @@ func TestS3Put(t *testing.T) {
 	client := &testS3Client{}
 	s := storage.NewS3(client, "mybucket", "us-east-1", s3.BucketCannedACLPublicRead, 1)
 
-	url, err := s.Put(ctx, "/foo/things", "text/plain", []byte(`HELLOWORLD`))
+	url, err := s.Put(ctx, "foo/things", "text/plain", []byte(`HELLOWORLD`))
 	assert.NoError(t, err)
 	assert.Equal(t, "https://mybucket.s3.us-east-1.amazonaws.com/foo/things", url)
 
 	assert.Len(t, client.putObjectInputs, 1)
 	assert.Equal(t, aws.String("mybucket"), client.putObjectInputs[0].Bucket)
-	assert.Equal(t, aws.String("/foo/things"), client.putObjectInputs[0].Key)
+	assert.Equal(t, aws.String("foo/things"), client.putObjectInputs[0].Key)
 	assert.Equal(t, aws.String(s3.BucketCannedACLPublicRead), client.putObjectInputs[0].ACL)
 
 	client.returnError = errors.New("boom")
 
-	_, err = s.Put(ctx, "/foo/things", "text/plain", []byte(`HELLOWORLD`))
+	_, err = s.Put(ctx, "foo/things", "text/plain", []byte(`HELLOWORLD`))
 	assert.EqualError(t, err, "error putting S3 object: boom")
 }
 
