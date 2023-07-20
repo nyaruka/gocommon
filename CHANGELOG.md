@@ -1,3 +1,7 @@
+v1.37.0 (2023-07-20)
+-------------------------
+ * Storage paths shouldn't need to start with slash
+
 v1.36.0 (2023-06-30)
 -------------------------
  * Add syncx.Batcher
