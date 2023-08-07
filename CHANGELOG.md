@@ -1,3 +1,7 @@
+v1.38.0 (2023-08-07)
+-------------------------
+ * Add confusables implementation to stringsx
+
 v1.37.0 (2023-07-20)
 -------------------------
  * Storage paths shouldn't need to start with slash
