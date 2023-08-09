@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.319
 	github.com/gabriel-vasile/mimetype v1.4.2
 	github.com/go-chi/chi v4.1.2+incompatible
-	github.com/go-playground/validator/v10 v10.15.0
+	github.com/go-playground/validator/v10 v10.14.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
