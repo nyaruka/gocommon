@@ -1,3 +1,7 @@
+v1.38.2 (2023-08-09)
+-------------------------
+ * Revert validator dep upgrade
+
 v1.38.1 (2023-08-09)
 -------------------------
  * Update deps including phonenumbers
