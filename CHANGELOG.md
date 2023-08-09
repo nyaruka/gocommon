@@ -1,3 +1,7 @@
+v1.38.1 (2023-08-09)
+-------------------------
+ * Update deps including phonenumbers
+
 v1.38.0 (2023-08-07)
 -------------------------
  * Add confusables implementation to stringsx
