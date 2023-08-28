@@ -85,7 +85,7 @@ func (d Date) Value() (driver.Value, error) {
 }
 
 // Scan scans from the db value
-func (d *Date) Scan(value interface{}) error {
+func (d *Date) Scan(value any) error {
 	*d = ExtractDate(value.(time.Time))
 	return nil
 }
