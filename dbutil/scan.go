@@ -1,17 +1,17 @@
 package dbutil
 
 import (
+	"database/sql"
 	"encoding/json"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 var validate = validator.New()
 
 // ScanJSON scans a row which is JSON into a destination struct
-func ScanJSON(rows *sqlx.Rows, destination any) error {
+func ScanJSON(rows *sql.Rows, destination any) error {
 	var raw json.RawMessage
 	err := rows.Scan(&raw)
 	if err != nil {
@@ -27,7 +27,7 @@ func ScanJSON(rows *sqlx.Rows, destination any) error {
 }
 
 // ScanAndValidateJSON scans a row which is JSON into a destination struct and validates it
-func ScanAndValidateJSON(rows *sqlx.Rows, destination any) error {
+func ScanAndValidateJSON(rows *sql.Rows, destination any) error {
 	if err := ScanJSON(rows, destination); err != nil {
 		return err
 	}
@@ -38,4 +38,35 @@ func ScanAndValidateJSON(rows *sqlx.Rows, destination any) error {
 	}
 
 	return nil
+}
+
+// ScanAllSlice scans a single value from each single column row into the given slice
+func ScanAllSlice[V any](rows *sql.Rows, s []V) ([]V, error) {
+	defer rows.Close()
+
+	var v V
+
+	for rows.Next() {
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		s = append(s, v)
+	}
+	return s, rows.Err()
+}
+
+// ScanAllMap scans a key and value from each two column row into the given map
+func ScanAllMap[K comparable, V any](rows *sql.Rows, m map[K]V) error {
+	defer rows.Close()
+
+	var k K
+	var v V
+
+	for rows.Next() {
+		if err := rows.Scan(&k, &v); err != nil {
+			return err
+		}
+		m[k] = v
+	}
+	return rows.Err()
 }
