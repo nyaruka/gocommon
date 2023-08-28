@@ -1,3 +1,7 @@
+v1.39.1 (2023-08-28)
+-------------------------
+ * Rename dbutil.Queryer to BulkQueryer for clarity
+
 v1.39.0 (2023-08-28)
 -------------------------
  * Use any instead of interface{}
