@@ -29,7 +29,7 @@ func TestScanJSON(t *testing.T) {
 		Age  int    `json:"age" validate:"min=0"`
 	}
 
-	queryRows := func(sql string, args ...interface{}) *sqlx.Rows {
+	queryRows := func(sql string, args ...any) *sqlx.Rows {
 		rows, err := db.QueryxContext(ctx, sql, args...)
 		require.NoError(t, err)
 		require.True(t, rows.Next())

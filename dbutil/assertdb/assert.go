@@ -8,7 +8,7 @@ import (
 )
 
 // Query creates a new query on which one can assert things
-func Query(t *testing.T, db *sqlx.DB, sql string, args ...interface{}) *TestQuery {
+func Query(t *testing.T, db *sqlx.DB, sql string, args ...any) *TestQuery {
 	return &TestQuery{t, db, sql, args}
 }
 
@@ -17,11 +17,11 @@ type TestQuery struct {
 	t    *testing.T
 	db   *sqlx.DB
 	sql  string
-	args []interface{}
+	args []any
 }
 
 // Returns asserts that the query returns a single value
-func (q *TestQuery) Returns(expected interface{}, msgAndArgs ...interface{}) {
+func (q *TestQuery) Returns(expected any, msgAndArgs ...any) {
 	q.t.Helper()
 
 	// get a variable of same type to hold actual result
@@ -40,10 +40,10 @@ func (q *TestQuery) Returns(expected interface{}, msgAndArgs ...interface{}) {
 }
 
 // Columns asserts that the query returns the given column values
-func (q *TestQuery) Columns(expected map[string]interface{}, msgAndArgs ...interface{}) {
+func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) {
 	q.t.Helper()
 
-	actual := make(map[string]interface{}, len(expected))
+	actual := make(map[string]any, len(expected))
 
 	err := q.db.QueryRowx(q.sql, q.args...).MapScan(actual)
 	assert.NoError(q.t, err, msgAndArgs...)
