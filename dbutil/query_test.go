@@ -57,6 +57,14 @@ func TestBulkSQL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `INSERT INTO foo (id, name) VALUES($1, $2),($3, $4),($5, $6)`, query)
 	assert.Equal(t, []any{1, "Bob", 2, "Cathy", 3, "George"}, args)
+
+	// try a select
+	sql = `SELECT * FROM foo WHERE (id, name) IN (VALUES(:id, :name))`
+
+	query, args, err = dbutil.BulkSQL(db, sql, []any{contact{ID: 1, Name: "Bob"}, contact{ID: 2, Name: "Cathy"}})
+	assert.NoError(t, err)
+	assert.Equal(t, `SELECT * FROM foo WHERE (id, name) IN (VALUES($1, $2),($3, $4))`, query)
+	assert.Equal(t, []any{1, "Bob", 2, "Cathy"}, args)
 }
 
 func TestBulkQuery(t *testing.T) {
