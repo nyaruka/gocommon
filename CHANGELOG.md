@@ -1,3 +1,9 @@
+v1.39.0 (2023-08-28)
+-------------------------
+ * Use any instead of interface{}
+ * Add dbutil.ScanAllSlice and ScanAllMap
+ * Test on go 1.21
+
 v1.38.2 (2023-08-09)
 -------------------------
  * Revert validator dep upgrade
