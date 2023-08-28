@@ -116,19 +116,19 @@ func TestDecodeGeneric(t *testing.T) {
 	vals, err := jsonx.DecodeGeneric(data)
 	assert.NoError(t, err)
 
-	asMap := vals.(map[string]interface{})
+	asMap := vals.(map[string]any)
 	assert.Equal(t, true, asMap["bool"])
 	assert.Equal(t, json.Number("123.34"), asMap["number"])
 	assert.Equal(t, "hello", asMap["text"])
-	assert.Equal(t, map[string]interface{}{"foo": "bar"}, asMap["object"])
-	assert.Equal(t, []interface{}{json.Number("1"), "x"}, asMap["array"])
+	assert.Equal(t, map[string]any{"foo": "bar"}, asMap["object"])
+	assert.Equal(t, []any{json.Number("1"), "x"}, asMap["array"])
 
 	// parse a JSON array into a slice
 	data = []byte(`[{"foo": 123}, {"foo": 456}]`)
 	vals, err = jsonx.DecodeGeneric(data)
 	assert.NoError(t, err)
 
-	asSlice := vals.([]interface{})
-	assert.Equal(t, map[string]interface{}{"foo": json.Number("123")}, asSlice[0])
-	assert.Equal(t, map[string]interface{}{"foo": json.Number("456")}, asSlice[1])
+	asSlice := vals.([]any)
+	assert.Equal(t, map[string]any{"foo": json.Number("123")}, asSlice[0])
+	assert.Equal(t, map[string]any{"foo": json.Number("456")}, asSlice[1])
 }

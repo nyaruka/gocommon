@@ -21,7 +21,7 @@ func TestIsUniqueViolation(t *testing.T) {
 func TestQueryError(t *testing.T) {
 	var err error = &pq.Error{Code: pq.ErrorCode("22025"), Message: "unsupported Unicode escape sequence"}
 
-	qerr := dbutil.NewQueryErrorf(err, "SELECT * FROM foo WHERE id = $1", []interface{}{234}, "error selecting foo %d", 234)
+	qerr := dbutil.NewQueryErrorf(err, "SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
 	assert.Error(t, qerr)
 	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, qerr.Error())
 
@@ -41,5 +41,5 @@ func TestQueryError(t *testing.T) {
 
 	query, params := unwrapped.Query()
 	assert.Equal(t, "SELECT * FROM foo WHERE id = $1", query)
-	assert.Equal(t, []interface{}{234}, params)
+	assert.Equal(t, []any{234}, params)
 }

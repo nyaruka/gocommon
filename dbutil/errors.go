@@ -21,7 +21,7 @@ type QueryError struct {
 	cause   error
 	message string
 	sql     string
-	sqlArgs []interface{}
+	sqlArgs []any
 }
 
 func (e *QueryError) Error() string {
@@ -32,11 +32,11 @@ func (e *QueryError) Unwrap() error {
 	return e.cause
 }
 
-func (e *QueryError) Query() (string, []interface{}) {
+func (e *QueryError) Query() (string, []any) {
 	return e.sql, e.sqlArgs
 }
 
-func NewQueryErrorf(cause error, sql string, sqlArgs []interface{}, message string, msgArgs ...interface{}) error {
+func NewQueryErrorf(cause error, sql string, sqlArgs []any, message string, msgArgs ...any) error {
 	return &QueryError{
 		cause:   cause,
 		message: fmt.Sprintf(message, msgArgs...),

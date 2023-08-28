@@ -11,7 +11,7 @@ import (
 var validate = validator.New()
 
 // ScanJSON scans a row which is JSON into a destination struct
-func ScanJSON(rows *sqlx.Rows, destination interface{}) error {
+func ScanJSON(rows *sqlx.Rows, destination any) error {
 	var raw json.RawMessage
 	err := rows.Scan(&raw)
 	if err != nil {
@@ -27,7 +27,7 @@ func ScanJSON(rows *sqlx.Rows, destination interface{}) error {
 }
 
 // ScanAndValidateJSON scans a row which is JSON into a destination struct and validates it
-func ScanAndValidateJSON(rows *sqlx.Rows, destination interface{}) error {
+func ScanAndValidateJSON(rows *sqlx.Rows, destination any) error {
 	if err := ScanJSON(rows, destination); err != nil {
 		return err
 	}

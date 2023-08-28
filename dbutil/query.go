@@ -11,7 +11,7 @@ import (
 // Queryer is the DB/TX functionality needed for operations in this package
 type Queryer interface {
 	Rebind(query string) string
-	QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error)
+	QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error)
 }
 
 // BulkQuery runs the query as a bulk operation with the given structs
@@ -61,7 +61,7 @@ func BulkQuery[T any](ctx context.Context, tx Queryer, query string, structs []T
 
 // BulkSQL takes a query which uses VALUES with struct bindings and rewrites it as a bulk operation.
 // It returns the new SQL query and the args to pass to it.
-func BulkSQL[T any](tx Queryer, sql string, structs []T) (string, []interface{}, error) {
+func BulkSQL[T any](tx Queryer, sql string, structs []T) (string, []any, error) {
 	if len(structs) == 0 {
 		return "", nil, errors.New("can't generate bulk sql with zero structs")
 	}
@@ -71,7 +71,7 @@ func BulkSQL[T any](tx Queryer, sql string, structs []T) (string, []interface{},
 	values.Grow(7 * len(structs))
 
 	// this will be each of the arguments to match the positional values above
-	args := make([]interface{}, 0, len(structs)*5)
+	args := make([]any, 0, len(structs)*5)
 
 	// for each value we build a bound SQL statement, then extract the values clause
 	for i, value := range structs {
