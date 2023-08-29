@@ -3,25 +3,30 @@ package syncx
 import (
 	"sync"
 	"time"
+
+	"golang.org/x/exp/constraints"
 )
 
 // Batcher allows values to be queued and processed in a background thread.
 type Batcher[T any] struct {
-	process func(batch []T)
-	timeout time.Duration
-	wg      *sync.WaitGroup
-	buffer  chan T
-	stop    chan bool
+	process  func(batch []T)
+	maxItems int
+	maxAge   time.Duration
+	wg       *sync.WaitGroup
+	buffer   chan T
+	stop     chan bool
+	batch    []T
 }
 
 // NewBatcher creates a new batcher.
-func NewBatcher[T any](process func(batch []T), timeout time.Duration, capacity int, wg *sync.WaitGroup) *Batcher[T] {
+func NewBatcher[T any](process func(batch []T), maxItems int, maxAge time.Duration, capacity int, wg *sync.WaitGroup) *Batcher[T] {
 	return &Batcher[T]{
-		process: process,
-		timeout: timeout,
-		wg:      wg,
-		buffer:  make(chan T, capacity),
-		stop:    make(chan bool),
+		process:  process,
+		maxItems: maxItems,
+		maxAge:   maxAge,
+		wg:       wg,
+		buffer:   make(chan T, capacity),
+		stop:     make(chan bool),
 	}
 }
 
@@ -34,14 +39,28 @@ func (b *Batcher[T]) Start() {
 
 		for {
 			select {
+			case v := <-b.buffer:
+				b.batch = append(b.batch, v)
+				if len(b.batch) == b.maxItems {
+					b.flush()
+				}
+
+			case <-time.After(b.maxAge):
+				b.flush()
+
 			case <-b.stop:
-				for len(b.buffer) > 0 {
+				for len(b.buffer) > 0 || len(b.batch) > 0 {
+					buffSize := len(b.buffer)
+					canRead := min(b.maxItems-len(b.batch), buffSize)
+
+					for i := 0; i < canRead; i++ {
+						v := <-b.buffer
+						b.batch = append(b.batch, v)
+					}
+
 					b.flush()
 				}
 				return
-
-			case <-time.After(b.timeout):
-				b.flush()
 			}
 		}
 	}()
@@ -59,18 +78,18 @@ func (b *Batcher[T]) Stop() {
 	close(b.stop)
 }
 
-// processes all values currently in the buffer
+// flushes whatever has been batched
 func (b *Batcher[T]) flush() {
-	count := len(b.buffer)
-	if count <= 0 {
-		return
+	if len(b.batch) > 0 {
+		b.process(b.batch)
+		b.batch = make([]T, 0, b.maxItems)
 	}
+}
 
-	batch := make([]T, count)
-	for i := 0; i < count; i++ {
-		v := <-b.buffer
-		batch[i] = v
+// TODO delete when on go 1.21 and this is builtin
+func min[T constraints.Ordered](x T, y T) T {
+	if x < y {
+		return x
 	}
-
-	b.process(batch)
+	return y
 }
