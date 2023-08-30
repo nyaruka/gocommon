@@ -54,4 +54,9 @@ func TestBatcher(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, [][]int{{1, 2}, {3, 4}, {5}, {6, 7}, {8}}, batches)
+
+	// panic if you try to queue to a stopped batcher
+	assert.Panics(t, func() {
+		b.Queue(9)
+	})
 }
