@@ -20,14 +20,15 @@ type Batcher[T any] struct {
 	timeout <-chan time.Time
 }
 
-// NewBatcher creates a new batcher.
-func NewBatcher[T any](process func(batch []T), maxItems int, maxAge time.Duration, capacity int, wg *sync.WaitGroup) *Batcher[T] {
+// NewBatcher creates a new batcher. Queued items are passed to the `process` callback in batches of `maxItems` maximum
+// size. Processing of a batch is triggered by reaching `maxItems` or `maxAge` since the oldest unprocessed item was queued.
+func NewBatcher[T any](process func(batch []T), maxItems int, maxAge time.Duration, bufferSize int, wg *sync.WaitGroup) *Batcher[T] {
 	return &Batcher[T]{
 		process:  process,
 		maxItems: maxItems,
 		maxAge:   maxAge,
 		wg:       wg,
-		buffer:   make(chan T, capacity),
+		buffer:   make(chan T, bufferSize),
 		stop:     make(chan bool),
 		batch:    make([]T, 0, maxItems),
 		timeout:  nil,
