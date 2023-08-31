@@ -70,11 +70,11 @@ func (b *Batcher[T]) Start() {
 	}()
 }
 
-// Queue queues the given value, potentially blocking. Returns the new free capacity.
+// Queue queues the given value, potentially blocking. Returns the new free capacity (batch + buffer).
 func (b *Batcher[T]) Queue(value T) int {
 	b.buffer <- value
 
-	return cap(b.buffer) - len(b.buffer)
+	return (cap(b.batch) + cap(b.buffer)) - (len(b.batch) + len(b.buffer))
 }
 
 // Stop stops this batcher.
@@ -91,6 +91,7 @@ func (b *Batcher[T]) flush() {
 	}
 }
 
+// processes everything in the batch and buffer until they're both empty
 func (b *Batcher[T]) drain() {
 	for len(b.buffer) > 0 || len(b.batch) > 0 {
 		buffSize := len(b.buffer)

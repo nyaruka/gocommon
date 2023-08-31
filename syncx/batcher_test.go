@@ -19,7 +19,7 @@ func TestBatcher(t *testing.T) {
 
 	b.Start()
 
-	b.Queue(1) // won't trigger a batch
+	assert.Equal(t, 4, b.Queue(1)) // won't trigger a batch
 
 	time.Sleep(time.Millisecond * 100)
 	assert.Equal(t, [][]int{}, batches)
