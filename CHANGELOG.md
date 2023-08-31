@@ -1,3 +1,7 @@
+v1.40.0 (2023-08-31)
+-------------------------
+ * Rework syncx.Batcher so that it flushes a batch without waiting if it has enough items
+
 v1.39.1 (2023-08-28)
 -------------------------
  * Rename dbutil.Queryer to BulkQueryer for clarity
