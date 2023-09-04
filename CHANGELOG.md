@@ -1,3 +1,7 @@
+v1.41.0 (2023-09-04)
+-------------------------
+ * Move some locales code from goflow/envs
+
 v1.40.0 (2023-08-31)
 -------------------------
  * Rework syncx.Batcher so that it flushes a batch without waiting if it has enough items
