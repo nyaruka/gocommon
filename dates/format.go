@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nyaruka/gocommon/i18n"
 	"github.com/pkg/errors"
 )
 
@@ -105,41 +106,40 @@ func ValidateFormat(layout string, type_ LayoutType, mode LayoutMode) error {
 //
 // If type is DateOnlyLayouts or DateTimeLayouts, the following sequences are accepted:
 //
-//  `YY`        - last two digits of year 0-99
-//  `YYYY`      - four digits of your 0000-9999
-//  `M`         - month 1-12
-//  `MM`        - month 01-12
-//  `MMM`       - month Jan-Dec (localized using given locale)
-//  `MMMM`      - month January-December (localized using given locale)
-//  `D`         - day of month 1-31
-//  `DD`        - day of month, zero padded 0-31
-//  `EEE`       - day of week Mon-Sun (localized using given locale)
-//  `EEEE`      - day of week Monday-Sunday (localized using given locale)
+//	`YY`        - last two digits of year 0-99
+//	`YYYY`      - four digits of your 0000-9999
+//	`M`         - month 1-12
+//	`MM`        - month 01-12
+//	`MMM`       - month Jan-Dec (localized using given locale)
+//	`MMMM`      - month January-December (localized using given locale)
+//	`D`         - day of month 1-31
+//	`DD`        - day of month, zero padded 0-31
+//	`EEE`       - day of week Mon-Sun (localized using given locale)
+//	`EEEE`      - day of week Monday-Sunday (localized using given locale)
 //
 // If type is TimeOnlyLayouts or DateTimeLayouts, the following sequences are accepted:
 //
-//  `h`         - hour of the day 1-12
-//  `hh`        - hour of the day 01-12
-//  `t`         - twenty four hour of the day 0-23
-//  `tt`        - twenty four hour of the day 00-23
-//  `m`         - minute 0-59
-//  `mm`        - minute 00-59
-//  `s`         - second 0-59
-//  `ss`        - second 00-59
-//  `fff`       - milliseconds
-//  `ffffff`    - microseconds
-//  `fffffffff` - nanoseconds
-//  `aa`        - am or pm (localized using given locale)
-//  `AA`        - AM or PM (localized using given locale)
+//	`h`         - hour of the day 1-12
+//	`hh`        - hour of the day 01-12
+//	`t`         - twenty four hour of the day 0-23
+//	`tt`        - twenty four hour of the day 00-23
+//	`m`         - minute 0-59
+//	`mm`        - minute 00-59
+//	`s`         - second 0-59
+//	`ss`        - second 00-59
+//	`fff`       - milliseconds
+//	`ffffff`    - microseconds
+//	`fffffffff` - nanoseconds
+//	`aa`        - am or pm (localized using given locale)
+//	`AA`        - AM or PM (localized using given locale)
 //
 // If type is DateTimeLayouts, the following sequences are accepted:
 //
-//  `Z`         - hour and minute offset from UTC, or Z for UTC
-//  `ZZZ`       - hour and minute offset from UTC
+//	`Z`         - hour and minute offset from UTC, or Z for UTC
+//	`ZZZ`       - hour and minute offset from UTC
 //
 // The following chars are allowed and ignored: ' ', ':', ',', 'T', '-', '_', '/'
-//
-func Format(t time.Time, layout string, locale string, type_ LayoutType) (string, error) {
+func Format(t time.Time, layout string, locale i18n.Locale, type_ LayoutType) (string, error) {
 	output := bytes.Buffer{}
 
 	translation := GetTranslation(locale)
