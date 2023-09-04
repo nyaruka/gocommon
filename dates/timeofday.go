@@ -2,6 +2,8 @@ package dates
 
 import (
 	"time"
+
+	"github.com/nyaruka/gocommon/i18n"
 )
 
 const (
@@ -51,9 +53,9 @@ func (t TimeOfDay) Combine(date Date, tz *time.Location) time.Time {
 }
 
 // Format formats this time of day as a string
-func (t TimeOfDay) Format(layout, locale string) (string, error) {
+func (t TimeOfDay) Format(layout string, loc i18n.Locale) (string, error) {
 	// upgrade us to a date time so we can use standard time.Time formatting
-	return Format(t.Combine(ZeroDate, time.UTC), layout, locale, TimeOnlyLayouts)
+	return Format(t.Combine(ZeroDate, time.UTC), layout, loc, TimeOnlyLayouts)
 }
 
 // String returns the ISO8601 representation
