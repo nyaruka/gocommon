@@ -1,3 +1,7 @@
+v1.41.1 (2023-09-04)
+-------------------------
+ * Use i18n.Locale for date formatting
+
 v1.41.0 (2023-09-04)
 -------------------------
  * Move some locales code from goflow/envs
