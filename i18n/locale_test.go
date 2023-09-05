@@ -37,13 +37,14 @@ func TestLocale(t *testing.T) {
 	assert.Equal(t, i18n.NilLocale, lc)
 }
 
-func TesBCP47Matcher(t *testing.T) {
+func TestBCP47Matcher(t *testing.T) {
 	tests := []struct {
 		preferred []i18n.Locale
 		available []string
 		best      string
 	}{
 		{preferred: []i18n.Locale{"eng-US"}, available: []string{"es_EC", "en-US"}, best: "en-US"},
+		{preferred: []i18n.Locale{"spa-US", "eng-US"}, available: []string{"en-GB", "en-US", "es-US"}, best: "es-US"},
 		{preferred: []i18n.Locale{"eng-US"}, available: []string{"es", "en"}, best: "en"},
 		{preferred: []i18n.Locale{"eng"}, available: []string{"es-US", "en-UK"}, best: "en-UK"},
 		{preferred: []i18n.Locale{"eng", "fra"}, available: []string{"fr-CA", "en-RW"}, best: "en-RW"},
