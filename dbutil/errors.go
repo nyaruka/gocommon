@@ -25,7 +25,10 @@ type QueryError struct {
 }
 
 func (e *QueryError) Error() string {
-	return e.message + ": " + e.cause.Error()
+	if e.cause != nil {
+		return e.message + ": " + e.cause.Error()
+	}
+	return e.message
 }
 
 func (e *QueryError) Unwrap() error {
@@ -36,7 +39,18 @@ func (e *QueryError) Query() (string, []any) {
 	return e.sql, e.sqlArgs
 }
 
-func NewQueryErrorf(cause error, sql string, sqlArgs []any, message string, msgArgs ...any) error {
+func QueryErrorWrapf(cause error, sql string, sqlArgs []any, message string, msgArgs ...any) error {
+	if cause == nil {
+		return nil
+	}
+	return newQueryErrorf(cause, sql, sqlArgs, message, msgArgs...)
+}
+
+func QueryErrorf(sql string, sqlArgs []any, message string, msgArgs ...any) error {
+	return newQueryErrorf(nil, sql, sqlArgs, message, msgArgs...)
+}
+
+func newQueryErrorf(cause error, sql string, sqlArgs []any, message string, msgArgs ...any) error {
 	return &QueryError{
 		cause:   cause,
 		message: fmt.Sprintf(message, msgArgs...),
