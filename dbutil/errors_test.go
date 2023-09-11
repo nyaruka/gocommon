@@ -1,6 +1,7 @@
 package dbutil_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/lib/pq"
@@ -19,11 +20,18 @@ func TestIsUniqueViolation(t *testing.T) {
 }
 
 func TestQueryError(t *testing.T) {
+	qerr := dbutil.QueryErrorf("SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
+	assert.Error(t, qerr)
+	assert.Equal(t, `error selecting foo 234`, qerr.Error())
+	assert.Equal(t, `error selecting foo 234`, fmt.Sprintf("%s", qerr))
+
+	// can also wrap an existing error
 	var err error = &pq.Error{Code: pq.ErrorCode("22025"), Message: "unsupported Unicode escape sequence"}
 
-	qerr := dbutil.NewQueryErrorf(err, "SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
+	qerr = dbutil.QueryErrorWrapf(err, "SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
 	assert.Error(t, qerr)
 	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, qerr.Error())
+	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, fmt.Sprintf("%s", qerr))
 
 	// can unwrap to the original error
 	var pqerr *pq.Error
@@ -42,4 +50,7 @@ func TestQueryError(t *testing.T) {
 	query, params := unwrapped.Query()
 	assert.Equal(t, "SELECT * FROM foo WHERE id = $1", query)
 	assert.Equal(t, []any{234}, params)
+
+	// wrapping a nil error returns nil
+	assert.Nil(t, dbutil.QueryErrorWrapf(nil, "SELECT", nil, "ooh"))
 }

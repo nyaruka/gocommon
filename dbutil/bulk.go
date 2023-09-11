@@ -71,20 +71,23 @@ func BulkQuery[T any](ctx context.Context, db BulkQueryer, query string, structs
 
 	rows, err := db.QueryxContext(ctx, bulkQuery, args...)
 	if err != nil {
-		return NewQueryErrorf(err, bulkQuery, args, "error making bulk query")
+		return QueryErrorWrapf(err, bulkQuery, args, "error making bulk query")
 	}
 	defer rows.Close()
 
 	// if have a returning clause, read them back and try to map them
 	if strings.Contains(strings.ToUpper(query), "RETURNING") {
-		for _, s := range structs {
+		for i, s := range structs {
 			if !rows.Next() {
-				return errors.Errorf("did not receive expected number of rows on insert")
+				if rows.Err() != nil {
+					return QueryErrorWrapf(rows.Err(), bulkQuery, args, "missing returned row for struct %d", i)
+				}
+				return QueryErrorf(bulkQuery, args, "missing returned row for struct %d", i)
 			}
 
 			err = rows.StructScan(s)
 			if err != nil {
-				return errors.Wrap(err, "error scanning for returned values")
+				return QueryErrorWrapf(err, bulkQuery, args, "error scanning returned row %d", i)
 			}
 		}
 	}
@@ -94,11 +97,7 @@ func BulkQuery[T any](ctx context.Context, db BulkQueryer, query string, structs
 	}
 
 	// check for any error
-	if rows.Err() != nil {
-		return NewQueryErrorf(rows.Err(), bulkQuery, args, "error during row iteration")
-	}
-
-	return nil
+	return QueryErrorWrapf(rows.Err(), bulkQuery, args, "error during row iteration")
 }
 
 // extractValues is just a simple utility method that extracts the portion between `VALUE(`
