@@ -1,3 +1,7 @@
+v1.41.2 (2023-09-11)
+-------------------------
+ * Allow creating query errors without an error to wrap
+
 v1.41.1 (2023-09-04)
 -------------------------
  * Use i18n.Locale for date formatting
