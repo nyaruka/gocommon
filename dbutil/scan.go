@@ -40,7 +40,22 @@ func ScanAndValidateJSON(rows *sql.Rows, destination any) error {
 	return nil
 }
 
-// ScanAllSlice scans a single value from each single column row into the given slice
+// ScanAllJSON scans all rows as a single column containing JSON that be unmarshalled into instances of V.
+func ScanAllJSON[V any](rows *sql.Rows, s []V) ([]V, error) {
+	defer rows.Close()
+
+	var v V
+
+	for rows.Next() {
+		if err := ScanJSON(rows, &v); err != nil {
+			return nil, err
+		}
+		s = append(s, v)
+	}
+	return s, rows.Err()
+}
+
+// ScanAllSlice scans all rows as a single value and returns them in the given slice.
 func ScanAllSlice[V any](rows *sql.Rows, s []V) ([]V, error) {
 	defer rows.Close()
 
