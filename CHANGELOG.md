@@ -1,3 +1,7 @@
+v1.41.3 (2023-09-19)
+-------------------------
+ * Add dbutil.ScanAllJSON
+
 v1.41.2 (2023-09-11)
 -------------------------
  * Allow creating query errors without an error to wrap
