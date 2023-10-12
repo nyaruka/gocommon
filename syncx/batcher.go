@@ -3,8 +3,6 @@ package syncx
 import (
 	"sync"
 	"time"
-
-	"golang.org/x/exp/constraints"
 )
 
 // Batcher allows values to be queued and processed in a background thread.
@@ -104,12 +102,4 @@ func (b *Batcher[T]) drain() {
 
 		b.flush()
 	}
-}
-
-// TODO delete when on go 1.21 and this is builtin
-func min[T constraints.Ordered](x T, y T) T {
-	if x < y {
-		return x
-	}
-	return y
 }
