@@ -35,41 +35,36 @@ func TestAccessConfig(t *testing.T) {
 	}))
 
 	tests := []struct {
-		url string
-		err string
+		url     string
+		allowed bool
 	}{
 		// allowed
-		{"https://nyaruka.com", ""},
-		{"https://11.0.0.0", ""},
+		{"https://nyaruka.com", true},
+		{"https://11.0.0.0", true},
 
 		// denied by IP match
-		{"https://localhost/path", "request to localhost denied"},
-		{"https://LOCALHOST:80", "request to LOCALHOST denied"},
-		{"http://foo.localtest.me", "request to foo.localtest.me denied"},
-		{"https://127.0.0.1", "request to 127.0.0.1 denied"},
-		{"https://127.0.00.1", "?"}, // Go 1.19: "request to 127.0.00.1 denied", Go 1.20: "lookup 127.0.00.1: no such host"
-		{"https://[::1]:80", "request to ::1 denied"},
-		{"https://[0:0:0:0:0:0:0:1]:80", "request to 0:0:0:0:0:0:0:1 denied"},
-		{"https://[0000:0000:0000:0000:0000:0000:0000:0001]:80", "request to 0000:0000:0000:0000:0000:0000:0000:0001 denied"},
+		{"https://localhost/path", false},
+		{"https://LOCALHOST:80", false},
+		{"http://foo.localtest.me", false},
+		{"https://127.0.0.1", false},
+		{"https://[::1]:80", false},
+		{"https://[0:0:0:0:0:0:0:1]:80", false},
+		{"https://[0000:0000:0000:0000:0000:0000:0000:0001]:80", false},
 
 		// denied by network match
-		{"https://10.1.0.0", "request to 10.1.0.0 denied"},
-		{"https://10.0.1.0", "request to 10.0.1.0 denied"},
-		{"https://10.0.0.1", "request to 10.0.0.1 denied"},
-		{"https://[0:0:0:0:0:ffff:0a01:0000]:80", "request to 0:0:0:0:0:ffff:0a01:0000 denied"}, // 10.1.0.0 mapped to IPv6
+		{"https://10.1.0.0", false},
+		{"https://10.0.1.0", false},
+		{"https://10.0.0.1", false},
+		{"https://[0:0:0:0:0:ffff:0a01:0000]:80", false}, // 10.1.0.0 mapped to IPv6
 	}
 	for _, tc := range tests {
 		request, _ := http.NewRequest("GET", tc.url, nil)
 		_, err := httpx.DoTrace(http.DefaultClient, request, nil, access, -1)
 
-		if tc.err != "" {
-			if tc.err == "?" {
-				assert.Error(t, err)
-			} else {
-				assert.EqualError(t, err, tc.err, "error message mismatch for url %s", tc.url)
-			}
-		} else {
+		if tc.allowed {
 			assert.NoError(t, err)
+		} else {
+			assert.Equal(t, err, httpx.ErrAccessConfig, "error message mismatch for url %s", tc.url)
 		}
 	}
 }
