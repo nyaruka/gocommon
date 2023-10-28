@@ -1,3 +1,7 @@
+v1.42.1 (2023-10-28)
+-------------------------
+ * Use error constants for some httpx error cases
+
 v1.42.0 (2023-10-12)
 -------------------------
  * Update to go 1.21 and update deps
