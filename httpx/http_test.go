@@ -157,7 +157,8 @@ func TestMaxBodyBytes(t *testing.T) {
 	assert.Equal(t, string(testBody), string(trace.ResponseBody))
 
 	trace, err = call(10) // limit smaller than body
-	assert.EqualError(t, err, `webhook response body exceeds 10 bytes limit`)
+	assert.Equal(t, err, httpx.ErrResponseSize)
+	assert.EqualError(t, err, `response body exceeds size limit`)
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, ``, string(trace.ResponseBody))
 }

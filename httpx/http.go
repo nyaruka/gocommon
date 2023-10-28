@@ -16,6 +16,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ErrResponseSize is returned when response size exceeds provided limit
+var ErrResponseSize = errors.New("response body exceeds size limit")
+
+// ErrAccessConfig is returned when provided access config prevents request
+var ErrAccessConfig = errors.New("request not permitted by access config")
+
 // Do makes the given HTTP request using the current requestor and retry config
 func Do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, error) {
 	r, _, err := do(client, request, retries, access)
@@ -29,7 +35,7 @@ func do(client *http.Client, request *http.Request, retries *RetryConfig, access
 			return nil, 0, err
 		}
 		if !allowed {
-			return nil, 0, errors.Errorf("request to %s denied", request.URL.Hostname())
+			return nil, 0, ErrAccessConfig
 		}
 	}
 
@@ -198,7 +204,7 @@ func readBody(response *http.Response, maxBodyBytes int) ([]byte, error) {
 
 		// if we have no remaining bytes, error because the body was too big
 		if bodyReader.(*io.LimitedReader).N <= 0 {
-			return nil, errors.Errorf("webhook response body exceeds %d bytes limit", maxBodyBytes)
+			return nil, ErrResponseSize
 		}
 
 		return bodyBytes, nil
