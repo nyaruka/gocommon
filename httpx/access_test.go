@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nyaruka/gocommon/httpx"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,4 +66,33 @@ func TestAccessConfig(t *testing.T) {
 			assert.Equal(t, err, httpx.ErrAccessConfig, "error message mismatch for url %s", tc.url)
 		}
 	}
+}
+
+func TestParseNetworkList(t *testing.T) {
+	privateNetwork1 := &net.IPNet{IP: net.IPv4(10, 0, 0, 0).To4(), Mask: net.CIDRMask(8, 32)}
+	privateNetwork2 := &net.IPNet{IP: net.IPv4(172, 16, 0, 0).To4(), Mask: net.CIDRMask(12, 32)}
+	privateNetwork3 := &net.IPNet{IP: net.IPv4(192, 168, 0, 0).To4(), Mask: net.CIDRMask(16, 32)}
+
+	linkLocalIPv4 := &net.IPNet{IP: net.IPv4(169, 254, 0, 0).To4(), Mask: net.CIDRMask(16, 32)}
+	_, linkLocalIPv6, _ := net.ParseCIDR("fe80::/10")
+
+	// test with mailroom defaults
+	ips, ipNets, err := httpx.ParseNetworks(`127.0.0.1`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `fe80::/10`)
+	assert.NoError(t, err)
+	assert.Equal(t, []net.IP{net.IPv4(127, 0, 0, 1), net.ParseIP(`::1`)}, ips)
+	assert.Equal(t, []*net.IPNet{privateNetwork1, privateNetwork2, privateNetwork3, linkLocalIPv4, linkLocalIPv6}, ipNets)
+
+	// test with empty
+	ips, ipNets, err = httpx.ParseNetworks()
+	assert.NoError(t, err)
+	assert.Equal(t, []net.IP{}, ips)
+	assert.Equal(t, []*net.IPNet{}, ipNets)
+
+	// test with invalid IP
+	_, _, err = httpx.ParseNetworks(`127.0.1`)
+	assert.EqualError(t, err, `couldn't parse '127.0.1' as an IP address`)
+
+	// test with invalid network
+	_, _, err = httpx.ParseNetworks(`127.0.0.1/x`)
+	assert.EqualError(t, err, `couldn't parse '127.0.0.1/x' as an IP network`)
 }
