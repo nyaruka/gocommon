@@ -1,3 +1,7 @@
+v1.42.2 (2023-10-30)
+-------------------------
+ * Add httpx.ParseNetworks util function
+
 v1.42.1 (2023-10-28)
 -------------------------
  * Use error constants for some httpx error cases
