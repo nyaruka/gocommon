@@ -1,3 +1,7 @@
+v1.42.3 (2023-11-08)
+-------------------------
+ * Update phonenumbers
+
 v1.42.2 (2023-10-30)
 -------------------------
  * Add httpx.ParseNetworks util function
