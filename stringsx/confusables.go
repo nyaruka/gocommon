@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -54,6 +55,11 @@ func Skeleton(s string) string {
 	var sb strings.Builder
 
 	for _, r := range norm.NFD.String(s) {
+		// TODO this is not the complete set of Default_Ignorable_Code_Point
+		if unicode.In(r, unicode.Other_Default_Ignorable_Code_Point) {
+			continue
+		}
+
 		if c, ok := confusables[r]; ok {
 			sb.WriteString(c)
 		} else {
@@ -61,7 +67,7 @@ func Skeleton(s string) string {
 		}
 	}
 
-	return sb.String()
+	return norm.NFD.String(sb.String())
 }
 
 // Implements https://www.unicode.org/reports/tr39/#def-confusable

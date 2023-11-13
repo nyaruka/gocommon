@@ -16,6 +16,7 @@ func TestSkeleton(t *testing.T) {
 func TestConfusable(t *testing.T) {
 	assert.True(t, stringsx.Confusable("", ""))
 	assert.True(t, stringsx.Confusable("foo", "foo"))
+	assert.True(t, stringsx.Confusable("\uFFF1foo", "foo"))
 	assert.True(t, stringsx.Confusable("١", "۱"))     // 0x661 vs 0x6f1
 	assert.True(t, stringsx.Confusable("بلی", "بلى")) // 0x6cc vs 0x649
 	assert.True(t, stringsx.Confusable("nyaruka", "𝕟𝔂𝛼𝐫ᴜ𝞳𝕒"))
