@@ -12,7 +12,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v2 v2.0.3
-	github.com/nyaruka/phonenumbers v1.2.1
+	github.com/nyaruka/phonenumbers v1.2.2
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.8.4
