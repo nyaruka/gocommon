@@ -26,8 +26,7 @@ func TestURNProperties(t *testing.T) {
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foobar", "foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
 		{"discord:732326982863421591", "732326982863421591", "", "", map[string][]string{}},
-		{"webchat:123456@foo", "123456@foo", "", "", map[string][]string{}},
-		{"teams:a1b2n4:test.example", "a1b2n4:test.example", "", "", map[string][]string{}},
+		{"webchat:123456789012345678901234", "123456789012345678901234", "", "", map[string][]string{}},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, string(tc.urn), tc.urn.String())
@@ -87,7 +86,7 @@ func TestFromParts(t *testing.T) {
 		{"whatsapp", "12345", "", URN("whatsapp:12345"), URN("whatsapp:12345"), false},
 		{"viber", "", "", NilURN, ":", true},
 		{"discord", "732326982863421591", "", URN("discord:732326982863421591"), URN("discord:732326982863421591"), false},
-		{"webchat", "12345@foo", "", URN("webchat:12345@foo"), URN("webchat:12345@foo"), false},
+		{"webchat", "123456789012345678901234", "", URN("webchat:123456789012345678901234"), URN("webchat:123456789012345678901234"), false},
 		{"teams", "a1b2n4:test.example", "", URN("teams:a1b2n4:test.example"), URN("teams:a1b2n4:test.example"), false},
 	}
 
@@ -288,10 +287,9 @@ func TestValidate(t *testing.T) {
 
 		{"slack:U0123ABCDEF", ""},
 
-		// teams has the conversation id and after ':' comes the serviceURL
-		{"teams:a1b2n4:test.example", ""},
-		{"teams:123456", "invalid teams id"},
-		{"teams:a1b2n4:www.test.example", ""},
+		{"webchat:aA3456789012345678901234", ""},
+		{"webchat:1234567890123456789", "invalid webchat id"},
+		{"webchat:12345678901234567890123$", "invalid webchat id"},
 	}
 
 	for _, tc := range testCases {
@@ -303,7 +301,7 @@ func TestValidate(t *testing.T) {
 				t.Errorf("Failed wrong error, '%s' not found in '%s' for '%s'", tc.expectedError, err.Error(), string(tc.urn))
 			}
 		} else {
-			assert.NoError(t, err, "unspected error validating %s", tc.urn)
+			assert.NoError(t, err, "unexpected error validating %s", tc.urn)
 		}
 	}
 }
@@ -471,49 +469,6 @@ func TestDiscordURNs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		urn, err := NewDiscordURN(tc.identifier)
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "expected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestWebChatURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"123456@foo", URN("webchat:123456@foo"), false},
-		{"matricula:123456@foo", URN("webchat:matricula:123456@foo"), false},
-		{"123456", URN("webchat:123456@foo"), true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewWebChatURN(tc.identifier)
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "expected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestTeamsURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"1a2b3c4d5e6f:test.example", URN("teams:1a2b3c4d5e6f:test.example"), false},
-		{"123456", URN("teams:123456"), true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewTeamsURN(tc.identifier)
 		if tc.hasError {
 			assert.Error(t, err, "expected error for %s", tc.identifier)
 		} else {
