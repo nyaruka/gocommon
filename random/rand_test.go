@@ -20,6 +20,9 @@ func TestRand(t *testing.T) {
 	assert.Equal(t, decimal.RequireFromString("0.8989115230327291"), random.Decimal())
 	assert.Equal(t, decimal.RequireFromString("0.6087185537746531"), random.Decimal())
 	assert.Equal(t, decimal.RequireFromString("0.3023554328904116"), random.Decimal())
+
+	assert.Equal(t, "Ej22bFMALM", random.String(10, []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")))
+	assert.Equal(t, "a!!aa!!a!a", random.String(10, []rune("a!z")))
 }
 
 func TestRandConcurrency(t *testing.T) {

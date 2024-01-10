@@ -41,3 +41,12 @@ func Float64() float64 {
 func Decimal() decimal.Decimal {
 	return decimal.NewFromFloat(Float64())
 }
+
+// String returns a string of length n composed of random characters from chars.
+func String(n int, chars []rune) string {
+	r := make([]rune, n)
+	for i := range r {
+		r[i] = chars[IntN(len(chars))]
+	}
+	return string(r)
+}
