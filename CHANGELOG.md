@@ -1,3 +1,8 @@
+v1.50.0 (2024-01-10)
+-------------------------
+ * Rework support for webchat URNs, drop unused teams URNs
+ * Bump golang.org/x/crypto from 0.16.0 to 0.17.0
+
 v1.42.7 (2023-12-12)
 -------------------------
  * Update deps
