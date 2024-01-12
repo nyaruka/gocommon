@@ -21,16 +21,25 @@ const (
 
 var upgrader = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
 
+// WebSocket provides a websocket interface similar to that of Javascript.
 type WebSocket interface {
+	// Start begins reading and writing of messages on this socket
 	Start()
+
+	// Send sends the given message over the socket
 	Send([]byte)
+
+	// Close closes the socket connection
 	Close(int)
 
-	OnMessage(fn func([]byte))
-	OnClose(fn func(int))
+	// OnMessage is called when the socket receives a message
+	OnMessage(func([]byte))
+
+	// OnClose is called when the socket is closed (even if we initiate the close)
+	OnClose(func(int))
 }
 
-// Socket implemention using gorilla library
+// WebSocket implemention using gorilla library
 type socket struct {
 	conn             *websocket.Conn
 	onMessage        func([]byte)
