@@ -19,7 +19,13 @@ const (
 	pingPeriod = 30 * time.Second
 )
 
-var upgrader = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+
+	// responsibility of caller to enforce origin rules
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
 // WebSocket provides a websocket interface similar to that of Javascript.
 type WebSocket interface {
