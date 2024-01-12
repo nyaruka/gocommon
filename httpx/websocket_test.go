@@ -33,6 +33,9 @@ func newSocketConnection(t *testing.T, url string) *websocket.Conn {
 	}
 	c, _, err := d.Dial(url, nil)
 	assert.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
+
 	return c
 }
 
