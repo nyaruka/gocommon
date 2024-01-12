@@ -70,6 +70,24 @@ func TestSocketMessages(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, [][]byte{[]byte("to server")}, serverReceived)
 
+	pongReceived := false
+	conn.SetPongHandler(func(appData string) error {
+		pongReceived = true
+		return nil
+	})
+
+	// send a ping message from the client...
+	conn.WriteMessage(websocket.PingMessage, []byte{})
+
+	// and give server time to receive it and respond
+	time.Sleep(500 * time.Millisecond)
+
+	// give the connection something to read because ReadMessage will block until it gets a non-ping-pong message
+	sock.Send([]byte("dummy"))
+	conn.ReadMessage()
+
+	assert.True(t, pongReceived)
+
 	var connCloseCode int
 	conn.SetCloseHandler(func(code int, text string) error {
 		connCloseCode = code
