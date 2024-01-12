@@ -1,3 +1,7 @@
+v1.51.1 (2024-01-12)
+-------------------------
+ * Allow cross site requests to websockets
+
 v1.51.0 (2024-01-12)
 -------------------------
  * Add websocket functionality to httpx
