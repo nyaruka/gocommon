@@ -1,3 +1,7 @@
+v1.51.0 (2024-01-12)
+-------------------------
+ * Add websocket functionality to httpx
+
 v1.50.0 (2024-01-10)
 -------------------------
  * Rework support for webchat URNs, drop unused teams URNs
