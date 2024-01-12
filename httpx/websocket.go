@@ -19,15 +19,12 @@ const (
 	pingPeriod = 30 * time.Second
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+var upgrader = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
 
 type WebSocket interface {
 	Start()
-	Send(msg []byte)
-	Close()
+	Send([]byte)
+	Close(int)
 
 	OnMessage(fn func([]byte))
 	OnClose(fn func(int))
@@ -42,11 +39,12 @@ type socket struct {
 	readError        chan error
 	writeError       chan error
 	stopWriter       chan bool
-	stopMonitor      chan bool
+	closingWithCode  int
 	rwWaitGroup      sync.WaitGroup
 	monitorWaitGroup sync.WaitGroup
 }
 
+// NewWebSocket creates a new web socket from a regular HTTP request
 func NewWebSocket(w http.ResponseWriter, r *http.Request, maxReadBytes int64, sendBuffer int) (WebSocket, error) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -56,14 +54,13 @@ func NewWebSocket(w http.ResponseWriter, r *http.Request, maxReadBytes int64, se
 	conn.SetReadLimit(maxReadBytes)
 
 	return &socket{
-		conn:        conn,
-		onMessage:   func([]byte) {},
-		onClose:     func(int) {},
-		outbox:      make(chan []byte, sendBuffer),
-		readError:   make(chan error, 1),
-		writeError:  make(chan error, 1),
-		stopWriter:  make(chan bool, 1),
-		stopMonitor: make(chan bool, 1),
+		conn:       conn,
+		onMessage:  func([]byte) {},
+		onClose:    func(int) {},
+		outbox:     make(chan []byte, sendBuffer),
+		readError:  make(chan error, 1),
+		writeError: make(chan error, 1),
+		stopWriter: make(chan bool, 1),
 	}, nil
 }
 
@@ -83,10 +80,11 @@ func (s *socket) Send(msg []byte) {
 	s.outbox <- msg
 }
 
-func (s *socket) Close() {
+func (s *socket) Close(code int) {
+	s.closingWithCode = code
+	s.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, ""))
 	s.conn.Close() // causes reader to stop
 	s.stopWriter <- true
-	s.stopMonitor <- true
 
 	s.monitorWaitGroup.Wait()
 }
@@ -101,31 +99,27 @@ func (s *socket) monitor() {
 	s.monitorWaitGroup.Add(1)
 	defer s.monitorWaitGroup.Done()
 
-	closeCode := websocket.CloseNormalClosure
-
 out:
 	for {
 		select {
 		case err := <-s.readError:
-			if e, ok := err.(*websocket.CloseError); ok {
-				closeCode = e.Code
+			if e, ok := err.(*websocket.CloseError); ok && s.closingWithCode == 0 {
+				s.closingWithCode = e.Code
 			}
 			s.stopWriter <- true // ensure writer is stopped
 			break out
 		case err := <-s.writeError:
 			if e, ok := err.(*websocket.CloseError); ok {
-				closeCode = e.Code
+				s.closingWithCode = e.Code
 			}
 			s.conn.Close() // ensure reader is stopped
-			break out
-		case <-s.stopMonitor:
 			break out
 		}
 	}
 
 	s.rwWaitGroup.Wait()
 
-	s.onClose(closeCode)
+	s.onClose(s.closingWithCode)
 }
 
 func (s *socket) reader() {

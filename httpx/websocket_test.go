@@ -13,39 +13,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSocket(t *testing.T) {
-	var sock httpx.WebSocket
-	var err error
-
-	var serverReceived [][]byte
-	var serverCloseCode int
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sock, err = httpx.NewWebSocket(w, r, 4096, 5)
-
-		sock.OnMessage(func(b []byte) {
-			serverReceived = append(serverReceived, b)
-		})
-		sock.OnClose(func(code int) {
-			serverCloseCode = code
-		})
-
-		sock.Start()
-
+func newSocketServer(t *testing.T, fn func(httpx.WebSocket)) string {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sock, err := httpx.NewWebSocket(w, r, 4096, 5)
 		require.NoError(t, err)
+
+		fn(sock)
 	}))
 
-	wsURL := "ws:" + strings.TrimPrefix(server.URL, "http:")
+	return "ws:" + strings.TrimPrefix(s.URL, "http:")
+}
 
+func newSocketConnection(t *testing.T, url string) *websocket.Conn {
 	d := websocket.Dialer{
 		Subprotocols:     []string{"p1", "p2"},
 		ReadBufferSize:   1024,
 		WriteBufferSize:  1024,
 		HandshakeTimeout: 30 * time.Second,
 	}
-	conn, _, err := d.Dial(wsURL, nil)
+	c, _, err := d.Dial(url, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, conn)
+	return c
+}
+
+func TestSocketMessages(t *testing.T) {
+	var sock httpx.WebSocket
+	var serverReceived [][]byte
+	var serverCloseCode int
+
+	serverURL := newSocketServer(t, func(ws httpx.WebSocket) {
+		sock = ws
+		sock.OnMessage(func(b []byte) {
+			serverReceived = append(serverReceived, b)
+		})
+		sock.OnClose(func(code int) {
+			serverCloseCode = code
+		})
+		sock.Start()
+	})
+
+	conn := newSocketConnection(t, serverURL)
 
 	// send a message from the server...
 	sock.Send([]byte("from server"))
@@ -60,10 +67,56 @@ func TestSocket(t *testing.T) {
 	conn.WriteMessage(websocket.TextMessage, []byte("to server"))
 
 	// and check server received it
-	time.Sleep(time.Second)
+	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, [][]byte{[]byte("to server")}, serverReceived)
 
-	sock.Close()
+	var connCloseCode int
+	conn.SetCloseHandler(func(code int, text string) error {
+		connCloseCode = code
+		return nil
+	})
 
-	assert.Equal(t, 1000, serverCloseCode)
+	sock.Close(1001)
+
+	conn.ReadMessage() // read the close message
+
+	assert.Equal(t, 1001, serverCloseCode)
+	assert.Equal(t, 1001, connCloseCode)
+}
+
+func TestSocketClientCloseWithMessage(t *testing.T) {
+	var sock httpx.WebSocket
+	var serverCloseCode int
+
+	serverURL := newSocketServer(t, func(ws httpx.WebSocket) {
+		sock = ws
+		sock.OnClose(func(code int) { serverCloseCode = code })
+		sock.Start()
+	})
+
+	conn := newSocketConnection(t, serverURL)
+	conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, ""))
+	conn.Close()
+
+	time.Sleep(250 * time.Millisecond)
+
+	assert.Equal(t, websocket.ClosePolicyViolation, serverCloseCode)
+}
+
+func TestSocketClientCloseWithoutMessage(t *testing.T) {
+	var sock httpx.WebSocket
+	var serverCloseCode int
+
+	serverURL := newSocketServer(t, func(ws httpx.WebSocket) {
+		sock = ws
+		sock.OnClose(func(code int) { serverCloseCode = code })
+		sock.Start()
+	})
+
+	conn := newSocketConnection(t, serverURL)
+	conn.Close()
+
+	time.Sleep(250 * time.Millisecond)
+
+	assert.Equal(t, websocket.CloseAbnormalClosure, serverCloseCode)
 }
