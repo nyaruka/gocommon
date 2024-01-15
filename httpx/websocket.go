@@ -99,6 +99,10 @@ func (s *socket) OnMessage(fn func([]byte)) { s.onMessage = fn }
 func (s *socket) OnClose(fn func(int))      { s.onClose = fn }
 
 func (s *socket) Start() {
+	if s.closingWithCode != 0 {
+		panic("can't start socket which is closed or closing")
+	}
+
 	s.conn.SetReadDeadline(time.Now().Add(maxReadWait))
 	s.conn.SetPongHandler(s.pong)
 
@@ -116,6 +120,10 @@ func (s *socket) Send(msg []byte) {
 }
 
 func (s *socket) Close(code int) {
+	if s.closingWithCode != 0 {
+		panic("can't close socket which is already closed or closing")
+	}
+
 	s.closingWithCode = code
 
 	s.outbox <- message{type_: websocket.CloseMessage, data: websocket.FormatCloseMessage(code, "")}

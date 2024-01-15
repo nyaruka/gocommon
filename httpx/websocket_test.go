@@ -105,6 +105,17 @@ func TestSocketMessages(t *testing.T) {
 
 	assert.Equal(t, 1001, serverCloseCode)
 	assert.Equal(t, 1001, connCloseCode)
+
+	// check we can no longer send to the socket or close it again, or restart it
+	assert.Panics(t, func() {
+		sock.Send([]byte("x"))
+	})
+	assert.Panics(t, func() {
+		sock.Close(1000)
+	})
+	assert.Panics(t, func() {
+		sock.Start()
+	})
 }
 
 func TestSocketClientCloseWithMessage(t *testing.T) {
