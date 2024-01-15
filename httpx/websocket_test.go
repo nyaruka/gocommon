@@ -97,8 +97,10 @@ func TestSocketMessages(t *testing.T) {
 		return nil
 	})
 
+	sock.Send([]byte("closing time"))
 	sock.Close(1001)
 
+	conn.ReadMessage() // read the final message
 	conn.ReadMessage() // read the close message
 
 	assert.Equal(t, 1001, serverCloseCode)
