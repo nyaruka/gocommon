@@ -1,3 +1,8 @@
+v1.52.0 (2024-01-24)
+-------------------------
+ * Add generic cache based on ttlcache and x/sync/singleflight
+ * Add email component to webchat URNs
+
 v1.51.2 (2024-01-15)
 -------------------------
  * Panic if trying to close or start and already closed socket
