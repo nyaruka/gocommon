@@ -3,9 +3,9 @@ package cache_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,35 +16,42 @@ import (
 func TestCache(t *testing.T) {
 	ctx := context.Background()
 
-	var fetches atomic.Int32
+	fetchCounts := make(map[string]int)
+	fetchCountsMutex := &sync.Mutex{}
+
 	fetch := func(ctx context.Context, k string) (string, error) {
-		fetches.Add(1)
+		fetchCountsMutex.Lock()
+		fc := fetchCounts[k]
+		fc++
+		fetchCounts[k] = fc
+		fetchCountsMutex.Unlock()
+
 		if k == "error" {
 			return "", errors.New("boom")
 		} else if k == "slow" {
 			time.Sleep(250 * time.Millisecond)
 		}
-		return strings.ToUpper(k), nil
+		return fmt.Sprintf("%s/%d", strings.ToUpper(k), fc), nil
 	}
 	cache := cache.NewCache[string, string](fetch, time.Second)
 	cache.Start()
 
 	v, err := cache.Get(ctx, "x")
 	assert.NoError(t, err)
-	assert.Equal(t, "X", v)
-	assert.Equal(t, int32(1), fetches.Load())
+	assert.Equal(t, "X/1", v)
+	assert.Equal(t, map[string]int{"x": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
 
 	v, err = cache.Get(ctx, "x")
 	assert.NoError(t, err)
-	assert.Equal(t, "X", v)
-	assert.Equal(t, int32(1), fetches.Load())
+	assert.Equal(t, "X/1", v)
+	assert.Equal(t, map[string]int{"x": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
 
 	v, err = cache.Get(ctx, "y")
 	assert.NoError(t, err)
-	assert.Equal(t, "Y", v)
-	assert.Equal(t, int32(2), fetches.Load())
+	assert.Equal(t, "Y/1", v)
+	assert.Equal(t, map[string]int{"x": 1, "y": 1}, fetchCounts)
 	assert.Equal(t, 2, cache.Len())
 
 	// test 100 threads trying to get the same value simultaneously
@@ -52,7 +59,7 @@ func TestCache(t *testing.T) {
 	getZ := func() {
 		v, err = cache.Get(ctx, "z")
 		assert.NoError(t, err)
-		assert.Equal(t, "Z", v)
+		assert.Equal(t, "Z/1", v)
 		wg.Done()
 	}
 
@@ -62,7 +69,7 @@ func TestCache(t *testing.T) {
 	}
 
 	wg.Wait()
-	assert.Equal(t, int32(3), fetches.Load()) // should still only have made one fetch
+	assert.Equal(t, map[string]int{"x": 1, "y": 1, "z": 1}, fetchCounts) // should only have made one fetch for z
 	assert.Equal(t, 3, cache.Len())
 
 	// test that fetching one key isn't affected by a delay fetching a different key
@@ -74,14 +81,14 @@ func TestCache(t *testing.T) {
 		v, err = cache.Get(ctx, "slow")
 		tSlow = time.Since(t0)
 		assert.NoError(t, err)
-		assert.Equal(t, "SLOW", v)
+		assert.Equal(t, "SLOW/1", v)
 		wg.Done()
 	}()
 	go func() {
 		v, err = cache.Get(ctx, "fast")
 		tFast = time.Since(t0)
 		assert.NoError(t, err)
-		assert.Equal(t, "FAST", v)
+		assert.Equal(t, "FAST/1", v)
 		wg.Done()
 	}()
 
@@ -97,9 +104,16 @@ func TestCache(t *testing.T) {
 
 	assert.Equal(t, 5, cache.Len())
 
+	// wait twice as long as the TTL so cache should be empty
 	time.Sleep(2 * time.Second)
 
 	assert.Equal(t, 0, cache.Len())
+
+	v, err = cache.Get(ctx, "x")
+	assert.NoError(t, err)
+	assert.Equal(t, "X/2", v)
+	assert.Equal(t, map[string]int{"x": 2, "y": 1, "z": 1, "fast": 1, "slow": 1, "error": 1}, fetchCounts)
+	assert.Equal(t, 1, cache.Len())
 
 	cache.Stop()
 }
