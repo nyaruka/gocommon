@@ -10,7 +10,8 @@ import (
 
 // Local is a generic in-memory cache with builtin in fetching of missing items.
 type Local[K ~string, V any] struct {
-	cache     *ttlcache.Cache[K, V]
+	cache *ttlcache.Cache[K, V]
+
 	fetch     Fetcher[K, V]
 	fetchSync singleflight.Group
 }
@@ -44,7 +45,20 @@ func (c *Local[K, V]) Len() int {
 	return c.cache.Len()
 }
 
-func (c *Local[K, V]) Get(ctx context.Context, key K) (V, error) {
+// Get returns the item with the given key from the cache or the type's zero value.
+func (c *Local[K, V]) Get(key K) V {
+	item := c.cache.Get(key)
+
+	if item != nil {
+		return item.Value()
+	}
+
+	var zero V
+	return zero
+}
+
+// GetOrFetch looks for the item in cache and if not found tries to fetch it.
+func (c *Local[K, V]) GetOrFetch(ctx context.Context, key K) (V, error) {
 	item := c.cache.Get(key)
 
 	if item == nil {
@@ -58,6 +72,11 @@ func (c *Local[K, V]) Get(ctx context.Context, key K) (V, error) {
 	}
 
 	return item.Value(), nil
+}
+
+// Set overwrites the value for the given key.
+func (c *Local[K, V]) Set(key K, val V) {
+	c.cache.Set(key, val, ttlcache.DefaultTTL)
 }
 
 // Clear removes all items from the cache.

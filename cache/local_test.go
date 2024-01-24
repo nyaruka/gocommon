@@ -36,19 +36,25 @@ func TestLocal(t *testing.T) {
 	cache := cache.NewLocal[string, string](fetch, time.Second)
 	cache.Start()
 
-	v, err := cache.Get(ctx, "x")
+	assert.Equal(t, "", cache.Get("x"))
+	assert.Equal(t, map[string]int{}, fetchCounts)
+
+	v, err := cache.GetOrFetch(ctx, "x")
 	assert.NoError(t, err)
 	assert.Equal(t, "X/1", v)
 	assert.Equal(t, map[string]int{"x": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
 
-	v, err = cache.Get(ctx, "x")
+	v, err = cache.GetOrFetch(ctx, "x")
 	assert.NoError(t, err)
 	assert.Equal(t, "X/1", v)
 	assert.Equal(t, map[string]int{"x": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
 
-	v, err = cache.Get(ctx, "y")
+	assert.Equal(t, "X/1", cache.Get("x"))
+	assert.Equal(t, map[string]int{"x": 1}, fetchCounts)
+
+	v, err = cache.GetOrFetch(ctx, "y")
 	assert.NoError(t, err)
 	assert.Equal(t, "Y/1", v)
 	assert.Equal(t, map[string]int{"x": 1, "y": 1}, fetchCounts)
@@ -57,7 +63,7 @@ func TestLocal(t *testing.T) {
 	// test 100 threads trying to get the same value simultaneously
 	wg := sync.WaitGroup{}
 	getZ := func() {
-		v, err = cache.Get(ctx, "z")
+		v, err = cache.GetOrFetch(ctx, "z")
 		assert.NoError(t, err)
 		assert.Equal(t, "Z/1", v)
 		wg.Done()
@@ -78,14 +84,14 @@ func TestLocal(t *testing.T) {
 	var tFast, tSlow time.Duration
 
 	go func() {
-		v, err = cache.Get(ctx, "slow")
+		v, err = cache.GetOrFetch(ctx, "slow")
 		tSlow = time.Since(t0)
 		assert.NoError(t, err)
 		assert.Equal(t, "SLOW/1", v)
 		wg.Done()
 	}()
 	go func() {
-		v, err = cache.Get(ctx, "fast")
+		v, err = cache.GetOrFetch(ctx, "fast")
 		tFast = time.Since(t0)
 		assert.NoError(t, err)
 		assert.Equal(t, "FAST/1", v)
@@ -98,7 +104,7 @@ func TestLocal(t *testing.T) {
 	assert.GreaterOrEqual(t, tSlow, 250*time.Millisecond)
 	assert.Equal(t, 5, cache.Len())
 
-	v, err = cache.Get(ctx, "error")
+	v, err = cache.GetOrFetch(ctx, "error")
 	assert.EqualError(t, err, "boom")
 	assert.Equal(t, "", v)
 
@@ -109,11 +115,16 @@ func TestLocal(t *testing.T) {
 
 	assert.Equal(t, 0, cache.Len())
 
-	v, err = cache.Get(ctx, "x")
+	v, err = cache.GetOrFetch(ctx, "x")
 	assert.NoError(t, err)
 	assert.Equal(t, "X/2", v)
 	assert.Equal(t, map[string]int{"x": 2, "y": 1, "z": 1, "fast": 1, "slow": 1, "error": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
+
+	// can also explicity set items
+	cache.Set("a", "123")
+	cache.Set("x", "234")
+	assert.Equal(t, 2, cache.Len())
 
 	cache.Clear()
 
