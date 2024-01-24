@@ -1,3 +1,7 @@
+v1.52.1 (2024-01-24)
+-------------------------
+ * Rename cache.Cache to cache.Local for clarity
+
 v1.52.0 (2024-01-24)
 -------------------------
  * Add generic cache based on ttlcache and x/sync/singleflight
