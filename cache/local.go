@@ -60,6 +60,11 @@ func (c *Local[K, V]) Get(ctx context.Context, key K) (V, error) {
 	return item.Value(), nil
 }
 
+// Clear removes all items from the cache.
+func (c *Local[K, V]) Clear() {
+	c.cache.DeleteAll()
+}
+
 func (c *Local[K, V]) fetchAndSetSynced(ctx context.Context, key K) (*ttlcache.Item[K, V], error) {
 	ii, err, _ := c.fetchSync.Do(string(key), func() (any, error) {
 		// there's always a chance a different thread completed a fetch before we got here

@@ -115,5 +115,9 @@ func TestLocal(t *testing.T) {
 	assert.Equal(t, map[string]int{"x": 2, "y": 1, "z": 1, "fast": 1, "slow": 1, "error": 1}, fetchCounts)
 	assert.Equal(t, 1, cache.Len())
 
+	cache.Clear()
+
+	assert.Equal(t, 0, cache.Len())
+
 	cache.Stop()
 }
