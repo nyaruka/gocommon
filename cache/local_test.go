@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCache(t *testing.T) {
+func TestLocal(t *testing.T) {
 	ctx := context.Background()
 
 	fetchCounts := make(map[string]int)
@@ -33,7 +33,7 @@ func TestCache(t *testing.T) {
 		}
 		return fmt.Sprintf("%s/%d", strings.ToUpper(k), fc), nil
 	}
-	cache := cache.NewCache[string, string](fetch, time.Second)
+	cache := cache.NewLocal[string, string](fetch, time.Second)
 	cache.Start()
 
 	v, err := cache.Get(ctx, "x")
