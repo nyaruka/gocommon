@@ -288,8 +288,10 @@ func TestValidate(t *testing.T) {
 		{"slack:U0123ABCDEF", ""},
 
 		{"webchat:aA3456789012345678901234", ""},
+		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},
 		{"webchat:1234567890123456789", "invalid webchat id"},
 		{"webchat:12345678901234567890123$", "invalid webchat id"},
+		{"webchat:aA3456789012345678901234:@@$", "invalid webchat id"},
 	}
 
 	for _, tc := range testCases {
