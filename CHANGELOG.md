@@ -1,3 +1,7 @@
+v1.52.2 (2024-01-24)
+-------------------------
+ * Add a non-fetching Get, a Set and a Clear method to cache.Local
+
 v1.52.1 (2024-01-24)
 -------------------------
  * Rename cache.Cache to cache.Local for clarity
