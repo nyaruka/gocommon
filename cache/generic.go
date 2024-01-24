@@ -64,10 +64,10 @@ func (c *Cache[K, V]) fetchAndSetSynced(ctx context.Context, key K) (*ttlcache.I
 	ii, err, _ := c.fetchSync.Do(string(key), func() (any, error) {
 		// there's always a chance a different thread completed a fetch before we got here
 		// so check again now that we have a lock for the key
-		/*item := c.cache.Get(key)
+		item := c.cache.Get(key)
 		if item != nil {
 			return item, nil
-		}*/
+		}
 
 		return c.fetchAndSet(ctx, key)
 	})
