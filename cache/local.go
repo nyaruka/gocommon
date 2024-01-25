@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jellydator/ttlcache/v3"
@@ -9,7 +10,7 @@ import (
 )
 
 // Local is a generic in-memory cache with builtin in fetching of missing items.
-type Local[K ~string, V any] struct {
+type Local[K comparable, V any] struct {
 	cache *ttlcache.Cache[K, V]
 
 	fetch     Fetcher[K, V]
@@ -17,10 +18,10 @@ type Local[K ~string, V any] struct {
 }
 
 // Fetcher is a function which can fetch an item which doesn't yet exist in the cache.
-type Fetcher[K ~string, V any] func(context.Context, K) (V, error)
+type Fetcher[K comparable, V any] func(context.Context, K) (V, error)
 
 // NewLocal creates a new in-memory cache.
-func NewLocal[K ~string, V any](fetch Fetcher[K, V], ttl time.Duration) *Local[K, V] {
+func NewLocal[K comparable, V any](fetch Fetcher[K, V], ttl time.Duration) *Local[K, V] {
 	return &Local[K, V]{
 		cache: ttlcache.New[K, V](
 			ttlcache.WithTTL[K, V](ttl),
@@ -85,7 +86,11 @@ func (c *Local[K, V]) Clear() {
 }
 
 func (c *Local[K, V]) fetchAndSetSynced(ctx context.Context, key K) (*ttlcache.Item[K, V], error) {
-	ii, err, _ := c.fetchSync.Do(string(key), func() (any, error) {
+	// singleflight isn't generic and requires string keys but probably not many comparable types
+	// that don't string stringify predictably
+	keyStr := fmt.Sprint(key)
+
+	ii, err, _ := c.fetchSync.Do(keyStr, func() (any, error) {
 		// there's always a chance a different thread completed a fetch before we got here
 		// so check again now that we have a lock for the key
 		item := c.cache.Get(key)
