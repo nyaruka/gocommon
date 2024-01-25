@@ -1,3 +1,7 @@
+v1.52.3 (2024-01-25)
+-------------------------
+ * Allow any comparable type for cache.Local keys
+
 v1.52.2 (2024-01-24)
 -------------------------
  * Add a non-fetching Get, a Set and a Clear method to cache.Local
