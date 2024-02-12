@@ -1,3 +1,7 @@
+v1.52.4 (2024-02-12)
+-------------------------
+ * Allow mocked URL matching to be glob based
+
 v1.52.3 (2024-01-25)
 -------------------------
  * Allow any comparable type for cache.Local keys
