@@ -33,19 +33,25 @@ func TestMockRequestor(t *testing.T) {
 			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
 			httpx.MockConnectionError,
 		},
+		"http://*": {
+			httpx.NewMockResponse(203, nil, []byte("this is partial")),
+		},
+		"*": {
+			httpx.NewMockResponse(204, nil, []byte("this is wild")),
+		},
 		server.URL + "/thing": {
-			httpx.NewMockResponse(203, nil, []byte("this is local")),
+			httpx.NewMockResponse(205, nil, []byte("this is local")),
 		},
 	})
 
 	httpx.SetRequestor(requestor1)
 
 	req1, _ := http.NewRequest("GET", "http://google.com", nil)
-	response1, err := httpx.Do(http.DefaultClient, req1, nil, nil)
+	response, err := httpx.Do(http.DefaultClient, req1, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 200, response1.StatusCode)
+	assert.Equal(t, 200, response.StatusCode)
 
-	body, err := io.ReadAll(response1.Body)
+	body, err := io.ReadAll(response.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "this is google", string(body))
 
@@ -54,42 +60,54 @@ func TestMockRequestor(t *testing.T) {
 
 	// request another mocked URL
 	req2, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response2, err := httpx.Do(http.DefaultClient, req2, nil, nil)
+	response, err = httpx.Do(http.DefaultClient, req2, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 202, response2.StatusCode)
+	assert.Equal(t, 202, response.StatusCode)
 	assert.Equal(t, []*http.Request{req1, req2}, requestor1.Requests())
 
 	// request second mock for first URL
 	req3, _ := http.NewRequest("GET", "http://google.com", nil)
-	response3, err := httpx.Do(http.DefaultClient, req3, nil, nil)
+	response, err = httpx.Do(http.DefaultClient, req3, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 201, response3.StatusCode)
+	assert.Equal(t, 201, response.StatusCode)
 
 	// request mocked connection error
 	req4, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response4, err := httpx.Do(http.DefaultClient, req4, nil, nil)
+	response, err = httpx.Do(http.DefaultClient, req4, nil, nil)
 	assert.EqualError(t, err, "unable to connect to server")
-	assert.Nil(t, response4)
+	assert.Nil(t, response)
 
 	// request mocked localhost request
 	req5, _ := http.NewRequest("GET", server.URL+"/thing", nil)
-	response5, err := httpx.Do(http.DefaultClient, req5, nil, nil)
+	response, err = httpx.Do(http.DefaultClient, req5, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 203, response5.StatusCode)
+	assert.Equal(t, 205, response.StatusCode)
+
+	// match against http://*
+	req6, _ := http.NewRequest("GET", "http://yahoo.com", nil)
+	response, err = httpx.Do(http.DefaultClient, req6, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 203, response.StatusCode)
+
+	// match against *
+	req7, _ := http.NewRequest("GET", "http://yahoo.com", nil)
+	response, err = httpx.Do(http.DefaultClient, req7, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 204, response.StatusCode)
 
 	assert.False(t, requestor1.HasUnused())
 
 	// panic if we've run out of mocks for a URL
-	req6, _ := http.NewRequest("GET", "http://google.com", nil)
-	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req6, nil, nil) })
+	req8, _ := http.NewRequest("GET", "http://google.com", nil)
+	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req8, nil, nil) })
 
 	requestor1.SetIgnoreLocal(true)
 
 	// now a request to the local server should actually get there
-	req7, _ := http.NewRequest("GET", server.URL+"/thing", nil)
-	response7, err := httpx.Do(http.DefaultClient, req7, nil, nil)
+	req9, _ := http.NewRequest("GET", server.URL+"/thing", nil)
+	response, err = httpx.Do(http.DefaultClient, req9, nil, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 200, response7.StatusCode)
+	assert.Equal(t, 200, response.StatusCode)
 }
 
 func TestMockRequestorMarshaling(t *testing.T) {
