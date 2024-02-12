@@ -8,7 +8,9 @@ import (
 	"net/http"
 
 	"github.com/nyaruka/gocommon/jsonx"
+	"github.com/nyaruka/gocommon/stringsx"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 )
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
@@ -38,14 +40,24 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 	r.requests = append(r.requests, request)
 
 	url := request.URL.String()
-	mockedResponses := r.mocks[url]
+
+	// find the most specific match against this URL
+	match := stringsx.GlobSelect(url, maps.Keys(r.mocks)...)
+	mockedResponses := r.mocks[match]
+
 	if len(mockedResponses) == 0 {
 		panic(fmt.Sprintf("missing mock for URL %s", url))
 	}
 
 	// pop the next mocked response for this URL
 	mocked := mockedResponses[0]
-	r.mocks[url] = mockedResponses[1:]
+	remaining := mockedResponses[1:]
+
+	if len(remaining) > 0 {
+		r.mocks[match] = remaining
+	} else {
+		delete(r.mocks, match)
+	}
 
 	if mocked.Status == 0 {
 		return nil, errors.New("unable to connect to server")
