@@ -42,6 +42,9 @@ func TestMockRequestor(t *testing.T) {
 		server.URL + "/thing": {
 			httpx.NewMockResponse(205, nil, []byte("this is local")),
 		},
+		"http://example.com": {
+			httpx.NewMockResponse(200, nil, []byte("this should match ignoring the params requested")),
+		},
 	})
 
 	httpx.SetRequestor(requestor1)
@@ -95,17 +98,22 @@ func TestMockRequestor(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 204, response.StatusCode)
 
+	req8, _ := http.NewRequest("GET", "http://example.com?id=1&active=yes", nil)
+	response, err = httpx.Do(http.DefaultClient, req8, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, response.StatusCode)
+
 	assert.False(t, requestor1.HasUnused())
 
 	// panic if we've run out of mocks for a URL
-	req8, _ := http.NewRequest("GET", "http://google.com", nil)
-	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req8, nil, nil) })
+	req9, _ := http.NewRequest("GET", "http://google.com", nil)
+	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req9, nil, nil) })
 
 	requestor1.SetIgnoreLocal(true)
 
 	// now a request to the local server should actually get there
-	req9, _ := http.NewRequest("GET", server.URL+"/thing", nil)
-	response, err = httpx.Do(http.DefaultClient, req9, nil, nil)
+	req10, _ := http.NewRequest("GET", server.URL+"/thing", nil)
+	response, err = httpx.Do(http.DefaultClient, req10, nil, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, response.StatusCode)
 }

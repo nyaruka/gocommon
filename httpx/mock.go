@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/nyaruka/gocommon/stringsx"
@@ -43,6 +44,11 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 
 	// find the most specific match against this URL
 	match := stringsx.GlobSelect(url, maps.Keys(r.mocks)...)
+
+	// no match, try again ignoring the URL params
+	if match == "" {
+		match = stringsx.GlobSelect(strings.Trim(url, "?"+request.URL.RawQuery), maps.Keys(r.mocks)...)
+	}
 	mockedResponses := r.mocks[match]
 
 	if len(mockedResponses) == 0 {
