@@ -1,3 +1,7 @@
+v1.53.0 (2024-03-01)
+-------------------------
+ * Update to chi v5
+
 v1.52.4 (2024-02-12)
 -------------------------
  * Allow mocked URL matching to be glob based
