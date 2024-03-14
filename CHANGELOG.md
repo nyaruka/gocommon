@@ -1,3 +1,7 @@
+v1.53.1 (2024-03-14)
+-------------------------
+ * Update to latest phonenumbers / protobuf
+
 v1.53.0 (2024-03-01)
 -------------------------
  * Update to chi v5
