@@ -1,3 +1,7 @@
+v1.53.2 (2024-03-28)
+-------------------------
+ * assertdb assert methods should return bool
+
 v1.53.1 (2024-03-14)
 -------------------------
  * Update to latest phonenumbers / protobuf
