@@ -21,7 +21,7 @@ type TestQuery struct {
 }
 
 // Returns asserts that the query returns a single value
-func (q *TestQuery) Returns(expected any, msgAndArgs ...any) {
+func (q *TestQuery) Returns(expected any, msgAndArgs ...any) bool {
 	q.t.Helper()
 
 	// get a variable of same type to hold actual result
@@ -36,16 +36,16 @@ func (q *TestQuery) Returns(expected any, msgAndArgs ...any) {
 		actual = int(actual.(int64))
 	}
 
-	assert.Equal(q.t, expected, actual, msgAndArgs...)
+	return assert.Equal(q.t, expected, actual, msgAndArgs...)
 }
 
 // Columns asserts that the query returns the given column values
-func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) {
+func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) bool {
 	q.t.Helper()
 
 	actual := make(map[string]any, len(expected))
 
 	err := q.db.QueryRowx(q.sql, q.args...).MapScan(actual)
 	assert.NoError(q.t, err, msgAndArgs...)
-	assert.Equal(q.t, expected, actual, msgAndArgs...)
+	return assert.Equal(q.t, expected, actual, msgAndArgs...)
 }
