@@ -3,125 +3,28 @@ package urns
 import (
 	"fmt"
 	"net/url"
-	"regexp"
-	"strconv"
 	"strings"
-
-	"github.com/nyaruka/phonenumbers"
 )
 
 const (
-	DiscordScheme    string = "discord" // (user IDs not usernames)
-	EmailScheme      string = "mailto"
-	ExternalScheme   string = "ext"
-	FacebookScheme   string = "facebook"
-	FCMScheme        string = "fcm"
-	FreshChatScheme  string = "freshchat"
-	InstagramScheme  string = "instagram"
-	JiochatScheme    string = "jiochat"
-	LineScheme       string = "line"
-	RocketChatScheme string = "rocketchat"
-	SlackScheme      string = "slack"
-	TeamsScheme      string = "teams"
-	TelegramScheme   string = "telegram"
-	TelScheme        string = "tel"
-	TwitterIDScheme  string = "twitterid" // Twitter user ids
-	TwitterScheme    string = "twitter"   // Twitter handles
-	ViberScheme      string = "viber"
-	VKScheme         string = "vk"
-	WebChatScheme    string = "webchat"
-	WeChatScheme     string = "wechat"
-	WhatsAppScheme   string = "whatsapp"
-
-	// FacebookRefPrefix is prefix used for facebook referral URNs
-	FacebookRefPrefix string = "ref:"
+	maxPathLength    = 255
+	maxDisplayLength = 255
 )
-
-// ValidSchemes is the set of URN schemes understood by this library
-var ValidSchemes = map[string]bool{
-	DiscordScheme:    true,
-	EmailScheme:      true,
-	ExternalScheme:   true,
-	FacebookScheme:   true,
-	FCMScheme:        true,
-	FreshChatScheme:  true,
-	InstagramScheme:  true,
-	JiochatScheme:    true,
-	LineScheme:       true,
-	RocketChatScheme: true,
-	SlackScheme:      true,
-	TeamsScheme:      true,
-	TelegramScheme:   true,
-	TelScheme:        true,
-	TwitterIDScheme:  true,
-	TwitterScheme:    true,
-	ViberScheme:      true,
-	VKScheme:         true,
-	WebChatScheme:    true,
-	WeChatScheme:     true,
-	WhatsAppScheme:   true,
-}
 
 // IsValidScheme checks whether the provided scheme is valid
 func IsValidScheme(scheme string) bool {
-	_, valid := ValidSchemes[scheme]
+	_, valid := schemes[scheme]
 	return valid
 }
-
-var nonTelCharsRegex = regexp.MustCompile(`[^0-9a-z]`)
-var telRegex = regexp.MustCompile(`^\+?[a-zA-Z0-9]{1,64}$`)
-var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
-var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
-var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=/+]{1,24}$`)
-var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
-var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
-var freshchatRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$`)
-var webchatRegex = regexp.MustCompile(`^[a-zA-Z0-9]{24}(:[^\s@]+@[^\s@]+)?$`)
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
 
-// NewTelURNForCountry returns a URN for the passed in telephone number and country code ("US")
-func NewTelURNForCountry(number string, country string) (URN, error) {
-	return NewURNFromParts(TelScheme, normalizeNumber(number, country), "", "")
-}
-
-// NewTelegramURN returns a URN for the passed in telegram identifier
-func NewTelegramURN(identifier int64, display string) (URN, error) {
-	return NewURNFromParts(TelegramScheme, strconv.FormatInt(identifier, 10), "", display)
-}
-
-// NewWhatsAppURN returns a URN for the passed in whatsapp identifier
-func NewWhatsAppURN(identifier string) (URN, error) {
-	return NewURNFromParts(WhatsAppScheme, identifier, "", "")
-}
-
-// NewFirebaseURN returns a URN for the passed in firebase identifier
-func NewFirebaseURN(identifier string) (URN, error) {
-	return NewURNFromParts(FCMScheme, identifier, "", "")
-}
-
-// NewFacebookURN returns a URN for the passed in facebook identifier
-func NewFacebookURN(identifier string) (URN, error) {
-	return NewURNFromParts(FacebookScheme, identifier, "", "")
-}
-
-// NewDiscordURN returns a URN for the passed in Discord identifier
-func NewDiscordURN(identifier string) (URN, error) {
-	return NewURNFromParts(DiscordScheme, identifier, "", "")
-}
-
-func NewWebChatURN(identifier string) (URN, error) {
-	return NewURNFromParts(WebChatScheme, identifier, "", "")
-}
-
-// NewInstagramURN returns a URN for the passed in instagram identifier
-func NewInstagramURN(identifier string) (URN, error) {
-	return NewURNFromParts(InstagramScheme, identifier, "", "")
-}
+// NilURN is our constant for nil URNs
+const NilURN = URN("")
 
 // returns a new URN for the given scheme, path, query and display
-func newURNFromParts(scheme string, path string, query string, display string) URN {
+func newURNFromParts(scheme, path, query, display string) URN {
 	u := &parsedURN{
 		scheme:   scheme,
 		path:     path,
@@ -132,10 +35,10 @@ func newURNFromParts(scheme string, path string, query string, display string) U
 }
 
 // NewURNFromParts returns a validated URN for the given scheme, path, query and display
-func NewURNFromParts(scheme string, path string, query string, display string) (URN, error) {
-	urn := newURNFromParts(scheme, path, query, display)
-	err := urn.Validate()
-	if err != nil {
+func NewURNFromParts(typ *Scheme, path string, query string, display string) (URN, error) {
+	urn := newURNFromParts(typ.Prefix, path, query, display)
+
+	if err := urn.Validate(); err != nil {
 		return NilURN, err
 	}
 	return urn, nil
@@ -162,34 +65,17 @@ func (u URN) ToParts() (string, string, string, string) {
 }
 
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
-func (u URN) Normalize(country string) URN {
+func (u URN) Normalize() URN {
 	scheme, path, query, display := u.ToParts()
-	normPath := strings.TrimSpace(path)
+	s := schemes[scheme]
 
-	switch scheme {
-	case TelScheme:
-		normPath = normalizeNumber(normPath, country)
+	path = strings.TrimSpace(path)
 
-	case TwitterScheme:
-		// Twitter handles are case-insensitive, so we always store as lowercase
-		normPath = strings.ToLower(normPath)
-
-		// strip @ prefix if provided
-		normPath = strings.TrimPrefix(normPath, "@")
-
-	case TwitterIDScheme:
-		if display != "" {
-			display = strings.ToLower(strings.TrimSpace(display))
-			if display != "" && strings.HasPrefix(display, "@") {
-				display = display[1:]
-			}
-		}
-
-	case EmailScheme:
-		normPath = strings.ToLower(normPath)
+	if s != nil && s.Normalize != nil {
+		path = s.Normalize(path)
 	}
 
-	return newURNFromParts(scheme, normPath, query, display)
+	return newURNFromParts(scheme, path, query, display)
 }
 
 // Validate returns whether this URN is considered valid
@@ -199,94 +85,25 @@ func (u URN) Validate() error {
 	if scheme == "" || path == "" {
 		return fmt.Errorf("scheme or path cannot be empty")
 	}
+
 	if !IsValidScheme(scheme) {
-		return fmt.Errorf("invalid scheme: '%s'", scheme)
+		return fmt.Errorf("unknown URN scheme")
 	}
 
-	switch scheme {
-	case TelScheme:
-		// validate is possible phone number
-		if !telRegex.MatchString(path) {
-			return fmt.Errorf("invalid tel number: %s", path)
-		}
-
-	case TwitterScheme:
-		// validate twitter URNs look like handles
-		if !twitterHandleRegex.MatchString(path) {
-			return fmt.Errorf("invalid twitter handle: %s", path)
-		}
-
-	case TwitterIDScheme:
-		// validate path is a number and display is a handle if present
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid twitter id: %s", path)
-		}
-		if display != "" && !twitterHandleRegex.MatchString(display) {
-			return fmt.Errorf("invalid twitter handle: %s", display)
-		}
-
-	case EmailScheme:
-		if !emailRegex.MatchString(path) {
-			return fmt.Errorf("invalid email: %s", path)
-		}
-
-	case FacebookScheme:
-		// we don't validate facebook refs since they come from the outside
-		if u.IsFacebookRef() {
-			return nil
-		}
-
-		// otherwise, this should be an int
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid facebook id: %s", path)
-		}
-	case InstagramScheme:
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid instagram id: %s", path)
-		}
-	case JiochatScheme:
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid jiochat id: %s", path)
-		}
-
-	case LineScheme:
-		if !lineRegex.MatchString(path) {
-			return fmt.Errorf("invalid line id: %s", path)
-		}
-
-	case TelegramScheme:
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid telegram id: %s", path)
-		}
-
-	case ViberScheme:
-		if !viberRegex.MatchString(path) {
-			return fmt.Errorf("invalid viber id: %s", path)
-		}
-
-	case WhatsAppScheme:
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid whatsapp id: %s", path)
-		}
-
-	case FreshChatScheme:
-		// validate path and query is a uuid
-		if !freshchatRegex.MatchString(path) {
-			return fmt.Errorf("invalid freshchat id: %s", path)
-		}
-
-	case DiscordScheme:
-		if !allDigitsRegex.MatchString(path) {
-			return fmt.Errorf("invalid discord id: %s", path)
-		}
-
-	case WebChatScheme:
-		if !webchatRegex.MatchString(path) {
-			return fmt.Errorf("invalid webchat id: %s", path)
-		}
+	if len(path) > maxPathLength {
+		return fmt.Errorf("path component too long")
 	}
-	return nil // anything goes for external schemes
 
+	s := schemes[scheme]
+	if s.Validate != nil && !s.Validate(path) {
+		return fmt.Errorf("invalid path component")
+	}
+
+	if len(display) > maxDisplayLength {
+		return fmt.Errorf("display component too long")
+	}
+
+	return nil
 }
 
 // Scheme returns the scheme portion for the URN
@@ -325,38 +142,6 @@ func (u URN) Identity() URN {
 	return newURNFromParts(scheme, path, "", "")
 }
 
-// Localize returns a new URN which is local to the given country
-func (u URN) Localize(country string) URN {
-	scheme, path, query, display := u.ToParts()
-
-	if scheme == TelScheme {
-		parsed, err := phonenumbers.Parse(path, country)
-		if err == nil {
-			path = strconv.FormatUint(parsed.GetNationalNumber(), 10)
-		}
-	}
-	return newURNFromParts(scheme, path, query, display)
-}
-
-// IsFacebookRef returns whether this URN is a facebook referral
-func (u URN) IsFacebookRef() bool {
-	return u.Scheme() == FacebookScheme && strings.HasPrefix(u.Path(), FacebookRefPrefix)
-}
-
-// FacebookRef returns the facebook referral portion of our path, this return empty string in the case where we aren't a Facebook scheme
-func (u URN) FacebookRef() string {
-	if u.IsFacebookRef() {
-		return strings.TrimPrefix(u.Path(), FacebookRefPrefix)
-	}
-	return ""
-}
-
-// TeamsServiceURL returns the teams serviceURL part of our path, this empty return string in case we are not a teams schema
-func (u URN) TeamsServiceURL() string {
-	serviceUrl := strings.Split(u.Path(), ":")
-	return serviceUrl[1]
-}
-
 // String returns the string representation of this URN
 func (u URN) String() string { return string(u) }
 
@@ -364,47 +149,13 @@ func (u URN) String() string { return string(u) }
 func (u URN) Format() string {
 	scheme, path, _, display := u.ToParts()
 
-	if scheme == TelScheme {
-		parsed, err := phonenumbers.Parse(path, "")
-		if err != nil {
-			return path
-		}
-		return phonenumbers.Format(parsed, phonenumbers.NATIONAL)
+	s := schemes[scheme]
+	if s != nil && s.Format != nil {
+		return s.Format(path)
 	}
 
 	if display != "" {
 		return display
 	}
 	return path
-}
-
-// NilURN is our constant for nil URNs
-var NilURN = URN("")
-
-func normalizeNumber(number string, country string) string {
-	number = strings.TrimSpace(number)
-	normalized := strings.ToLower(number)
-
-	// if the number ends with e11, then that is Excel corrupting it, remove it
-	if strings.HasSuffix(normalized, "e+11") || strings.HasSuffix(normalized, "e+12") {
-		normalized = strings.Replace(normalized[0:len(normalized)-4], ".", "", -1)
-	}
-
-	// remove non alphanumeric characters
-	normalized = nonTelCharsRegex.ReplaceAllString(normalized, "")
-
-	parseAs := normalized
-
-	// if we started with + prefix, or we have a sufficiently long number that doesn't start with 0, add + prefix
-	if strings.HasPrefix(number, "+") || (len(normalized) >= 11 && !strings.HasPrefix(normalized, "0")) {
-		parseAs = fmt.Sprintf("+%s", normalized)
-	}
-
-	formatted, err := ParseNumber(parseAs, country)
-	if err != nil {
-		// if it's not a possible number, just return what we have minus the +
-		return normalized
-	}
-
-	return formatted
 }

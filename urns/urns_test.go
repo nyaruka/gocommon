@@ -1,16 +1,22 @@
-package urns
+package urns_test
 
 import (
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/nyaruka/gocommon/urns"
 	"github.com/stretchr/testify/assert"
 )
 
+func TestIsValidScheme(t *testing.T) {
+	assert.True(t, urns.IsValidScheme("tel"))
+	assert.False(t, urns.IsValidScheme("xyz"))
+}
+
 func TestURNProperties(t *testing.T) {
 	testCases := []struct {
-		urn      URN
+		urn      urns.URN
 		format   string
 		display  string
 		rawQuery string
@@ -39,59 +45,28 @@ func TestURNProperties(t *testing.T) {
 	}
 }
 
-func TestIsFacebookRef(t *testing.T) {
+func TestNewFromParts(t *testing.T) {
 	testCases := []struct {
-		urn           URN
-		isFacebookRef bool
-		facebookRef   string
-	}{
-		{"facebook:ref:12345", true, "12345"},
-		{"facebook:12345", false, ""},
-
-		{"tel:25078838383", false, ""},
-		{"discord:732326982863421591", false, ""},
-		{"discord:foo", false, ""},
-	}
-	for _, tc := range testCases {
-		assert.Equal(t, tc.isFacebookRef, tc.urn.IsFacebookRef(), "is facebook ref mismatch for %s", tc.urn)
-		assert.Equal(t, tc.facebookRef, tc.urn.FacebookRef(), "facebook ref mismatch for %s", tc.urn)
-	}
-}
-
-func TestTeamsServiceURL(t *testing.T) {
-	testCases := []struct {
-		urn URN
-	}{
-		{"teams:a1b2n4:test.com"},
-	}
-	for _, tc := range testCases {
-		assert.Equal(t, "test.com", tc.urn.TeamsServiceURL())
-	}
-}
-
-func TestFromParts(t *testing.T) {
-	testCases := []struct {
-		scheme   string
+		scheme   *urns.Scheme
 		path     string
 		display  string
-		expected URN
-		identity URN
+		expected urns.URN
+		identity urns.URN
 		hasError bool
 	}{
-		{"tel", "+250788383383", "", URN("tel:+250788383383"), URN("tel:+250788383383"), false},
-		{"twitter", "hello", "", URN("twitter:hello"), URN("twitter:hello"), false},
-		{"facebook", "12345", "", URN("facebook:12345"), URN("facebook:12345"), false},
-		{"instagram", "12345", "", URN("instagram:12345"), URN("instagram:12345"), false},
-		{"telegram", "12345", "Jane", URN("telegram:12345#Jane"), URN("telegram:12345"), false},
-		{"whatsapp", "12345", "", URN("whatsapp:12345"), URN("whatsapp:12345"), false},
-		{"viber", "", "", NilURN, ":", true},
-		{"discord", "732326982863421591", "", URN("discord:732326982863421591"), URN("discord:732326982863421591"), false},
-		{"webchat", "123456789012345678901234", "", URN("webchat:123456789012345678901234"), URN("webchat:123456789012345678901234"), false},
-		{"teams", "a1b2n4:test.example", "", URN("teams:a1b2n4:test.example"), URN("teams:a1b2n4:test.example"), false},
+		{urns.Phone, "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
+		{urns.Twitter, "hello", "", "twitter:hello", "twitter:hello", false},
+		{urns.Facebook, "12345", "", "facebook:12345", "facebook:12345", false},
+		{urns.Instagram, "12345", "", "instagram:12345", "instagram:12345", false},
+		{urns.Telegram, "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
+		{urns.WhatsApp, "12345", "", "whatsapp:12345", "whatsapp:12345", false},
+		{urns.Viber, "", "", urns.NilURN, ":", true},
+		{urns.Discord, "732326982863421591", "", "discord:732326982863421591", "discord:732326982863421591", false},
+		{urns.WebChat, "123456789012345678901234", "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 	}
 
 	for _, tc := range testCases {
-		urn, err := NewURNFromParts(tc.scheme, tc.path, "", tc.display)
+		urn, err := urns.NewURNFromParts(tc.scheme, tc.path, "", tc.display)
 		identity := urn.Identity()
 
 		assert.Equal(t, tc.expected, urn, "from parts mismatch for: %s, %s, %s", tc.scheme, tc.path, tc.display)
@@ -107,99 +82,63 @@ func TestFromParts(t *testing.T) {
 
 func TestNormalize(t *testing.T) {
 	testCases := []struct {
-		rawURN   URN
-		country  string
-		expected URN
+		rawURN   urns.URN
+		expected urns.URN
 	}{
 		// valid tel numbers
-		{"tel:0788383383", "RW", "tel:+250788383383"},
-		{"tel: +250788383383 ", "KE", "tel:+250788383383"},
-		{"tel:+250788383383", "", "tel:+250788383383"},
-		{"tel:250788383383", "", "tel:+250788383383"},
-		{"tel:2.50788383383E+11", "", "tel:+250788383383"},
-		{"tel:2.50788383383E+12", "", "tel:+250788383383"},
-		{"tel:(917)992-5253", "US", "tel:+19179925253"},
-		{"tel:19179925253", "", "tel:+19179925253"},
-		{"tel:+62877747666", "", "tel:+62877747666"},
-		{"tel:62877747666", "ID", "tel:+62877747666"},
-		{"tel:0877747666", "ID", "tel:+62877747666"},
-		{"tel:07531669965", "GB", "tel:+447531669965"},
-		{"tel:22658125926", "", "tel:+22658125926"},
-		{"tel:263780821000", "ZW", "tel:+263780821000"},
-		{"tel:+2203693333", "", "tel:+2203693333"},
+		{"tel: +250788383383 ", "tel:+250788383383"},
+		{"tel:+250788383383", "tel:+250788383383"},
+		{"tel:250788383383", "tel:+250788383383"},
+		{"tel:(917)992-5253", "tel:+19179925253"},
+		{"tel:19179925253", "tel:+19179925253"},
+		{"tel:+62877747666", "tel:+62877747666"},
+		{"tel:62877747666", "tel:+62877747666"},
+		{"tel:0877747666", "tel:+62877747666"},
+		{"tel:07531669965", "tel:+447531669965"},
+		{"tel:22658125926", "tel:+22658125926"},
+		{"tel:263780821000", "tel:+263780821000"},
+		{"tel:+2203693333", "tel:+2203693333"},
 
-		// un-normalizable tel numbers
-		{"tel:12345", "RW", "tel:12345"},
-		{"tel:0788383383", "", "tel:0788383383"},
-		{"tel:0788383383", "ZZ", "tel:0788383383"},
-		{"tel:MTN", "RW", "tel:mtn"},
-		{"tel:+12345678901234567890", "", "tel:12345678901234567890"},
+		// non-standard phone numbers
+		{"tel:12345", "tel:12345"},
+		{"tel:mtn", "tel:MTN"},
+		{"tel:+12345678901234567890", "tel:12345678901234567890"},
 
 		// twitter handles remove @
-		{"twitter: @jimmyJO", "", "twitter:jimmyjo"},
-		{"twitterid:12345#@jimmyJO", "", "twitterid:12345#jimmyjo"},
+		{"twitter: @jimmyJO", "twitter:jimmyjo"},
+		{"twitterid:12345#jimmyJO", "twitterid:12345#jimmyJO"},
 
 		// email addresses
-		{"mailto: nAme@domAIN.cOm ", "", "mailto:name@domain.com"},
+		{"mailto: nAme@domAIN.cOm ", "mailto:name@domain.com"},
 
 		// external ids are case sensitive
-		{"ext: eXterNAL123 ", "", "ext:eXterNAL123"},
+		{"ext: eXterNAL123 ", "ext:eXterNAL123"},
 	}
 
 	for _, tc := range testCases {
-		normalized := tc.rawURN.Normalize(tc.country)
-		assert.Equal(t, tc.expected, normalized, "normalize mismatch for '%s' with country '%s'", tc.rawURN, tc.country)
-	}
-}
-
-func TestLocalize(t *testing.T) {
-	testCases := []struct {
-		input    URN
-		country  string
-		expected URN
-	}{
-		// valid tel numbers
-		{"tel:+250788383383", "RW", URN("tel:788383383")},
-		{"tel:+447531669965", "GB", URN("tel:7531669965")},
-		{"tel:+19179925253", "US", URN("tel:9179925253")},
-
-		// un-localizable tel numbers
-		{"tel:12345", "RW", URN("tel:12345")},
-		{"tel:0788383383", "", URN("tel:0788383383")},
-		{"tel:0788383383", "ZZ", URN("tel:0788383383")},
-		{"tel:MTN", "RW", URN("tel:MTN")},
-
-		// other schemes left as is
-		{"twitter:jimmyjo", "RW", URN("twitter:jimmyjo")},
-		{"twitterid:12345#jimmyjo", "RW", URN("twitterid:12345#jimmyjo")},
-		{"mailto:bob@example.com", "", URN("mailto:bob@example.com")},
-	}
-
-	for _, tc := range testCases {
-		localized := tc.input.Localize(tc.country)
-
-		assert.Equal(t, tc.expected, localized, "localize mismatch for %s in country", tc.input, tc.country)
+		normalized := tc.rawURN.Normalize()
+		assert.Equal(t, tc.expected, normalized, "normalize mismatch for '%s'", tc.rawURN)
 	}
 }
 
 func TestParse(t *testing.T) {
 	testCases := []struct {
 		input         string
-		urn           URN
+		urn           urns.URN
 		expectedError string
 	}{
-		{"xxxx", NilURN, "path cannot be empty"},
-		{"tel:", NilURN, "path cannot be empty"},
-		{":xxxx", NilURN, "scheme cannot be empty"},
-		{"tel:46362#rrh#gege", NilURN, "fragment component can only come after path or query components"},
+		{"xxxx", urns.NilURN, "path cannot be empty"},
+		{"tel:", urns.NilURN, "path cannot be empty"},
+		{":xxxx", urns.NilURN, "scheme cannot be empty"},
+		{"tel:46362#rrh#gege", urns.NilURN, "fragment component can only come after path or query components"},
 
 		// no semantic validation
-		{"xyz:abc", URN("xyz:abc"), ""},
-		{"tel:****", URN("tel:****"), ""},
+		{"xyz:abc", "xyz:abc", ""},
+		{"tel:****", "tel:****", ""},
 	}
 
 	for _, tc := range testCases {
-		actual, err := Parse(tc.input)
+		actual, err := urns.Parse(tc.input)
 
 		if tc.expectedError != "" {
 			assert.EqualError(t, err, tc.expectedError, "error mismatch for %s", tc.input)
@@ -212,11 +151,11 @@ func TestParse(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	testCases := []struct {
-		urn           URN
+		urn           urns.URN
 		expectedError string
 	}{
 		{"xxxx", "scheme or path cannot be empty"}, // un-parseable URNs don't validate
-		{"xyz:abc", "invalid scheme"},              // nor do unknown schemes
+		{"xyz:abc", "unknown URN scheme"},          // nor do unknown schemes
 		{"tel:", "scheme or path cannot be empty"},
 
 		// valid tel numbers
@@ -229,69 +168,68 @@ func TestValidate(t *testing.T) {
 		{"tel:cellbroadcastchannel50", ""},
 
 		// invalid tel numbers
-		{"tel:07883 83383", "invalid tel number"}, // can't have spaces
-		{"tel:", "cannot be empty"},               // need a path
+		{"tel:07883 83383", "invalid path component"}, // can't have spaces
+		{"tel:", "cannot be empty"},                   // need a path
 
 		// twitter handles
 		{"twitter:jimmyjo", ""},
 		{"twitter:billy_bob", ""},
-		{"twitter:jimmyjo!@", "invalid twitter handle"},
-		{"twitter:billy bob", "invalid twitter handle"},
+		{"twitter:jimmyjo!@", "invalid path component"},
+		{"twitter:billy bob", "invalid path component"},
 
 		// twitterid urns
 		{"twitterid:12345#jimmyjo", ""},
 		{"twitterid:12345#1234567", ""},
-		{"twitterid:jimmyjo#1234567", "invalid twitter id"},
-		{"twitterid:123#a.!f", "invalid twitter handle"},
+		{"twitterid:jimmyjo#1234567", "invalid path component"},
 
 		// email addresses
 		{"mailto:abcd+label@x.y.z.com", ""},
-		{"mailto:@@@", "invalid email"},
+		{"mailto:@@@", "invalid path component"},
 
 		// facebook and telegram URN paths must be integers
 		{"telegram:12345678901234567", ""},
-		{"telegram:abcdef", "invalid telegram id"},
+		{"telegram:abcdef", "invalid path component"},
 		{"facebook:12345678901234567", ""},
-		{"facebook:abcdef", "invalid facebook id"},
+		{"facebook:abcdef", "invalid path component"},
 		{"instagram:12345678901234567", ""},
-		{"instagram:abcdef", "invalid instagram id"},
+		{"instagram:abcdef", "invalid path component"},
 
 		// facebook refs can be anything
 		{"facebook:ref:facebookRef", ""},
 
 		// jiochat IDs
 		{"jiochat:12345", ""},
-		{"jiochat:123de", "invalid jiochat id"},
+		{"jiochat:123de", "invalid path component"},
 
 		// WeChat Open IDs
 		{"wechat:o6_bmjrPTlm6_2sgVt7hMZOPfL2M", ""},
 
 		// line IDs
 		{"line:Uasd224", ""},
-		{"line:Uqw!123", "invalid line id"},
+		{"line:Uqw!123", "invalid path component"},
 
 		// viber needs to be alphanum
 		{"viber:asdf12354", ""},
-		{"viber:asdf!12354", "invalid viber id"},
+		{"viber:asdf!12354", "invalid path component"},
 		{"viber:xy5/5y6O81+/kbWHpLhBoA==", ""},
 
 		// whatsapp needs to be integers
 		{"whatsapp:12354", ""},
-		{"whatsapp:abcde", "invalid whatsapp id"},
-		{"whatsapp:+12067799294", "invalid whatsapp id"},
+		{"whatsapp:abcde", "invalid path component"},
+		{"whatsapp:+12067799294", "invalid path component"},
 
 		// freschat has to be two uuids separated by a colon
 		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22/6a2f41a3-c54c-fce8-32d2-0324e1c32e22", ""},
-		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22", "invalid freshchat id"},
-		{"freshchat:+12067799294", "invalid freshchat id"},
+		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22", "invalid path component"},
+		{"freshchat:+12067799294", "invalid path component"},
 
 		{"slack:U0123ABCDEF", ""},
 
 		{"webchat:aA3456789012345678901234", ""},
 		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},
-		{"webchat:1234567890123456789", "invalid webchat id"},
-		{"webchat:12345678901234567890123$", "invalid webchat id"},
-		{"webchat:aA3456789012345678901234:@@$", "invalid webchat id"},
+		{"webchat:1234567890123456789", "invalid path component"},
+		{"webchat:12345678901234567890123$", "invalid path component"},
+		{"webchat:aA3456789012345678901234:@@$", "invalid path component"},
 	}
 
 	for _, tc := range testCases {
@@ -305,189 +243,5 @@ func TestValidate(t *testing.T) {
 		} else {
 			assert.NoError(t, err, "unexpected error validating %s", tc.urn)
 		}
-	}
-}
-
-func TestTelURNs(t *testing.T) {
-	testCases := []struct {
-		number   string
-		country  string
-		expected URN
-		hasError bool
-	}{
-		{"0788383383", "RW", URN("tel:+250788383383"), false},
-		{" +250788383383 ", "KE", URN("tel:+250788383383"), false},
-		{"+250788383383", "", URN("tel:+250788383383"), false},
-		{"250788383383", "", URN("tel:+250788383383"), false},
-		{"(917)992-5253", "US", URN("tel:+19179925253"), false},
-		{"(917) 992 - 5253", "US", URN("tel:+19179925253"), false},
-		{"19179925253", "", URN("tel:+19179925253"), false},
-		{"+62877747666", "", URN("tel:+62877747666"), false},
-		{"62877747666", "ID", URN("tel:+62877747666"), false},
-		{"0877747666", "ID", URN("tel:+62877747666"), false},
-		{"07531669965", "GB", URN("tel:+447531669965"), false},
-		{"12345", "RW", URN("tel:12345"), false},
-		{"0788383383", "", URN("tel:0788383383"), false},
-		{"0788383383", "ZZ", URN("tel:0788383383"), false},
-		{"PRIZES", "RW", URN("tel:prizes"), false},
-		{"PRIZES!", "RW", URN("tel:prizes"), false},
-		{"1", "RW", URN("tel:1"), false},
-		{"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "RW", NilURN, true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewTelURNForCountry(tc.number, tc.country)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s, %s", tc.number, tc.country)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s, %s", tc.number, tc.country)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s, %s", tc.number, tc.country)
-		}
-	}
-}
-
-func TestTelegramURNs(t *testing.T) {
-	testCases := []struct {
-		identifier int64
-		display    string
-		expected   URN
-		hasError   bool
-	}{
-		{12345, "", URN("telegram:12345"), false},
-		{12345, "Sarah", URN("telegram:12345#Sarah"), false},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewTelegramURN(tc.identifier, tc.display)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestWhatsAppURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"12345", URN("whatsapp:12345"), false},
-		{"+12345", NilURN, true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewWhatsAppURN(tc.identifier)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestFacebookURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"12345", URN("facebook:12345"), false},
-		{"invalid", NilURN, true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewFacebookURN(tc.identifier)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestInstagramURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"12345", URN("instagram:12345"), false},
-		{"invalid", NilURN, true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewInstagramURN(tc.identifier)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestFirebaseURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"12345", URN("fcm:12345"), false},
-		{"asdf", URN("fcm:asdf"), false},
-		{"", NilURN, true},
-	}
-
-	for _, tc := range testCases {
-		urn, err := NewFirebaseURN(tc.identifier)
-
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "unexpected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func TestDiscordURNs(t *testing.T) {
-	testCases := []struct {
-		identifier string
-		expected   URN
-		hasError   bool
-	}{
-		{"732326982863421591", URN("discord:732326982863421591"), false},
-		{"notadiscordID", URN("discord:notadiscordID"), true},
-		{"", NilURN, true},
-	}
-	for _, tc := range testCases {
-		urn, err := NewDiscordURN(tc.identifier)
-		if tc.hasError {
-			assert.Error(t, err, "expected error for %s", tc.identifier)
-		} else {
-			assert.NoError(t, err, "expected error for %s", tc.identifier)
-			assert.Equal(t, tc.expected, urn, "created URN mismatch for %s", tc.identifier)
-		}
-	}
-}
-
-func BenchmarkValidTel(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		NewTelURNForCountry("2065551212", "US")
-	}
-}
-
-func BenchmarkInvalidTel(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		NewTelURNForCountry("notnumber", "US")
 	}
 }
