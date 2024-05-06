@@ -17,6 +17,11 @@ func IsValidScheme(scheme string) bool {
 	return valid
 }
 
+// Schemes returns the valid URN schemes
+func Schemes() []string {
+	return schemePrefixes
+}
+
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
 

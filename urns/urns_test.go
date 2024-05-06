@@ -12,6 +12,9 @@ import (
 func TestIsValidScheme(t *testing.T) {
 	assert.True(t, urns.IsValidScheme("tel"))
 	assert.False(t, urns.IsValidScheme("xyz"))
+
+	assert.Len(t, urns.Schemes(), 20)
+	assert.Equal(t, "discord", urns.Schemes()[0])
 }
 
 func TestURNProperties(t *testing.T) {

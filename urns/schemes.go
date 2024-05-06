@@ -47,9 +47,11 @@ func init() {
 }
 
 var schemes = map[string]*Scheme{}
+var schemePrefixes = []string{}
 
 func register(s *Scheme) {
 	schemes[s.Prefix] = s
+	schemePrefixes = append(schemePrefixes, s.Prefix)
 }
 
 type Scheme struct {
