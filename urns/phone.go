@@ -23,6 +23,11 @@ func ParsePhone(raw string, country i18n.Country) (URN, error) {
 		raw = "+" + raw
 	}
 
+	// if we're sufficienly long and don't start with a 0 then add a +
+	if len(raw) >= 11 && !strings.HasPrefix(raw, "0") {
+		raw = "+" + raw
+	}
+
 	number, err := parsePhoneOrShortcode(raw, country)
 	if err != nil {
 		if err == phonenumbers.ErrInvalidCountryCode {

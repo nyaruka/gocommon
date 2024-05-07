@@ -23,6 +23,7 @@ func TestParsePhone(t *testing.T) {
 		{"0877747666", "ID", "tel:+62877747666"},
 		{"07531669965", "GB", "tel:+447531669965"},
 		{"263780821000", "ZW", "tel:+263780821000"},
+		{"254791541111", "US", "tel:+254791541111"}, // international but missing + and wrong country
 
 		{"1", "RW", "tel:1"},
 		{"123456", "RW", "tel:123456"},
