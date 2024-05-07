@@ -1,49 +1,66 @@
 package urns
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/nyaruka/gocommon/i18n"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/pkg/errors"
 )
 
-// FromLocalPhone returns a validated tel URN
-func FromLocalPhone(number string, country string) (URN, error) {
-	path, err := ParsePhone(number, country)
+var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Za-z]`)
+
+// ParsePhone returns a validated phone URN. If it can parse a possible number then that is used.. otherwise any value
+// that validates as a phone URN is used.
+func ParsePhone(raw string, country i18n.Country) (URN, error) {
+	// strip all non-tel characters.. only preserving an optional leading +
+	raw = strings.TrimSpace(raw)
+	hasPlus := strings.HasPrefix(raw, "+")
+	raw = nonTelCharsRegex.ReplaceAllString(raw, "")
+	if hasPlus {
+		raw = "+" + raw
+	}
+
+	number, err := parsePhoneOrShortcode(raw, country)
 	if err != nil {
-		return NilURN, err
-	}
-
-	return NewURNFromParts(Phone, path, "", "")
-}
-
-// ToLocalPhone converts a phone URN to a local number in the given country
-func ToLocalPhone(u URN, country string) string {
-	_, path, _, _ := u.ToParts()
-
-	parsed, err := phonenumbers.Parse(path, country)
-	if err == nil {
-		return strconv.FormatUint(parsed.GetNationalNumber(), 10)
-	}
-	return path
-}
-
-// ParsePhone tries to parse the given string as a phone number and if successful returns it as E164
-func ParsePhone(s, country string) (string, error) {
-	parsed, err := phonenumbers.Parse(s, country)
-	if err != nil {
-		return "", errors.Wrap(err, "unable to parse number")
-	}
-
-	if phonenumbers.IsPossibleNumberWithReason(parsed) != phonenumbers.IS_POSSIBLE {
-		// if it's not a possible number, try adding a + and parsing again
-		if !strings.HasPrefix(s, "+") {
-			return ParsePhone("+"+s, country)
+		if err == phonenumbers.ErrInvalidCountryCode {
+			return NilURN, errors.New("invalid country code")
 		}
 
-		return "", errors.New("not a possible number")
+		return NewFromParts(Phone, raw, "", "")
 	}
 
-	return phonenumbers.Format(parsed, phonenumbers.E164), nil
+	return NewFromParts(Phone, number, "", "")
+}
+
+// tries to extract a valid phone number or shortcode from the given string
+func parsePhoneOrShortcode(raw string, country i18n.Country) (string, error) {
+	parsed, err := phonenumbers.Parse(raw, string(country))
+	if err != nil {
+		return "", err
+	}
+
+	if phonenumbers.IsPossibleNumberWithReason(parsed) == phonenumbers.IS_POSSIBLE {
+		return phonenumbers.Format(parsed, phonenumbers.E164), nil
+	}
+
+	if phonenumbers.IsPossibleShortNumberForRegion(parsed, string(country)) {
+		return phonenumbers.Format(parsed, phonenumbers.NATIONAL), nil
+	}
+
+	return "", errors.New("unable to parse phone number or shortcode")
+}
+
+// ToLocalPhone converts a phone URN to a local phone number.. without any leading zeros
+func ToLocalPhone(u URN, country i18n.Country) string {
+	_, path, _, _ := u.ToParts()
+
+	parsed, err := phonenumbers.Parse(path, string(country))
+	if err != nil {
+		return path
+	}
+
+	return strconv.FormatUint(parsed.GetNationalNumber(), 10)
 }

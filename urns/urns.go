@@ -29,7 +29,7 @@ type URN string
 const NilURN = URN("")
 
 // returns a new URN for the given scheme, path, query and display
-func newURNFromParts(scheme, path, query, display string) URN {
+func newFromParts(scheme, path, query, display string) URN {
 	u := &parsedURN{
 		scheme:   scheme,
 		path:     path,
@@ -39,9 +39,9 @@ func newURNFromParts(scheme, path, query, display string) URN {
 	return URN(u.String())
 }
 
-// NewURNFromParts returns a validated URN for the given scheme, path, query and display
-func NewURNFromParts(typ *Scheme, path string, query string, display string) (URN, error) {
-	urn := newURNFromParts(typ.Prefix, path, query, display)
+// NewFromParts returns a validated URN for the given scheme, path, query and display
+func NewFromParts(typ *Scheme, path string, query string, display string) (URN, error) {
+	urn := newFromParts(typ.Prefix, path, query, display)
 
 	if err := urn.Validate(); err != nil {
 		return NilURN, err
@@ -80,7 +80,7 @@ func (u URN) Normalize() URN {
 		path = s.Normalize(path)
 	}
 
-	return newURNFromParts(scheme, path, query, display)
+	return newFromParts(scheme, path, query, display)
 }
 
 // Validate returns whether this URN is considered valid
@@ -144,7 +144,7 @@ func (u URN) Query() (url.Values, error) {
 // Identity returns the URN with any query or display attributes stripped
 func (u URN) Identity() URN {
 	scheme, path, _, _ := u.ToParts()
-	return newURNFromParts(scheme, path, "", "")
+	return newFromParts(scheme, path, "", "")
 }
 
 // String returns the string representation of this URN
@@ -154,13 +154,15 @@ func (u URN) String() string { return string(u) }
 func (u URN) Format() string {
 	scheme, path, _, display := u.ToParts()
 
+	// display always takes precedence
+	if display != "" {
+		return display
+	}
+
 	s := schemes[scheme]
 	if s != nil && s.Format != nil {
 		return s.Format(path)
 	}
 
-	if display != "" {
-		return display
-	}
 	return path
 }

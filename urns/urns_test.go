@@ -26,6 +26,7 @@ func TestURNProperties(t *testing.T) {
 		query    url.Values
 	}{
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
+		{"tel:+250788383383#my-phone", "my-phone", "my-phone", "", map[string][]string{}},
 		{"twitter:85114#billy_bob", "billy_bob", "billy_bob", "", map[string][]string{}},
 		{"twitter:billy_bob", "billy_bob", "", "", map[string][]string{}},
 		{"tel:not-a-number", "not-a-number", "", "", map[string][]string{}},
@@ -69,7 +70,7 @@ func TestNewFromParts(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		urn, err := urns.NewURNFromParts(tc.scheme, tc.path, "", tc.display)
+		urn, err := urns.NewFromParts(tc.scheme, tc.path, "", tc.display)
 		identity := urn.Identity()
 
 		assert.Equal(t, tc.expected, urn, "from parts mismatch for: %s, %s, %s", tc.scheme, tc.path, tc.display)
@@ -88,24 +89,15 @@ func TestNormalize(t *testing.T) {
 		rawURN   urns.URN
 		expected urns.URN
 	}{
-		// valid tel numbers
-		{"tel: +250788383383 ", "tel:+250788383383"},
+		// valid tel numbers left as they are
 		{"tel:+250788383383", "tel:+250788383383"},
-		{"tel:250788383383", "tel:+250788383383"},
-		{"tel:(917)992-5253", "tel:+19179925253"},
-		{"tel:19179925253", "tel:+19179925253"},
 		{"tel:+62877747666", "tel:+62877747666"},
-		{"tel:62877747666", "tel:+62877747666"},
-		{"tel:0877747666", "tel:+62877747666"},
-		{"tel:07531669965", "tel:+447531669965"},
-		{"tel:22658125926", "tel:+22658125926"},
-		{"tel:263780821000", "tel:+263780821000"},
 		{"tel:+2203693333", "tel:+2203693333"},
 
 		// non-standard phone numbers
 		{"tel:12345", "tel:12345"},
 		{"tel:mtn", "tel:MTN"},
-		{"tel:+12345678901234567890", "tel:12345678901234567890"},
+		{"tel:+12345678901234567890", "tel:+12345678901234567890"},
 
 		// twitter handles remove @
 		{"twitter: @jimmyJO", "twitter:jimmyjo"},

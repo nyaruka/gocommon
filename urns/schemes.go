@@ -8,7 +8,6 @@ import (
 )
 
 var allDigitsRegex = regexp.MustCompile(`^[0-9]+$`)
-var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Z]`)
 
 var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+$`)
 var freshchatRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$`)
@@ -115,13 +114,8 @@ var Line = &Scheme{
 var Phone = &Scheme{
 	Prefix: "tel",
 	Normalize: func(path string) string {
-		e164, err := ParsePhone(path, "")
-		if err != nil {
-			// could be a short code so uppercase and remove non alphanumeric characters
-			return nonTelCharsRegex.ReplaceAllString(strings.ToUpper(path), "")
-		}
-
-		return e164
+		// might have alpha characters in it
+		return strings.ToUpper(path)
 	},
 	Validate: func(path string) bool { return telRegex.MatchString(path) },
 	Format: func(path string) string {
