@@ -1,3 +1,7 @@
+v1.54.1 (2024-05-07)
+-------------------------
+ * Add names to schemes and make urns.Schemes() return full Scheme objects
+
 v1.54.0 (2024-05-07)
 -------------------------
  * Update deps
