@@ -53,7 +53,8 @@ func parsePhoneOrShortcode(raw string, country i18n.Country) (string, error) {
 	return "", errors.New("unable to parse phone number or shortcode")
 }
 
-// ToLocalPhone converts a phone URN to a local phone number.. without any leading zeros
+// ToLocalPhone converts a phone URN to a local phone number.. without any leading zeros. Kinda weird but used by
+// Courier where channels want the number in that format.
 func ToLocalPhone(u URN, country i18n.Country) string {
 	_, path, _, _ := u.ToParts()
 

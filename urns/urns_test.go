@@ -82,6 +82,11 @@ func TestNewFromParts(t *testing.T) {
 			assert.NoError(t, err, "unexpected error for: %s, %s, %s", tc.scheme, tc.path, tc.display)
 		}
 	}
+
+	// test New shortcut
+	urn, err := urns.New(urns.Phone, "+250788383383")
+	assert.NoError(t, err)
+	assert.Equal(t, "tel:+250788383383", urn.String())
 }
 
 func TestNormalize(t *testing.T) {
