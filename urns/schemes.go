@@ -45,16 +45,17 @@ func init() {
 	register(WhatsApp)
 }
 
-var schemes = map[string]*Scheme{}
-var schemePrefixes = []string{}
+var schemeByPrefix = map[string]*Scheme{}
+var schemes = []*Scheme{}
 
 func register(s *Scheme) {
-	schemes[s.Prefix] = s
-	schemePrefixes = append(schemePrefixes, s.Prefix)
+	schemeByPrefix[s.Prefix] = s
+	schemes = append(schemes, s)
 }
 
 type Scheme struct {
 	Prefix    string
+	Name      string
 	Normalize func(string) string
 	Validate  func(string) bool
 	Format    func(string) string
@@ -62,21 +63,25 @@ type Scheme struct {
 
 var Discord = &Scheme{
 	Prefix:   "discord",
+	Name:     "Discord",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var Email = &Scheme{
 	Prefix:    "mailto",
+	Name:      "Email",
 	Normalize: func(path string) string { return strings.ToLower(path) },
 	Validate:  func(path string) bool { return emailRegex.MatchString(path) },
 }
 
 var External = &Scheme{
 	Prefix: "ext",
+	Name:   "External",
 }
 
 var Facebook = &Scheme{
 	Prefix: "facebook",
+	Name:   "Facebook",
 	Validate: func(path string) bool {
 		// we don't validate facebook refs since they come from the outside
 		if strings.HasPrefix(path, FacebookRefPrefix) {
@@ -89,30 +94,36 @@ var Facebook = &Scheme{
 
 var Firebase = &Scheme{
 	Prefix: "fcm",
+	Name:   "Firebase",
 }
 
 var FreshChat = &Scheme{
 	Prefix:   "freshchat",
+	Name:     "FreshChat",
 	Validate: func(path string) bool { return freshchatRegex.MatchString(path) },
 }
 
 var Instagram = &Scheme{
 	Prefix:   "instagram",
+	Name:     "Instagram",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var JioChat = &Scheme{
 	Prefix:   "jiochat",
+	Name:     "JioChat",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var Line = &Scheme{
 	Prefix:   "line",
+	Name:     "LINE",
 	Validate: func(path string) bool { return lineRegex.MatchString(path) },
 }
 
 var Phone = &Scheme{
 	Prefix: "tel",
+	Name:   "Phone",
 	Normalize: func(path string) string {
 		// might have alpha characters in it
 		return strings.ToUpper(path)
@@ -129,19 +140,23 @@ var Phone = &Scheme{
 
 var RocketChat = &Scheme{
 	Prefix: "rocketchat",
+	Name:   "Rocket.Chat",
 }
 
 var Slack = &Scheme{
 	Prefix: "slack",
+	Name:   "Slack",
 }
 
 var Telegram = &Scheme{
 	Prefix:   "telegram",
+	Name:     "Telegram",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var Twitter = &Scheme{
 	Prefix: "twitter",
+	Name:   "Twitter Handle",
 	Normalize: func(path string) string {
 		// handles are case-insensitive, so we always store as lowercase
 		path = strings.ToLower(path)
@@ -154,28 +169,34 @@ var Twitter = &Scheme{
 
 var TwitterID = &Scheme{
 	Prefix:   "twitterid",
+	Name:     "Twitter",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var Viber = &Scheme{
 	Prefix:   "viber",
+	Name:     "Viber",
 	Validate: func(path string) bool { return viberRegex.MatchString(path) },
 }
 
 var VK = &Scheme{
 	Prefix: "vk",
+	Name:   "VK",
 }
 
 var WebChat = &Scheme{
 	Prefix:   "webchat",
+	Name:     "WebChat",
 	Validate: func(path string) bool { return webchatRegex.MatchString(path) },
 }
 
 var WeChat = &Scheme{
 	Prefix: "wechat",
+	Name:   "WeChat",
 }
 
 var WhatsApp = &Scheme{
 	Prefix:   "whatsapp",
+	Name:     "WhatsApp",
 	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }

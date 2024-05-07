@@ -14,7 +14,7 @@ func TestIsValidScheme(t *testing.T) {
 	assert.False(t, urns.IsValidScheme("xyz"))
 
 	assert.Len(t, urns.Schemes(), 20)
-	assert.Equal(t, "discord", urns.Schemes()[0])
+	assert.Equal(t, "Discord", urns.Schemes()[0].Name)
 }
 
 func TestURNProperties(t *testing.T) {
