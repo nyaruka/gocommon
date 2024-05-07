@@ -1,3 +1,7 @@
+v1.54.2 (2024-05-07)
+-------------------------
+ * Bring back auto adding of + to sufficiently long phone numbers when parsing URNs
+
 v1.54.1 (2024-05-07)
 -------------------------
  * Add names to schemes and make urns.Schemes() return full Scheme objects
