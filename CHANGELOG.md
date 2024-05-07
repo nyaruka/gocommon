@@ -1,3 +1,7 @@
+v1.54.3 (2024-05-07)
+-------------------------
+ * Tweak urns.NewFromParts so scheme is a string and export the urns.Schemes slice instead of exposing via function
+
 v1.54.2 (2024-05-07)
 -------------------------
  * Bring back auto adding of + to sufficiently long phone numbers when parsing URNs
