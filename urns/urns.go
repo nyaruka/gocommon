@@ -13,13 +13,13 @@ const (
 
 // IsValidScheme checks whether the provided scheme is valid
 func IsValidScheme(scheme string) bool {
-	_, valid := schemes[scheme]
+	_, valid := schemeByPrefix[scheme]
 	return valid
 }
 
 // Schemes returns the valid URN schemes
-func Schemes() []string {
-	return schemePrefixes
+func Schemes() []*Scheme {
+	return schemes
 }
 
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
@@ -77,7 +77,7 @@ func (u URN) ToParts() (string, string, string, string) {
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
 func (u URN) Normalize() URN {
 	scheme, path, query, display := u.ToParts()
-	s := schemes[scheme]
+	s := schemeByPrefix[scheme]
 
 	path = strings.TrimSpace(path)
 
@@ -104,7 +104,7 @@ func (u URN) Validate() error {
 		return fmt.Errorf("path component too long")
 	}
 
-	s := schemes[scheme]
+	s := schemeByPrefix[scheme]
 	if s.Validate != nil && !s.Validate(path) {
 		return fmt.Errorf("invalid path component")
 	}
@@ -164,7 +164,7 @@ func (u URN) Format() string {
 		return display
 	}
 
-	s := schemes[scheme]
+	s := schemeByPrefix[scheme]
 	if s != nil && s.Format != nil {
 		return s.Format(path)
 	}
