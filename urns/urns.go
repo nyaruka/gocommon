@@ -17,11 +17,6 @@ func IsValidScheme(scheme string) bool {
 	return valid
 }
 
-// Schemes returns the valid URN schemes
-func Schemes() []*Scheme {
-	return schemes
-}
-
 // URN represents a Universal Resource Name, we use this for contact identifiers like phone numbers etc..
 type URN string
 
@@ -40,8 +35,8 @@ func newFromParts(scheme, path, query, display string) URN {
 }
 
 // NewFromParts returns a validated URN for the given scheme, path, query and display
-func NewFromParts(scheme *Scheme, path, query, display string) (URN, error) {
-	urn := newFromParts(scheme.Prefix, path, query, display)
+func NewFromParts(scheme, path, query, display string) (URN, error) {
+	urn := newFromParts(scheme, path, query, display)
 
 	if err := urn.Validate(); err != nil {
 		return NilURN, err
@@ -51,7 +46,7 @@ func NewFromParts(scheme *Scheme, path, query, display string) (URN, error) {
 
 // New returns a validated URN for the given scheme and path
 func New(scheme *Scheme, path string) (URN, error) {
-	return NewFromParts(scheme, path, "", "")
+	return NewFromParts(scheme.Prefix, path, "", "")
 }
 
 // Parse parses a URN from the given string. The returned URN is only guaranteed to be structurally valid.
