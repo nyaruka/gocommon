@@ -1,9 +1,3 @@
-v2.0.0 (2024-05-07)
--------------------------
- * Update deps
- * Test with both go 1.21 and 1.22
- * Refactor urns package
-
 v1.53.2 (2024-03-28)
 -------------------------
  * assertdb assert methods should return bool
