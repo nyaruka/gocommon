@@ -34,10 +34,10 @@ func ParsePhone(raw string, country i18n.Country) (URN, error) {
 			return NilURN, errors.New("invalid country code")
 		}
 
-		return NewFromParts(Phone, raw, "", "")
+		return NewFromParts(Phone.Prefix, raw, "", "")
 	}
 
-	return NewFromParts(Phone, number, "", "")
+	return NewFromParts(Phone.Prefix, number, "", "")
 }
 
 // tries to extract a valid phone number or shortcode from the given string

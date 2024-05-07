@@ -46,13 +46,14 @@ func init() {
 }
 
 var schemeByPrefix = map[string]*Scheme{}
-var schemes = []*Scheme{}
+var Schemes = []*Scheme{}
 
 func register(s *Scheme) {
 	schemeByPrefix[s.Prefix] = s
-	schemes = append(schemes, s)
+	Schemes = append(Schemes, s)
 }
 
+// Scheme represents a URN scheme, e.g. tel, email, etc.
 type Scheme struct {
 	Prefix    string
 	Name      string

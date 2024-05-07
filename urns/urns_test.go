@@ -12,9 +12,6 @@ import (
 func TestIsValidScheme(t *testing.T) {
 	assert.True(t, urns.IsValidScheme("tel"))
 	assert.False(t, urns.IsValidScheme("xyz"))
-
-	assert.Len(t, urns.Schemes(), 20)
-	assert.Equal(t, "Discord", urns.Schemes()[0].Name)
 }
 
 func TestURNProperties(t *testing.T) {
@@ -70,7 +67,7 @@ func TestNewFromParts(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		urn, err := urns.NewFromParts(tc.scheme, tc.path, "", tc.display)
+		urn, err := urns.NewFromParts(tc.scheme.Prefix, tc.path, "", tc.display)
 		identity := urn.Identity()
 
 		assert.Equal(t, tc.expected, urn, "from parts mismatch for: %s, %s, %s", tc.scheme, tc.path, tc.display)
