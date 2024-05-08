@@ -11,6 +11,7 @@ import (
 )
 
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Za-z]`)
+var altShortCodeRegex = regexp.MustCompile(`^[1-9][0-9]{2,5}$`)
 
 // ParsePhone returns a validated phone URN or an error.
 func ParsePhone(raw string, country i18n.Country) (URN, error) {
@@ -46,8 +47,8 @@ func ParseNumber(raw string, country i18n.Country) (string, error) {
 }
 
 // tries to extract a valid phone number or shortcode from the given string
-func parsePhoneOrShortcode(raw string, country i18n.Country) (string, error) {
-	parsed, err := phonenumbers.Parse(raw, string(country))
+func parsePhoneOrShortcode(input string, country i18n.Country) (string, error) {
+	parsed, err := phonenumbers.Parse(input, string(country))
 	if err != nil {
 		return "", err
 	}
@@ -58,6 +59,12 @@ func parsePhoneOrShortcode(raw string, country i18n.Country) (string, error) {
 
 	if phonenumbers.IsPossibleShortNumberForRegion(parsed, string(country)) {
 		return phonenumbers.Format(parsed, phonenumbers.NATIONAL), nil
+	}
+
+	// it seems libphonenumber's metadata regarding shortcodes is lacking so we also accept any sequence of 3-6 digits
+	// that doesn't start with a zero as a shortcode
+	if altShortCodeRegex.MatchString(input) {
+		return input, nil
 	}
 
 	return "", errors.New("not a possible number or shortcode")

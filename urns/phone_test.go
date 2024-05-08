@@ -34,11 +34,15 @@ func TestParsePhone(t *testing.T) {
 		{"1234", "US", "tel:1234", ""},
 		{"12345", "US", "tel:12345", ""},
 		{"123", "RW", "tel:123", ""},
+		{"8080", "EC", "tel:8080", ""},
 
+		// inputs that fail parsing by libphonenumber
 		{"1", "RW", "", "the phone number supplied is not a number"},
-		{"1234", "RW", "", "not a possible number or shortcode"},     // RW short codes are 3 digits
-		{"567-1234", "US", "", "not a possible number or shortcode"}, // only dialable locally
 		{"mtn", "RW", "", "the phone number supplied is not a number"},
+
+		// inputa that fail checking for possible number or shortcode
+		{"99", "EC", "", "not a possible number or shortcode"},
+		{"567-1234", "US", "", "not a possible number or shortcode"}, // only dialable locally
 
 		{"0788383383", "ZZ", "", "invalid country code"}, // invalid country code
 		{"1234567890123456789012345678901234567890123456789012345678901234567890123456789", "RW", "", "the string supplied is too long to be a phone number"}, // too long
