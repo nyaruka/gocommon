@@ -1,3 +1,7 @@
+v1.54.4 (2024-05-08)
+-------------------------
+ * Make phone parsing stricter
+
 v1.54.3 (2024-05-07)
 -------------------------
  * Tweak urns.NewFromParts so scheme is a string and export the urns.Schemes slice instead of exposing via function
