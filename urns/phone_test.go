@@ -39,10 +39,11 @@ func TestParsePhone(t *testing.T) {
 		// inputs that fail parsing by libphonenumber
 		{"1", "RW", "", "the phone number supplied is not a number"},
 		{"mtn", "RW", "", "the phone number supplied is not a number"},
+		{"1234", "", "", "invalid country code"}, // can't parse short without country
 
 		// inputa that fail checking for possible number or shortcode
-		{"99", "EC", "", "not a possible number or shortcode"},
-		{"567-1234", "US", "", "not a possible number or shortcode"}, // only dialable locally
+		{"99", "EC", "", "not a possible number"},
+		{"567-1234", "US", "", "not a possible number"}, // only dialable locally
 
 		{"0788383383", "ZZ", "", "invalid country code"}, // invalid country code
 		{"1234567890123456789012345678901234567890123456789012345678901234567890123456789", "RW", "", "the string supplied is too long to be a phone number"}, // too long
@@ -54,20 +55,41 @@ func TestParsePhone(t *testing.T) {
 		if tc.expectedErr != "" {
 			if assert.EqualError(t, err, tc.expectedErr, "%d: expected error for %s, %s", i, tc.input, tc.country) {
 				assert.Equal(t, urns.NilURN, urn)
-
-				// check parsing as just a number rather than a phone URN
-				num, err := urns.ParseNumber(tc.input, tc.country)
-				assert.EqualError(t, err, tc.expectedErr)
-				assert.Equal(t, "", num)
 			}
 		} else {
 			if assert.NoError(t, err, "%d: unexpected error for %s, %s", i, tc.input, tc.country) {
 				assert.Equal(t, tc.expectedURN, urn, "%d: URN mismatch for %s, %s", i, tc.input, tc.country)
+			}
+		}
+	}
+}
 
-				// check parsing as just a number rather than a phone URN
-				num, err := urns.ParseNumber(tc.input, tc.country)
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedURN.Path(), num)
+func TestParseNumber(t *testing.T) {
+	testCases := []struct {
+		input       string
+		country     i18n.Country
+		allowShort  bool
+		expectedNum string
+		expectedErr string
+	}{
+		{"+250788123123", "", true, "+250788123123", ""},
+		{"+250788123123", "", false, "+250788123123", ""},
+		{"0788123123", "RW", true, "+250788123123", ""},
+		{"0788123123", "RW", false, "+250788123123", ""},
+		{"123", "RW", true, "123", ""},
+		{"123", "RW", false, "", "not a possible number"},
+	}
+
+	for i, tc := range testCases {
+		num, err := urns.ParseNumber(tc.input, tc.country, tc.allowShort)
+
+		if tc.expectedErr != "" {
+			if assert.EqualError(t, err, tc.expectedErr, "%d: expected error for %s, %s", i, tc.input, tc.country) {
+				assert.Equal(t, "", num)
+			}
+		} else {
+			if assert.NoError(t, err, "%d: unexpected error for %s, %s", i, tc.input, tc.country) {
+				assert.Equal(t, tc.expectedNum, num, "%d: URN mismatch for %s, %s", i, tc.input, tc.country)
 			}
 		}
 	}
