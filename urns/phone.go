@@ -12,10 +12,19 @@ import (
 
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Za-z]`)
 
-// ParsePhone returns a validated phone URN. If it can parse a possible number then that is used.. otherwise any value
-// that validates as a phone URN is used.
+// ParsePhone returns a validated phone URN or an error.
 func ParsePhone(raw string, country i18n.Country) (URN, error) {
-	// strip all non-tel characters.. only preserving an optional leading +
+	number, err := ParseNumber(raw, country)
+	if err != nil {
+		return "", err
+	}
+
+	return NewFromParts(Phone.Prefix, number, "", "")
+}
+
+// ParseNumber tries to extact a possible number or shortcode from the given string, returning an error if it can't.
+func ParseNumber(raw string, country i18n.Country) (string, error) {
+	// strip all non-alphanumeric characters.. only preserving an optional leading +
 	raw = strings.TrimSpace(raw)
 	hasPlus := strings.HasPrefix(raw, "+")
 	raw = nonTelCharsRegex.ReplaceAllString(raw, "")
@@ -23,21 +32,17 @@ func ParsePhone(raw string, country i18n.Country) (URN, error) {
 		raw = "+" + raw
 	}
 
-	// if we're sufficienly long and don't start with a 0 then add a +
+	// if we're sufficiently long and don't start with a 0 then add a +
 	if len(raw) >= 11 && !strings.HasPrefix(raw, "0") {
 		raw = "+" + raw
 	}
 
 	number, err := parsePhoneOrShortcode(raw, country)
 	if err != nil {
-		if err == phonenumbers.ErrInvalidCountryCode {
-			return NilURN, errors.New("invalid country code")
-		}
-
-		return NewFromParts(Phone.Prefix, raw, "", "")
+		return "", err
 	}
 
-	return NewFromParts(Phone.Prefix, number, "", "")
+	return number, nil
 }
 
 // tries to extract a valid phone number or shortcode from the given string
@@ -55,7 +60,7 @@ func parsePhoneOrShortcode(raw string, country i18n.Country) (string, error) {
 		return phonenumbers.Format(parsed, phonenumbers.NATIONAL), nil
 	}
 
-	return "", errors.New("unable to parse phone number or shortcode")
+	return "", errors.New("not a possible number or shortcode")
 }
 
 // ToLocalPhone converts a phone URN to a local phone number.. without any leading zeros. Kinda weird but used by
