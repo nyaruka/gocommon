@@ -3,7 +3,7 @@ module github.com/nyaruka/gocommon
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.52.3
+	github.com/aws/aws-sdk-go v1.52.4
 	github.com/gabriel-vasile/mimetype v1.4.3
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-playground/validator/v10 v10.20.0
@@ -14,7 +14,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v2 v2.0.3
-	github.com/nyaruka/phonenumbers v1.3.4
+	github.com/nyaruka/phonenumbers v1.3.5
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.9.0
