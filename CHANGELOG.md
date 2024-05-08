@@ -1,3 +1,8 @@
+v1.54.5 (2024-05-08)
+-------------------------
+ * Phone URN normalization should re-parse
+ * Add arg to urns.ParseNumber to determine if it allows short codes
+
 v1.54.4 (2024-05-08)
 -------------------------
  * Make phone parsing stricter
