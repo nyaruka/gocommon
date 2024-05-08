@@ -33,14 +33,17 @@ func ParseNumber(raw string, country i18n.Country, allowShort bool) (string, err
 		raw = "+" + raw
 	}
 
-	// if we're sufficiently long and don't start with a 0 then add a +
-	if len(raw) >= 11 && !strings.HasPrefix(raw, "0") {
-		raw = "+" + raw
-	}
-
 	number, err := parsePossibleNumber(raw, country, allowShort)
 	if err != nil {
-		return "", err
+		// if we're sufficiently long and don't start with a 0 then add a +
+		if len(raw) >= 11 && !strings.HasPrefix(raw, "0") {
+			raw = "+" + raw
+		}
+
+		number, err = parsePossibleNumber(raw, country, allowShort)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return number, nil
