@@ -1,3 +1,7 @@
+v1.54.6 (2024-05-08)
+-------------------------
+ * Tweak urns.ParseNumber so addition of a + is a fallback
+
 v1.54.5 (2024-05-08)
 -------------------------
  * Phone URN normalization should re-parse
