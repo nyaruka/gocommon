@@ -91,14 +91,16 @@ func TestNormalize(t *testing.T) {
 		rawURN   urns.URN
 		expected urns.URN
 	}{
-		// valid tel numbers left as they are
+		// tel numbers re-parsed
 		{"tel:+250788383383", "tel:+250788383383"},
+		{"tel:250788383383", "tel:+250788383383"}, // + added
+		{"tel:1(800)CABBAGE", "tel:+18002222243"},
 		{"tel:+62877747666", "tel:+62877747666"},
 		{"tel:+2203693333", "tel:+2203693333"},
 
-		// non-standard phone numbers
-		{"tel:12345", "tel:12345"},
-		{"tel:mtn", "tel:MTN"},
+		// or left as they are if not valid
+		{"tel:000", "tel:000"},
+		{"tel:mtn", "tel:mtn"},
 		{"tel:+12345678901234567890", "tel:+12345678901234567890"},
 
 		// twitter handles remove @

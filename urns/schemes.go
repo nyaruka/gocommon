@@ -126,8 +126,12 @@ var Phone = &Scheme{
 	Prefix: "tel",
 	Name:   "Phone",
 	Normalize: func(path string) string {
-		// might have alpha characters in it
-		return strings.ToUpper(path)
+		// try to parse again
+		norm, err := ParseNumber(path, "", true)
+		if err != nil {
+			return path
+		}
+		return norm
 	},
 	Validate: func(path string) bool { return phoneRegex.MatchString(path) },
 	Format: func(path string) string {
