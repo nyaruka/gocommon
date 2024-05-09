@@ -36,7 +36,12 @@ func newFromParts(scheme, path, query, display string) URN {
 
 // NewFromParts returns a validated URN for the given scheme, path, query and display
 func NewFromParts(scheme, path, query, display string) (URN, error) {
-	urn := newFromParts(scheme, path, query, display)
+	urn := newFromParts(
+		strings.TrimSpace(scheme),
+		strings.TrimSpace(path),
+		strings.TrimSpace(query),
+		strings.TrimSpace(display),
+	)
 
 	if err := urn.Validate(); err != nil {
 		return NilURN, err
