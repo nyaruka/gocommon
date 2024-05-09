@@ -170,14 +170,17 @@ func TestValidate(t *testing.T) {
 		// valid tel numbers
 		{"tel:+250788383383", ""},
 		{"tel:+250788383383", ""},
-		{"tel:+250123", ""},
+		{"tel:250123", ""},
 		{"tel:1337", ""},
-		{"tel:1", ""}, // one digit shortcodes are a thing
+		{"tel:1", ""},
+		{"tel:prizes", ""},
 
 		// invalid tel numbers
 		{"tel:", "cannot be empty"},                   // need a path
 		{"tel:07883 83383", "invalid path component"}, // can't have spaces
-		{"tel:PRIZES", "invalid path component"},      // vanity numbers should be parsed into real digits
+		{"tel:PRIZES", "invalid path component"},      // we allow letters but we always lowercase
+		{"tel:+123", "invalid path component"},        // too short to have a +
+		{"tel:+prizes", "invalid path component"},     // sender ids don't have +
 
 		// twitter handles
 		{"twitter:jimmyjo", ""},
