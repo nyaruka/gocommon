@@ -34,14 +34,16 @@ func newFromParts(scheme, path, query, display string) URN {
 	return URN(u.String())
 }
 
-// NewFromParts returns a validated URN for the given scheme, path, query and display
-func NewFromParts(scheme, path, query, display string) (URN, error) {
-	urn := newFromParts(
-		strings.TrimSpace(scheme),
-		strings.TrimSpace(path),
-		strings.TrimSpace(query),
-		strings.TrimSpace(display),
-	)
+// NewFromParts returns a normalized and validated URN for the given scheme, path, query and display
+func NewFromParts(scheme, path string, query url.Values, display string) (URN, error) {
+	var queryStr string
+	if query != nil {
+		queryStr = query.Encode()
+	}
+
+	urn := newFromParts(scheme, path, queryStr, display)
+
+	urn = urn.Normalize()
 
 	if err := urn.Validate(); err != nil {
 		return NilURN, err
@@ -51,7 +53,7 @@ func NewFromParts(scheme, path, query, display string) (URN, error) {
 
 // New returns a validated URN for the given scheme and path
 func New(scheme *Scheme, path string) (URN, error) {
-	return NewFromParts(scheme.Prefix, path, "", "")
+	return NewFromParts(scheme.Prefix, path, nil, "")
 }
 
 // Parse parses a URN from the given string. The returned URN is only guaranteed to be structurally valid.
@@ -80,6 +82,7 @@ func (u URN) Normalize() URN {
 	s := schemeByPrefix[scheme]
 
 	path = strings.TrimSpace(path)
+	display = strings.TrimSpace(display)
 
 	if s != nil && s.Normalize != nil {
 		path = s.Normalize(path)

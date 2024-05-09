@@ -20,7 +20,7 @@ func ParsePhone(raw string, country i18n.Country) (URN, error) {
 		return "", err
 	}
 
-	return NewFromParts(Phone.Prefix, number, "", "")
+	return NewFromParts(Phone.Prefix, number, nil, "")
 }
 
 // ParseNumber tries to extact a possible number or shortcode from the given string, returning an error if it can't.

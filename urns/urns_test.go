@@ -50,25 +50,30 @@ func TestNewFromParts(t *testing.T) {
 	testCases := []struct {
 		scheme   *urns.Scheme
 		path     string
+		query    url.Values
 		display  string
 		expected urns.URN
 		identity urns.URN
 		hasError bool
 	}{
-		{urns.External, " 87654 \t\n", "", "ext:87654", "ext:87654", false},
-		{urns.Phone, "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
-		{urns.Twitter, "hello", "", "twitter:hello", "twitter:hello", false},
-		{urns.Facebook, "12345", "", "facebook:12345", "facebook:12345", false},
-		{urns.Instagram, "12345", "", "instagram:12345", "instagram:12345", false},
-		{urns.Telegram, "12345", "Jane", "telegram:12345#Jane", "telegram:12345", false},
-		{urns.WhatsApp, "12345", "", "whatsapp:12345", "whatsapp:12345", false},
-		{urns.Viber, "", "", urns.NilURN, ":", true},
-		{urns.Discord, "732326982863421591", "", "discord:732326982863421591", "discord:732326982863421591", false},
-		{urns.WebChat, "123456789012345678901234", "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
+		{urns.External, " Aa123 \t\n", nil, "", "ext:Aa123", "ext:Aa123", false}, // whitespace trimmed
+		{urns.External, "12345", url.Values{"id": []string{"2"}}, "cool", "ext:12345?id=2#cool", "ext:12345", false},
+		{urns.Email, "BoB@NYARUKA.com", nil, "", "mailto:bob@nyaruka.com", "mailto:bob@nyaruka.com", false}, // emails lowercased
+		{urns.Phone, "+250788383383", nil, "", "tel:+250788383383", "tel:+250788383383", false},
+		{urns.Twitter, "1234", nil, "bob", "twitter:1234#bob", "twitter:1234", false},
+		{urns.Facebook, "12345", nil, "", "facebook:12345", "facebook:12345", false},
+		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
+		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
+		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
+		{urns.Discord, "732326982863421591", nil, "", "discord:732326982863421591", "discord:732326982863421591", false},
+		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
+		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
+
+		{urns.Viber, "", nil, "", urns.NilURN, ":", true},
 	}
 
 	for _, tc := range testCases {
-		urn, err := urns.NewFromParts(tc.scheme.Prefix, tc.path, "", tc.display)
+		urn, err := urns.NewFromParts(tc.scheme.Prefix, tc.path, tc.query, tc.display)
 		identity := urn.Identity()
 
 		assert.Equal(t, tc.expected, urn, "from parts mismatch for: %s, %s, %s", tc.scheme, tc.path, tc.display)
