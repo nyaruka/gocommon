@@ -1,3 +1,7 @@
+v1.54.7 (2024-05-09)
+-------------------------
+ * Always trim whitespace on all parts of new URNs
+
 v1.54.6 (2024-05-08)
 -------------------------
  * Tweak urns.ParseNumber so addition of a + is a fallback
