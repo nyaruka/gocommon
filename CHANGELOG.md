@@ -1,3 +1,7 @@
+v1.54.9 (2024-05-09)
+-------------------------
+ * Allow sender id phone URNs
+
 v1.54.8 (2024-05-09)
 -------------------------
  * Ensure that new URNs are normalized and change signaure of urns.NewFromParts to take url.Values
