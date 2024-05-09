@@ -123,6 +123,10 @@ func TestNormalize(t *testing.T) {
 	for _, tc := range testCases {
 		normalized := tc.rawURN.Normalize()
 		assert.Equal(t, tc.expected, normalized, "normalize mismatch for '%s'", tc.rawURN)
+
+		// check we're idempotent
+		normalized = normalized.Normalize()
+		assert.Equal(t, tc.expected, normalized, "re-normalize mismatch for '%s'", tc.rawURN)
 	}
 }
 
