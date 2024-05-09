@@ -55,6 +55,7 @@ func TestNewFromParts(t *testing.T) {
 		identity urns.URN
 		hasError bool
 	}{
+		{urns.External, " 87654 \t\n", "", "ext:87654", "ext:87654", false},
 		{urns.Phone, "+250788383383", "", "tel:+250788383383", "tel:+250788383383", false},
 		{urns.Twitter, "hello", "", "twitter:hello", "twitter:hello", false},
 		{urns.Facebook, "12345", "", "facebook:12345", "facebook:12345", false},
