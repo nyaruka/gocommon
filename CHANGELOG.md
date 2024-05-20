@@ -1,3 +1,7 @@
+v1.55.0 (2024-05-20)
+-------------------------
+ * Move elastic utils from goflow
+
 v1.54.9 (2024-05-09)
 -------------------------
  * Allow sender id phone URNs
