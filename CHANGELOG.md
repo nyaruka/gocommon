@@ -1,3 +1,7 @@
+v1.55.1 (2024-05-20)
+-------------------------
+ * Use std library for errors
+
 v1.55.0 (2024-05-20)
 -------------------------
  * Move elastic utils from goflow
