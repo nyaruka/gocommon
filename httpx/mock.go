@@ -3,13 +3,13 @@ package httpx
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/nyaruka/gocommon/stringsx"
-	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 )
 

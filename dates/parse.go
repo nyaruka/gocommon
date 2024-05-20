@@ -1,9 +1,8 @@
 package dates
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // ZeroDateTime is our uninitialized datetime value
@@ -67,7 +66,7 @@ func parseError(err error) error {
 			}
 		}
 
-		return errors.Errorf("cannot parse '%s' as '%s'", typed.ValueElem, origLayoutSeq)
+		return fmt.Errorf("cannot parse '%s' as '%s'", typed.ValueElem, origLayoutSeq)
 	default:
 		return err
 	}

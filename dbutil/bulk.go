@@ -2,10 +2,11 @@ package dbutil
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 // BulkQueryer is the DB/TX functionality needed for these bulk operations
@@ -32,13 +33,13 @@ func BulkSQL[T any](db BulkQueryer, sql string, structs []T) (string, []any, err
 	for i, value := range structs {
 		valueSQL, valueArgs, err := sqlx.Named(sql, value)
 		if err != nil {
-			return "", nil, errors.Wrapf(err, "error converting bulk insert args")
+			return "", nil, fmt.Errorf("error converting bulk insert args: %w", err)
 		}
 
 		args = append(args, valueArgs...)
 		argValues := extractValues(valueSQL)
 		if argValues == "" {
-			return "", nil, errors.Errorf("error extracting VALUES from sql: %s", valueSQL)
+			return "", nil, fmt.Errorf("error extracting VALUES from sql: %s", valueSQL)
 		}
 
 		// append to our global values, adding comma if necessary
@@ -50,7 +51,7 @@ func BulkSQL[T any](db BulkQueryer, sql string, structs []T) (string, []any, err
 
 	valuesSQL := extractValues(sql)
 	if valuesSQL == "" {
-		return "", nil, errors.Errorf("error extracting VALUES from sql: %s", sql)
+		return "", nil, fmt.Errorf("error extracting VALUES from sql: %s", sql)
 	}
 
 	return db.Rebind(strings.Replace(sql, valuesSQL, values.String(), -1)), args, nil

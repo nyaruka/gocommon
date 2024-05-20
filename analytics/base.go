@@ -1,6 +1,6 @@
 package analytics
 
-import "github.com/pkg/errors"
+import "fmt"
 
 // Backend is the interface for backends
 type Backend interface {
@@ -21,7 +21,7 @@ func RegisterBackend(b Backend) {
 func Start() error {
 	for _, b := range backends {
 		if err := b.Start(); err != nil {
-			return errors.Wrapf(err, "error starting %s analytics backend", b.Name())
+			return fmt.Errorf("error starting %s analytics backend: %w", b.Name(), err)
 		}
 	}
 	return nil
@@ -38,7 +38,7 @@ func Gauge(name string, value float64) {
 func Stop() error {
 	for _, b := range backends {
 		if err := b.Stop(); err != nil {
-			return errors.Wrapf(err, "error stopping %s analytics backend", b.Name())
+			return fmt.Errorf("error stopping %s analytics backend: %w", b.Name(), err)
 		}
 	}
 	return nil

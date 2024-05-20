@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/pkg/errors"
 )
 
 var s3BucketURL = "https://%s.s3.%s.amazonaws.com/%s"
@@ -88,12 +87,12 @@ func (s *s3Storage) Get(ctx context.Context, path string) (string, []byte, error
 		Key:    aws.String(path),
 	})
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "error getting S3 object")
+		return "", nil, fmt.Errorf("error getting S3 object: %w", err)
 	}
 
 	body, err := io.ReadAll(out.Body)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "error reading S3 object")
+		return "", nil, fmt.Errorf("error reading S3 object: %w", err)
 	}
 
 	return aws.StringValue(out.ContentType), body, nil
@@ -109,7 +108,7 @@ func (s *s3Storage) Put(ctx context.Context, path string, contentType string, bo
 		ACL:         aws.String(s.acl),
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "error putting S3 object")
+		return "", fmt.Errorf("error putting S3 object: %w", err)
 	}
 
 	return s.url(path), nil

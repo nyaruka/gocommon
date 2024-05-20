@@ -1,12 +1,12 @@
 package httpx
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -63,13 +63,13 @@ func ParseNetworks(addrs ...string) ([]net.IP, []*net.IPNet, error) {
 		if strings.Contains(addr, "/") {
 			_, ipNet, err := net.ParseCIDR(addr)
 			if err != nil {
-				return nil, nil, errors.Errorf("couldn't parse '%s' as an IP network", addr)
+				return nil, nil, fmt.Errorf("couldn't parse '%s' as an IP network", addr)
 			}
 			ipNets = append(ipNets, ipNet)
 		} else {
 			ip := net.ParseIP(addr)
 			if ip == nil {
-				return nil, nil, errors.Errorf("couldn't parse '%s' as an IP address", addr)
+				return nil, nil, fmt.Errorf("couldn't parse '%s' as an IP address", addr)
 			}
 			ips = append(ips, ip)
 		}
