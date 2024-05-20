@@ -3,6 +3,7 @@ package httpx
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/nyaruka/gocommon/dates"
-	"github.com/pkg/errors"
 )
 
 // ErrResponseSize is returned when response size exceeds provided limit

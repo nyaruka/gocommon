@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nyaruka/gocommon/dates"
-	"github.com/pkg/errors"
 )
 
 // Recorder is a utility for creating traces of HTTP requests being handled
@@ -31,7 +30,7 @@ func NewRecorder(r *http.Request, w http.ResponseWriter, reconstruct bool) (*Rec
 
 	requestTrace, err := httputil.DumpRequest(or, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "error dumping request")
+		return nil, fmt.Errorf("error dumping request: %w", err)
 	}
 
 	// if we cloned the request above, DumpRequest will have drained the body and saved a copy on the reconstructed
@@ -66,7 +65,7 @@ func (r *Recorder) End() error {
 	// and parse as response object
 	response, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(responseTrace.Bytes())), r.Trace.Request)
 	if err != nil {
-		return errors.Wrap(err, "error reading response trace")
+		return fmt.Errorf("error reading response trace: %w", err)
 	}
 
 	r.Trace.Response = response

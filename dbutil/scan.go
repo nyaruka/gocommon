@@ -3,9 +3,9 @@ package dbutil
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/pkg/errors"
 )
 
 var validate = validator.New()
@@ -15,12 +15,12 @@ func ScanJSON(rows *sql.Rows, destination any) error {
 	var raw json.RawMessage
 	err := rows.Scan(&raw)
 	if err != nil {
-		return errors.Wrap(err, "error scanning row JSON")
+		return fmt.Errorf("error scanning row JSON: %w", err)
 	}
 
 	err = json.Unmarshal(raw, destination)
 	if err != nil {
-		return errors.Wrap(err, "error unmarshalling row JSON")
+		return fmt.Errorf("error unmarshalling row JSON: %w", err)
 	}
 
 	return nil
@@ -34,7 +34,7 @@ func ScanAndValidateJSON(rows *sql.Rows, destination any) error {
 
 	err := validate.Struct(destination)
 	if err != nil {
-		return errors.Wrapf(err, "error validating unmarsalled JSON")
+		return fmt.Errorf("error validating unmarsalled JSON: %w", err)
 	}
 
 	return nil

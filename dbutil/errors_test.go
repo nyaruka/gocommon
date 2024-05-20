@@ -1,13 +1,12 @@
 package dbutil_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dbutil"
-
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +14,7 @@ func TestIsUniqueViolation(t *testing.T) {
 	var err error = &pq.Error{Code: pq.ErrorCode("23505")}
 
 	assert.True(t, dbutil.IsUniqueViolation(err))
-	assert.True(t, dbutil.IsUniqueViolation(errors.Wrap(err, "wrapped")))
+	assert.True(t, dbutil.IsUniqueViolation(fmt.Errorf("wrapped: %w", err)))
 	assert.False(t, dbutil.IsUniqueViolation(errors.New("boom")))
 }
 
@@ -39,12 +38,12 @@ func TestQueryError(t *testing.T) {
 	assert.Equal(t, err, pqerr)
 
 	// can unwrap a wrapped error to find the first query error
-	wrapped := errors.Wrap(errors.Wrap(qerr, "error doing this"), "error doing that")
+	wrapped := fmt.Errorf("error doing that: %w", fmt.Errorf("error doing this: %w", qerr))
 	unwrapped := dbutil.AsQueryError(wrapped)
 	assert.Equal(t, qerr, unwrapped)
 
 	// nil if error was never a query error
-	wrapped = errors.Wrap(errors.New("error doing this"), "error doing that")
+	wrapped = fmt.Errorf("error doing that: %w", errors.New("error doing this"))
 	assert.Nil(t, dbutil.AsQueryError(wrapped))
 
 	query, params := unwrapped.Query()

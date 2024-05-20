@@ -15,7 +15,6 @@ require (
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v2 v2.0.3
 	github.com/nyaruka/phonenumbers v1.3.5
-	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842

@@ -1,13 +1,13 @@
 package urns
 
 import (
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/nyaruka/gocommon/i18n"
 	"github.com/nyaruka/phonenumbers"
-	"github.com/pkg/errors"
 )
 
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Za-z]`)

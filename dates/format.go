@@ -2,11 +2,11 @@ package dates
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/nyaruka/gocommon/i18n"
-	"github.com/pkg/errors"
 )
 
 // Custom date/time formatting using layout strings like YYYY-MM-DD
@@ -236,7 +236,7 @@ func visitLayout(layout string, type_ LayoutType, mode LayoutMode, callback func
 			if exists && type_.Includes(layoutSeq.seqType) && (mode != ParsingMode || layoutSeq.parseable) {
 				mapped = layoutSeq.mapped
 			} else {
-				return errors.Errorf("'%s' is not valid in a %s %s layout", seq, type_, mode)
+				return fmt.Errorf("'%s' is not valid in a %s %s layout", seq, type_, mode)
 			}
 		}
 
