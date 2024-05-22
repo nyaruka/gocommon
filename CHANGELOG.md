@@ -1,3 +1,7 @@
+v1.55.2 (2024-05-22)
+-------------------------
+ * Update elastic query DSL syntax
+
 v1.55.1 (2024-05-20)
 -------------------------
  * Use std library for errors
