@@ -9,7 +9,7 @@ func Ids(values ...string) Query {
 
 // Term is a shortcut for a term query
 func Term(field string, value any) Query {
-	return Query{"term": map[string]any{field: value}}
+	return Query{"term": map[string]any{field: map[string]any{"value": value}}}
 }
 
 // Exists is a shortcut for an exists query
@@ -32,10 +32,7 @@ func GreaterThan(field string, value any) Query {
 	return Query{
 		"range": map[string]any{
 			field: map[string]any{
-				"from":          value,
-				"include_lower": false,
-				"include_upper": true,
-				"to":            nil,
+				"gt": value,
 			},
 		},
 	}
@@ -46,10 +43,7 @@ func GreaterThanOrEqual(field string, value any) Query {
 	return Query{
 		"range": map[string]any{
 			field: map[string]any{
-				"from":          value,
-				"include_lower": true,
-				"include_upper": true,
-				"to":            nil,
+				"gte": value,
 			},
 		},
 	}
@@ -60,10 +54,7 @@ func LessThan(field string, value any) Query {
 	return Query{
 		"range": map[string]any{
 			field: map[string]any{
-				"from":          nil,
-				"include_lower": true,
-				"include_upper": false,
-				"to":            value,
+				"lt": value,
 			},
 		},
 	}
@@ -74,10 +65,7 @@ func LessThanOrEqual(field string, value any) Query {
 	return Query{
 		"range": map[string]any{
 			field: map[string]any{
-				"from":          nil,
-				"include_lower": true,
-				"include_upper": true,
-				"to":            value,
+				"lte": value,
 			},
 		},
 	}
@@ -88,10 +76,8 @@ func Between(field string, from, to any) Query {
 	return Query{
 		"range": map[string]any{
 			field: map[string]any{
-				"from":          from,
-				"include_lower": true,
-				"include_upper": false,
-				"to":            to,
+				"gte": from,
+				"lt":  to,
 			},
 		},
 	}
