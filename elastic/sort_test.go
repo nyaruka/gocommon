@@ -17,7 +17,7 @@ func TestSort(t *testing.T) {
 		{elastic.SortBy("name", false), []byte(`{"name": {"order": "desc"}}`)},
 		{
 			elastic.SortNested("age", elastic.Term("fields.field", "1234"), "fields", true),
-			[]byte(`{"age": {"nested": {"filter": {"term": {"fields.field": "1234"}}, "path": "fields"}, "order":"asc"}}`),
+			[]byte(`{"age": {"nested": {"filter": {"term": {"fields.field": {"value":"1234"}}}, "path": "fields"}, "order":"asc"}}`),
 		},
 	}
 
