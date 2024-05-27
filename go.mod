@@ -3,8 +3,8 @@ module github.com/nyaruka/gocommon
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.52.4
-	github.com/gabriel-vasile/mimetype v1.4.3
+	github.com/aws/aws-sdk-go v1.53.10
+	github.com/gabriel-vasile/mimetype v1.4.4
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -14,10 +14,10 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v2 v2.0.3
-	github.com/nyaruka/phonenumbers v1.3.5
+	github.com/nyaruka/phonenumbers v1.3.6
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/exp v0.0.0-20240525044651-4c93da0ed11d
 	golang.org/x/net v0.25.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/text v0.15.0
