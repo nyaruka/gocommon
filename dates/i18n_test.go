@@ -23,7 +23,7 @@ func TestGetTranslation(t *testing.T) {
 		{"eng-GB", "Sun", "Sunday", "Jan", "January", "am"},
 		{"eng", "Sun", "Sunday", "Jan", "January", "AM"},
 		{"spa-EC", "dom", "domingo", "ene", "enero", "AM"},
-		{"spa", "dom", "domingo", "ene", "enero", "AM"},
+		{"spa", "dom", "domingo", `ene`, "enero", `a. m.`},
 		{"por-BR", "dom", "domingo", "jan", "janeiro", "AM"},
 		{"por-PT", "dom", "domingo", "jan", "janeiro", "AM"},
 		{"por", "dom", "domingo", "jan", "janeiro", "AM"},
