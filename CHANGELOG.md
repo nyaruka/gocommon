@@ -1,3 +1,7 @@
+v1.55.7 (2024-07-03)
+-------------------------
+ * Tweak dbutil.ScanJSON to work with sql.Row as well as sql.Rows
+
 v1.55.6 (2024-07-01)
 -------------------------
  * Update deps
