@@ -57,12 +57,12 @@ func marshal(v any, indent string) ([]byte, error) {
 }
 
 // Unmarshal is just a shortcut for json.Unmarshal so all calls can be made via the jsonx package
-func Unmarshal(data json.RawMessage, v any) error {
+func Unmarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
 // UnmarshalArray unmarshals an array of objects from the given JSON
-func UnmarshalArray(data json.RawMessage) ([]json.RawMessage, error) {
+func UnmarshalArray(data []byte) ([]json.RawMessage, error) {
 	var items []json.RawMessage
 	err := Unmarshal(data, &items)
 	return items, err
@@ -81,7 +81,7 @@ func UnmarshalWithLimit(reader io.ReadCloser, s any, limit int64) error {
 }
 
 // MustUnmarshal unmarshals the given JSON, panicking on an error
-func MustUnmarshal(data json.RawMessage, v any) {
+func MustUnmarshal(data []byte, v any) {
 	if err := json.Unmarshal(data, v); err != nil {
 		panic(err)
 	}
