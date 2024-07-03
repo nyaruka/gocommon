@@ -10,16 +10,20 @@ import (
 
 var validate = validator.New()
 
+// Scanable is an interface to allow scanning of sql.Row or sql.Rows
+type Scannable interface {
+	Scan(dest ...any) error
+}
+
 // ScanJSON scans a row which is JSON into a destination struct
-func ScanJSON(rows *sql.Rows, destination any) error {
+func ScanJSON(src Scannable, dest any) error {
 	var raw json.RawMessage
-	err := rows.Scan(&raw)
-	if err != nil {
+
+	if err := src.Scan(&raw); err != nil {
 		return fmt.Errorf("error scanning row JSON: %w", err)
 	}
 
-	err = json.Unmarshal(raw, destination)
-	if err != nil {
+	if err := json.Unmarshal(raw, dest); err != nil {
 		return fmt.Errorf("error unmarshalling row JSON: %w", err)
 	}
 
@@ -27,12 +31,12 @@ func ScanJSON(rows *sql.Rows, destination any) error {
 }
 
 // ScanAndValidateJSON scans a row which is JSON into a destination struct and validates it
-func ScanAndValidateJSON(rows *sql.Rows, destination any) error {
-	if err := ScanJSON(rows, destination); err != nil {
+func ScanAndValidateJSON(src Scannable, dest any) error {
+	if err := ScanJSON(src, dest); err != nil {
 		return err
 	}
 
-	err := validate.Struct(destination)
+	err := validate.Struct(dest)
 	if err != nil {
 		return fmt.Errorf("error validating unmarsalled JSON: %w", err)
 	}
