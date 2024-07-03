@@ -96,6 +96,12 @@ func TestScanJSON(t *testing.T) {
 
 	rows.Close()
 
+	// can also scan as a single row
+	row := db.QueryRowContext(ctx, `SELECT ROW_TO_JSON(r) FROM (SELECT f.uuid, f.name, f.age FROM foo f WHERE id = 3) r`)
+	err = dbutil.ScanJSON(row, f)
+	assert.NoError(t, err)
+	assert.Equal(t, "a5850c89-dd29-46f6-9de1-d068b3c2db94", f.UUID)
+
 	// can all scan all rows with ScanAllJSON
 	rows = queryRows(`SELECT ROW_TO_JSON(r) FROM (SELECT f.uuid, f.name, f.age FROM foo f) r`)
 
