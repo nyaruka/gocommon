@@ -1,3 +1,8 @@
+v1.55.8 (2024-07-15)
+-------------------------
+ * Update deps
+ * Fix misuses of json.RawMessage
+
 v1.55.7 (2024-07-03)
 -------------------------
  * Tweak dbutil.ScanJSON to work with sql.Row as well as sql.Rows
