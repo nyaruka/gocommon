@@ -1,3 +1,7 @@
+v1.56.1 (2024-07-26)
+-------------------------
+ * Tweak s3x.Service to make it easier to support minio
+
 v1.56.0 (2024-07-26)
 -------------------------
  * Add new s3x package to replace storage
