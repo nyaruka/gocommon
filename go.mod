@@ -1,10 +1,10 @@
 module github.com/nyaruka/gocommon
 
-go 1.21
+go 1.22
 
 require (
-	github.com/aws/aws-sdk-go v1.54.19
-	github.com/gabriel-vasile/mimetype v1.4.4
+	github.com/aws/aws-sdk-go v1.55.3
+	github.com/gabriel-vasile/mimetype v1.4.5
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -17,7 +17,7 @@ require (
 	github.com/nyaruka/phonenumbers v1.4.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20240707233637-46b078467d37
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/net v0.27.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/text v0.16.0
