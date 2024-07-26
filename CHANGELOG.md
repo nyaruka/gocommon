@@ -1,3 +1,7 @@
+v1.56.2 (2024-07-26)
+-------------------------
+ * Fix s3x URL generation to not mangle slashes
+
 v1.56.1 (2024-07-26)
 -------------------------
  * Tweak s3x.Service to make it easier to support minio
