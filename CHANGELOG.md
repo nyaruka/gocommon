@@ -1,3 +1,8 @@
+v1.56.0 (2024-07-26)
+-------------------------
+ * Add new s3x package to replace storage
+ * Update go to 1.22
+
 v1.55.8 (2024-07-15)
 -------------------------
  * Update deps
