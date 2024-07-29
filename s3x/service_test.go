@@ -34,9 +34,40 @@ func TestService(t *testing.T) {
 	assert.Equal(t, "text/plain", contentType)
 	assert.Equal(t, []byte("hello world"), body)
 
-	_, err = svc.Client.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String("gocommon-tests"), Key: aws.String("1/hello world.txt")})
+	// test batch put
+	uploads := []*s3x.Upload{
+		{
+			Bucket:      "gocommon-tests",
+			Key:         "foo/thing1",
+			Body:        []byte(`HELLOWORLD`),
+			ContentType: "text/plain",
+			ACL:         s3.BucketCannedACLPublicRead,
+		},
+		{
+			Bucket:      "gocommon-tests",
+			Key:         "foo/thing2",
+			Body:        []byte(`HELLOWORLD2`),
+			ContentType: "text/plain",
+			ACL:         s3.BucketCannedACLPublicRead,
+		},
+	}
+
+	err = svc.BatchPut(ctx, uploads)
 	assert.NoError(t, err)
 
+	assert.Equal(t, "http://localhost:9000/gocommon-tests/foo/thing1", uploads[0].URL)
+	assert.Nil(t, uploads[0].Error)
+	assert.Equal(t, "http://localhost:9000/gocommon-tests/foo/thing2", uploads[1].URL)
+	assert.Nil(t, uploads[1].Error)
+
+	// test emptying a bucket
+	err = svc.EmptyBucket(ctx, "gocommon-tests")
+	assert.NoError(t, err)
+
+	err = svc.EmptyBucket(ctx, "gocommon-tests")
+	assert.NoError(t, err)
+
+	// test deleting a bucket
 	_, err = svc.Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: aws.String("gocommon-tests")})
 	assert.NoError(t, err)
 
