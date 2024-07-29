@@ -1,3 +1,7 @@
+v1.56.3 (2024-07-29)
+-------------------------
+ * Add BatchPut and EmptyBucket functions to S3Service
+
 v1.56.2 (2024-07-26)
 -------------------------
  * Fix s3x URL generation to not mangle slashes
