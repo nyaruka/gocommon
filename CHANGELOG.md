@@ -1,3 +1,7 @@
+v1.56.4 (2024-07-29)
+-------------------------
+ * Tweak s3x.BatchPut to make number of workers an arg instead of a const
+
 v1.56.3 (2024-07-29)
 -------------------------
  * Add BatchPut and EmptyBucket functions to S3Service
