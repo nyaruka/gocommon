@@ -14,10 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const (
-	workersPerBatch = 32
-)
-
 // Service is simple abstraction layer to work with a S3-compatible storage service
 type Service struct {
 	Client *s3.S3
@@ -109,14 +105,14 @@ type Upload struct {
 
 // BatchPut writes the entire batch of items to the passed in URLs, returning a map of errors if any.
 // Writes will be retried up to three times automatically.
-func (s *Service) BatchPut(ctx context.Context, us []*Upload) error {
+func (s *Service) BatchPut(ctx context.Context, us []*Upload, workers int) error {
 	uploads := make(chan *Upload, len(us))
 	errors := make(chan error, len(us))
 	stop := make(chan bool)
 	wg := &sync.WaitGroup{}
 
 	// start our workers
-	for w := 0; w < workersPerBatch; w++ {
+	for w := 0; w < workers; w++ {
 		wg.Add(1)
 		go s.batchWorker(ctx, uploads, errors, stop, wg)
 	}
