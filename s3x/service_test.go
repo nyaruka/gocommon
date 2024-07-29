@@ -52,7 +52,7 @@ func TestService(t *testing.T) {
 		},
 	}
 
-	err = svc.BatchPut(ctx, uploads)
+	err = svc.BatchPut(ctx, uploads, 3)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "http://localhost:9000/gocommon-tests/foo/thing1", uploads[0].URL)
