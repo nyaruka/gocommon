@@ -2,44 +2,42 @@ package uuids
 
 import (
 	"math/rand"
-	"regexp"
-
-	"github.com/nyaruka/gocommon/random"
 
 	"github.com/google/uuid"
+	"github.com/nyaruka/gocommon/dates"
+	"github.com/nyaruka/gocommon/random"
 )
 
-// V4Regex matches a string containing a valid v4 UUID
-var V4Regex = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}`)
-
-// V4OnlyRegex matches a string containing only a valid v4 UUID
-var V4OnlyRegex = regexp.MustCompile(`^` + V4Regex.String() + `$`)
-
-// New returns a new v4 UUID
-func New() UUID {
-	return currentGenerator.Next()
-}
-
-// IsV4 returns whether the given string contains only a valid v4 UUID
-func IsV4(s string) bool {
-	return V4OnlyRegex.MatchString(s)
-}
-
-// UUID is a 36 character UUID
+// UUID is a UUID encoded as a 36 character string using lowercase hex characters
 type UUID string
 
-// Generator is something that can generate a UUID
+// NewV4 returns a new v4 UUID
+func NewV4() UUID {
+	return currentGenerator.NextV4()
+}
+
+// NewV4 returns a new v7 UUID
+func NewV7() UUID {
+	return currentGenerator.NextV7()
+}
+
+// Generator is something that can generate UUIDs
 type Generator interface {
-	Next() UUID
+	NextV4() UUID
+	NextV7() UUID
 }
 
 // defaultGenerator generates a random v4 UUID using a 3rd party library
 type defaultGenerator struct{}
 
-// Next returns the next random UUID
-func (g defaultGenerator) Next() UUID {
-	u := uuid.Must(uuid.NewRandom())
-	return UUID(u.String())
+// NextV4 returns the next v4 UUID
+func (g defaultGenerator) NextV4() UUID {
+	return must(uuid.NewRandom())
+}
+
+// NextV7 returns the next v7 UUID
+func (g defaultGenerator) NextV7() UUID {
+	return must(uuid.NewV7())
 }
 
 // DefaultGenerator is the default generator for calls to NewUUID
@@ -54,15 +52,40 @@ func SetGenerator(generator Generator) {
 // generates a seedable random v4 UUID using math/rand
 type seededGenerator struct {
 	rnd *rand.Rand
+	now dates.NowSource
 }
 
-// NewSeededGenerator creates a new seeded UUID4 generator from the given seed
-func NewSeededGenerator(seed int64) Generator {
-	return &seededGenerator{rnd: random.NewSeededGenerator(seed)}
+// NewSeededGenerator creates a new UUID generator that uses the given seed for the random component and the time source
+// for the time component (only applies to v7)
+func NewSeededGenerator(seed int64, now dates.NowSource) Generator {
+	return &seededGenerator{rnd: random.NewSeededGenerator(seed), now: now}
 }
 
-// Next returns the next random UUID
-func (g *seededGenerator) Next() UUID {
+// NextV4 returns the next v4 UUID
+func (g *seededGenerator) NextV4() UUID {
+	return must(uuid.NewRandomFromReader(g.rnd))
+}
+
+// NextV7 returns the next v7 UUID
+func (g *seededGenerator) NextV7() UUID {
 	u := uuid.Must(uuid.NewRandomFromReader(g.rnd))
-	return UUID(u.String())
+
+	nano := g.now.Now().UnixNano()
+	t := nano / 1_000_000
+	s := (nano - t*1_000_000) >> 8
+
+	u[0] = byte(t >> 40)
+	u[1] = byte(t >> 32)
+	u[2] = byte(t >> 24)
+	u[3] = byte(t >> 16)
+	u[4] = byte(t >> 8)
+	u[5] = byte(t)
+	u[6] = 0x70 | (0x0F & byte(s>>8))
+	u[7] = byte(s)
+
+	return must(u, nil)
+}
+
+func must(u uuid.UUID, err error) UUID {
+	return UUID(uuid.Must(u, err).String())
 }
