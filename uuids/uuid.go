@@ -1,13 +1,12 @@
 package uuids
 
 import (
-	"fmt"
 	"math/rand"
 	"regexp"
 
 	"github.com/nyaruka/gocommon/random"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 )
 
 // V4Regex matches a string containing a valid v4 UUID
@@ -39,11 +38,7 @@ type defaultGenerator struct{}
 
 // Next returns the next random UUID
 func (g defaultGenerator) Next() UUID {
-	u, err := uuid.NewV4()
-	if err != nil {
-		// if we can't generate a UUID.. we're done
-		panic(fmt.Sprintf("unable to generate UUID: %s", err))
-	}
+	u := uuid.Must(uuid.NewRandom())
 	return UUID(u.String())
 }
 
@@ -68,11 +63,6 @@ func NewSeededGenerator(seed int64) Generator {
 
 // Next returns the next random UUID
 func (g *seededGenerator) Next() UUID {
-	u := uuid.UUID{}
-	if _, err := g.rnd.Read(u[:]); err != nil {
-		panic(err)
-	}
-	u.SetVersion(uuid.V4)
-	u.SetVariant(uuid.VariantRFC4122)
+	u := uuid.Must(uuid.NewRandomFromReader(g.rnd))
 	return UUID(u.String())
 }
