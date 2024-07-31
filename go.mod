@@ -7,7 +7,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.5
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-playground/validator/v10 v10.22.0
-	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jellydator/ttlcache/v3 v3.2.0
 	github.com/jmoiron/sqlx v1.4.0
