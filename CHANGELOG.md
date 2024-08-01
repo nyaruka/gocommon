@@ -1,3 +1,9 @@
+v1.57.0 (2024-08-01)
+-------------------------
+ * Add support for V7 UUIDs
+ * Switch to google's UUID library
+ * Remove no longer used storage package
+
 v1.56.4 (2024-07-29)
 -------------------------
  * Tweak s3x.BatchPut to make number of workers an arg instead of a const
