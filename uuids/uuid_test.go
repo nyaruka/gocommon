@@ -13,8 +13,8 @@ func TestNewV4(t *testing.T) {
 	uuid1 := uuids.NewV4()
 	uuid2 := uuids.NewV4()
 
-	assert.True(t, uuids.IsV4(string(uuid1)))
-	assert.True(t, uuids.IsV4(string(uuid2)))
+	assert.Equal(t, 4, uuids.Version(string(uuid1)))
+	assert.Equal(t, 4, uuids.Version(string(uuid2)))
 	assert.NotEqual(t, uuid1, uuid2)
 }
 
@@ -22,8 +22,8 @@ func TestNewV7(t *testing.T) {
 	uuid1 := uuids.NewV7()
 	uuid2 := uuids.NewV7()
 
-	assert.True(t, uuids.IsV7(string(uuid1)))
-	assert.True(t, uuids.IsV7(string(uuid2)))
+	assert.Equal(t, 7, uuids.Version(string(uuid1)))
+	assert.Equal(t, 7, uuids.Version(string(uuid2)))
 	assert.NotEqual(t, uuid1, uuid2)
 }
 
@@ -36,9 +36,9 @@ func TestSeededGenerator(t *testing.T) {
 	uuid2 := uuids.NewV7()
 	uuid3 := uuids.NewV4()
 
-	assert.True(t, uuids.IsV4(string(uuid1)))
-	assert.True(t, uuids.IsV7(string(uuid2)))
-	assert.True(t, uuids.IsV4(string(uuid3)))
+	assert.Equal(t, 4, uuids.Version(string(uuid1)))
+	assert.Equal(t, 7, uuids.Version(string(uuid2)))
+	assert.Equal(t, 4, uuids.Version(string(uuid3)))
 
 	assert.Equal(t, uuids.UUID(`d2f852ec-7b4e-457f-ae7f-f8b243c49ff5`), uuid1)
 	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-bd38-d266ec8d3716`), uuid2)
