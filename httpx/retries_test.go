@@ -139,9 +139,9 @@ func TestDoWithRetries(t *testing.T) {
 }
 
 func TestParseRetryAfter(t *testing.T) {
-	defer dates.SetNowSource(dates.DefaultNowSource)
+	defer dates.SetNowFunc(time.Now)
 
-	dates.SetNowSource(dates.NewFixedNowSource(time.Date(2020, 1, 7, 15, 10, 30, 500000000, time.UTC)))
+	dates.SetNowFunc(dates.NewFixedNow(time.Date(2020, 1, 7, 15, 10, 30, 500000000, time.UTC)))
 
 	assert.Equal(t, 0*time.Second, httpx.ParseRetryAfter("x"))
 	assert.Equal(t, 0*time.Second, httpx.ParseRetryAfter("0"))

@@ -52,12 +52,12 @@ func SetGenerator(generator Generator) {
 // generates a seedable random v4 UUID using math/rand
 type seededGenerator struct {
 	rnd *rand.Rand
-	now dates.NowSource
+	now dates.NowFunc
 }
 
 // NewSeededGenerator creates a new UUID generator that uses the given seed for the random component and the time source
 // for the time component (only applies to v7)
-func NewSeededGenerator(seed int64, now dates.NowSource) Generator {
+func NewSeededGenerator(seed int64, now dates.NowFunc) Generator {
 	return &seededGenerator{rnd: random.NewSeededGenerator(seed), now: now}
 }
 
@@ -70,7 +70,7 @@ func (g *seededGenerator) NextV4() UUID {
 func (g *seededGenerator) NextV7() UUID {
 	u := uuid.Must(uuid.NewRandomFromReader(g.rnd))
 
-	nano := g.now.Now().UnixNano()
+	nano := g.now().UnixNano()
 	t := nano / 1_000_000
 	s := (nano - t*1_000_000) >> 8
 

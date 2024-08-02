@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTimeSources(t *testing.T) {
-	defer dates.SetNowSource(dates.DefaultNowSource)
+func TestNowFuncs(t *testing.T) {
+	defer dates.SetNowFunc(time.Now)
 
 	d1 := time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC)
-	dates.SetNowSource(dates.NewFixedNowSource(d1))
+	dates.SetNowFunc(dates.NewFixedNow(d1))
 
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC), dates.Now())
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC), dates.Now())
 
-	dates.SetNowSource(dates.NewSequentialNowSource(d1))
+	dates.SetNowFunc(dates.NewSequentialNow(d1, time.Second))
 
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 30, 123456, time.UTC), dates.Now())
 	assert.Equal(t, time.Date(2018, 7, 5, 16, 29, 31, 123456, time.UTC), dates.Now())

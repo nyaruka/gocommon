@@ -1,12 +1,13 @@
 package dates
 
 import (
+	"sync"
 	"time"
 )
 
-// Now returns the time now.. according to the current source of now
+// Now returns the time now.. according to the current now function which can be switched out for testing.
 func Now() time.Time {
-	return currentNowSource.Now()
+	return currentNow()
 }
 
 // Since returns the time elapsed since t
@@ -14,53 +15,37 @@ func Since(t time.Time) time.Duration {
 	return Now().Sub(t)
 }
 
-// NowSource is something that can provide a now result
-type NowSource interface {
-	Now() time.Time
+// NowFunc is a function that can provide a now time
+type NowFunc func() time.Time
+
+var currentNow = time.Now
+
+// SetNowFunc sets the current now function
+func SetNowFunc(source NowFunc) {
+	currentNow = source
 }
 
-// defaultNowSource returns now as the current system time
-type defaultNowSource struct{}
-
-func (s defaultNowSource) Now() time.Time {
-	return time.Now()
+// NewFixedNow creates a new fixed now func
+func NewFixedNow(now time.Time) NowFunc {
+	return func() time.Time { return now }
 }
 
-// DefaultNowSource is the default time source
-var DefaultNowSource NowSource = defaultNowSource{}
-var currentNowSource = DefaultNowSource
-
-// SetNowSource sets the time source used by Now()
-func SetNowSource(source NowSource) {
-	currentNowSource = source
+type sequentialNow struct {
+	start time.Time
+	step  time.Duration
+	mutex sync.Mutex
 }
 
-// a source which returns a fixed time
-type fixedNowSource struct {
-	now time.Time
-}
+func (s *sequentialNow) now() time.Time {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-func (s *fixedNowSource) Now() time.Time {
-	return s.now
-}
-
-// NewFixedNowSource creates a new fixed time now source
-func NewFixedNowSource(now time.Time) NowSource {
-	return &fixedNowSource{now: now}
-}
-
-// a now source which returns a sequence of times 1 second after each other
-type sequentialNowSource struct {
-	current time.Time
-}
-
-func (s *sequentialNowSource) Now() time.Time {
-	now := s.current
-	s.current = s.current.Add(time.Second * 1)
+	now := s.start
+	s.start = s.start.Add(s.step)
 	return now
 }
 
-// NewSequentialNowSource creates a new sequential time source
-func NewSequentialNowSource(start time.Time) NowSource {
-	return &sequentialNowSource{current: start}
+// NewSequentialNow creates a new sequential time func
+func NewSequentialNow(start time.Time, step time.Duration) NowFunc {
+	return (&sequentialNow{start: start, step: step}).now
 }
