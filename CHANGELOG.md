@@ -1,3 +1,8 @@
+v1.57.1 (2024-08-02)
+-------------------------
+ * Replace uuids.IsV4 and uuids.IsV7 with uuids.Is and uuids.Version
+ * Simplify mocking of now and make sequential now func thread safe
+
 v1.57.0 (2024-08-01)
 -------------------------
  * Add support for V7 UUIDs
