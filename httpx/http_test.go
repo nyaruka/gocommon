@@ -64,9 +64,9 @@ func newTestHTTPServer(port int) *httptest.Server {
 }
 
 func TestDoTrace(t *testing.T) {
-	defer dates.SetNowSource(dates.DefaultNowSource)
+	defer dates.SetNowFunc(time.Now)
 
-	dates.SetNowSource(dates.NewSequentialNowSource(time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC)))
+	dates.SetNowFunc(dates.NewSequentialNow(time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), time.Second))
 
 	server := newTestHTTPServer(52025)
 

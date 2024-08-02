@@ -30,7 +30,7 @@ func TestNewV7(t *testing.T) {
 func TestSeededGenerator(t *testing.T) {
 	defer uuids.SetGenerator(uuids.DefaultGenerator)
 
-	uuids.SetGenerator(uuids.NewSeededGenerator(123456, dates.NewSequentialNowSource(time.Date(2024, 7, 32, 17, 29, 30, 123456, time.UTC))))
+	uuids.SetGenerator(uuids.NewSeededGenerator(123456, dates.NewSequentialNow(time.Date(2024, 7, 32, 17, 29, 30, 123456, time.UTC), time.Second)))
 
 	uuid1 := uuids.NewV4()
 	uuid2 := uuids.NewV7()
@@ -44,7 +44,7 @@ func TestSeededGenerator(t *testing.T) {
 	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-bd38-d266ec8d3716`), uuid2)
 	assert.Equal(t, uuids.UUID(`8720f157-ca1c-432f-9c0b-2014ddc77094`), uuid3)
 
-	uuids.SetGenerator(uuids.NewSeededGenerator(123456, dates.NewSequentialNowSource(time.Date(2024, 7, 32, 17, 29, 30, 123456, time.UTC))))
+	uuids.SetGenerator(uuids.NewSeededGenerator(123456, dates.NewSequentialNow(time.Date(2024, 7, 32, 17, 29, 30, 123456, time.UTC), time.Second)))
 
 	// should get same sequence again for same seed
 	assert.Equal(t, uuids.UUID(`d2f852ec-7b4e-457f-ae7f-f8b243c49ff5`), uuids.NewV4())
