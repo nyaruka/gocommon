@@ -3,7 +3,7 @@ package s3x_test
 import (
 	"testing"
 
-	"github.com/nyaruka/gocommon/s3x"
+	"github.com/nyaruka/gocommon/aws/s3x"
 	"github.com/stretchr/testify/assert"
 )
 

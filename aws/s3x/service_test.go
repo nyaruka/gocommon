@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/nyaruka/gocommon/s3x"
+	"github.com/nyaruka/gocommon/aws/s3x"
 	"github.com/stretchr/testify/assert"
 )
 
