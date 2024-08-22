@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/nyaruka/gocommon/s3x"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,15 +18,15 @@ func TestService(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
-	assert.ErrorContains(t, err, "NotFound: Not Found\n\tstatus code: 404")
+	assert.ErrorContains(t, err, "NotFound")
 
-	_, err = svc.Client.CreateBucket(&s3.CreateBucketInput{Bucket: aws.String("gocommon-tests")})
+	_, err = svc.Client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String("gocommon-tests")})
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
 	assert.NoError(t, err)
 
-	url, err := svc.PutObject(ctx, "gocommon-tests", "1/hello world.txt", "text/plain", []byte("hello world"), s3.BucketCannedACLPublicRead)
+	url, err := svc.PutObject(ctx, "gocommon-tests", "1/hello world.txt", "text/plain", []byte("hello world"), types.ObjectCannedACLPublicRead)
 	assert.NoError(t, err)
 	assert.Equal(t, "http://localhost:9000/gocommon-tests/1/hello+world.txt", url)
 
@@ -41,14 +42,14 @@ func TestService(t *testing.T) {
 			Key:         "foo/thing1",
 			Body:        []byte(`HELLOWORLD`),
 			ContentType: "text/plain",
-			ACL:         s3.BucketCannedACLPublicRead,
+			ACL:         types.ObjectCannedACLPublicRead,
 		},
 		{
 			Bucket:      "gocommon-tests",
 			Key:         "foo/thing2",
 			Body:        []byte(`HELLOWORLD2`),
 			ContentType: "text/plain",
-			ACL:         s3.BucketCannedACLPublicRead,
+			ACL:         types.ObjectCannedACLPublicRead,
 		},
 	}
 
@@ -68,7 +69,7 @@ func TestService(t *testing.T) {
 	assert.NoError(t, err)
 
 	// test deleting a bucket
-	_, err = svc.Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: aws.String("gocommon-tests")})
+	_, err = svc.Client.DeleteBucket(ctx, &s3.DeleteBucketInput{Bucket: aws.String("gocommon-tests")})
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
