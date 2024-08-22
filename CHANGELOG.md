@@ -1,3 +1,10 @@
+v1.58.0 (2024-08-22)
+-------------------------
+ * Add basic dynamodb service
+ * Move s3x package into aws folder
+ * Update to aws-sdk-go-v2
+ * Test against go 1.23
+
 v1.57.1 (2024-08-02)
 -------------------------
  * Replace uuids.IsV4 and uuids.IsV7 with uuids.Is and uuids.Version
