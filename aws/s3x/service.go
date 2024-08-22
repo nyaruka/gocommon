@@ -44,11 +44,11 @@ func NewService(accessKey, secretKey, region, endpoint string, minio bool) (*Ser
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.UsePathStyle = minio // urls as endpoint/bucket/key instead of bucket.endpoint/key
-
 		if endpoint != "" {
 			o.BaseEndpoint = aws.String(endpoint)
 		}
+
+		o.UsePathStyle = minio // urls as endpoint/bucket/key instead of bucket.endpoint/key
 	})
 
 	return &Service{Client: client, urler: urler}, nil

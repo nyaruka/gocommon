@@ -38,6 +38,11 @@ jobs:
       - name: Install Linux packages
         run: sudo apt install -y --no-install-recommends pandoc
 
+      - name: Install and start DynamoDB
+        uses: rrainn/dynamodb-action@v2.0.1
+        with:
+          port: 6000
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
