@@ -2,10 +2,11 @@ package dates
 
 import (
 	_ "embed"
+	"maps"
+	"slices"
 
 	"github.com/nyaruka/gocommon/i18n"
 	"github.com/nyaruka/gocommon/jsonx"
-	"golang.org/x/exp/maps"
 )
 
 // File containing day and month translations, generated using https://github.com/nyaruka/go-locales
@@ -30,7 +31,7 @@ var defaultLocale = "en_US"
 func init() {
 	jsonx.MustUnmarshal(i18nJSON, &translations)
 
-	bcp47Matcher = i18n.NewBCP47Matcher(maps.Keys(translations)...)
+	bcp47Matcher = i18n.NewBCP47Matcher(slices.Collect(maps.Keys(translations))...)
 
 	// not all locales have AM/PM values.. but it's simpler if we just given them a default
 	for _, trans := range translations {
