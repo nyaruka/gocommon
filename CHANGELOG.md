@@ -1,3 +1,8 @@
+v1.59.0 (2024-09-16)
+-------------------------
+ * Update to go 1.23
+ * Add basic get/put operations to dynamo service
+
 v1.58.0 (2024-08-22)
 -------------------------
  * Add basic dynamodb service
