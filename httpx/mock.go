@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/nyaruka/gocommon/stringsx"
-	"golang.org/x/exp/maps"
 )
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
@@ -42,7 +43,7 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 	url := request.URL.String()
 
 	// find the most specific match against this URL
-	match := stringsx.GlobSelect(url, maps.Keys(r.mocks)...)
+	match := stringsx.GlobSelect(url, slices.Collect(maps.Keys(r.mocks))...)
 	mockedResponses := r.mocks[match]
 
 	if len(mockedResponses) == 0 {
