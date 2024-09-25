@@ -17,6 +17,7 @@ func TestQuery(t *testing.T) {
 		{elastic.Term("age", 42), []byte(`{"term": {"age": {"value":42}}}`)},
 		{elastic.Exists("age"), []byte(`{"exists": {"field": "age"}}`)},
 		{elastic.Match("name", "Bob"), []byte(`{"match": {"name": {"query": "Bob"}}}`)},
+		{elastic.MatchAll(), []byte(`{"match_all": {}}`)},
 		{elastic.MatchPhrase("name", "Bob"), []byte(`{"match_phrase": {"name": {"query": "Bob"}}}`)},
 		{elastic.GreaterThan("age", 45), []byte(`{"range": {"age": {"gt": 45}}}`)},
 		{elastic.GreaterThanOrEqual("age", 45), []byte(`{"range": {"age": {"gte": 45}}}`)},

@@ -22,6 +22,11 @@ func Match(field string, value any) Query {
 	return Query{"match": map[string]any{field: map[string]any{"query": value}}}
 }
 
+// MatchAll is a shortcut for a match all query
+func MatchAll() Query {
+	return Query{"match_all": map[string]any{}}
+}
+
 // MatchPhrase is a shortcut for a match_phrase query
 func MatchPhrase(field, value string) Query {
 	return Query{"match_phrase": map[string]any{field: map[string]any{"query": value}}}
