@@ -2,6 +2,7 @@ package i18n
 
 import (
 	"database/sql/driver"
+	"regexp"
 
 	"github.com/nyaruka/null/v2"
 	"github.com/nyaruka/phonenumbers"
@@ -13,13 +14,23 @@ type Country string
 // NilCountry represents our nil, or unknown country
 var NilCountry = Country("")
 
+var countryPattern = regexp.MustCompile(`^[A-Z][A-Z]$`)
+
 // DeriveCountryFromTel attempts to derive a country code (e.g. RW) from a phone number
 func DeriveCountryFromTel(number string) Country {
 	parsed, err := phonenumbers.Parse(number, "")
 	if err != nil {
 		return ""
 	}
-	return Country(phonenumbers.GetRegionCodeForNumber(parsed))
+
+	region := phonenumbers.GetRegionCodeForNumber(parsed)
+
+	// check this is an actual country code and not a special "region" like 001
+	if countryPattern.MatchString(region) {
+		return Country(region)
+	}
+
+	return NilCountry
 }
 
 // Place nicely with NULLs if persisting to a database or JSON
