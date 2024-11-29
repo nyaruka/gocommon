@@ -1,3 +1,8 @@
+v1.59.3 (2024-11-29)
+-------------------------
+ * Update deps
+ * i18n.DeriveCountryFromTel shouldn't return non-country codes like '001'
+
 v1.59.2 (2024-11-12)
 -------------------------
  * Update deps
