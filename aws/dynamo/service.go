@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	awsx "github.com/nyaruka/gocommon/aws"
 )
 
 // Service is simple abstraction layer to work with a DynamoDB-compatible database
@@ -17,17 +16,9 @@ type Service struct {
 	tablePrefix string
 }
 
-// NewService creates a new S3 service with the given credentials and configuration
+// NewService creates a new dynamodb service with the given credentials and configuration
 func NewService(accessKey, secretKey, region, endpoint, tablePrefix string) (*Service, error) {
-	opts := []func(*config.LoadOptions) error{config.WithRegion(region)}
-
-	if accessKey != "" && secretKey != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.StaticCredentialsProvider{Value: aws.Credentials{
-			AccessKeyID: accessKey, SecretAccessKey: secretKey,
-		}}))
-	}
-
-	cfg, err := config.LoadDefaultConfig(context.TODO(), opts...)
+	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
 	if err != nil {
 		return nil, err
 	}
