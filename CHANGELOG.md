@@ -1,3 +1,7 @@
+v1.60.1 (2024-12-12)
+-------------------------
+ * Make batch queue processing optional on cloudwatch service
+
 v1.60.0 (2024-12-12)
 -------------------------
  * Add cloudwatch service with support for batching metric data
