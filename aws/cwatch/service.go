@@ -21,27 +21,31 @@ type Service struct {
 }
 
 // NewService creates a new Cloudwatch service with the given credentials and configuration
-func NewService(accessKey, secretKey, region, namespace, deployment string, wg *sync.WaitGroup) (*Service, error) {
+func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
 	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
 	if err != nil {
 		return nil, err
 	}
 
-	s := &Service{
+	return &Service{
 		Client:     cloudwatch.NewFromConfig(cfg),
 		namespace:  namespace,
 		deployment: types.Dimension{Name: aws.String("Deployment"), Value: aws.String(deployment)},
-	}
-	s.batcher = syncx.NewBatcher(s.processBatch, 100, time.Second*3, 1000, wg)
-
-	return s, nil
+	}, nil
 }
 
-func (s *Service) Start() {
+func (s *Service) StartQueue(wg *sync.WaitGroup) {
+	if s.batcher != nil {
+		panic("queue already started")
+	}
+	s.batcher = syncx.NewBatcher(s.processBatch, 100, time.Second*3, 1000, wg)
 	s.batcher.Start()
 }
 
-func (s *Service) Stop() {
+func (s *Service) StopQueue() {
+	if s.batcher == nil {
+		panic("queue wasn't started")
+	}
 	s.batcher.Stop()
 }
 

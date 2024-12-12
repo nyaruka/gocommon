@@ -12,9 +12,7 @@ import (
 )
 
 func TestService(t *testing.T) {
-	wg := &sync.WaitGroup{}
-
-	svc, err := cwatch.NewService("root", "key", "us-east-1", "Foo", "testing", wg)
+	svc, err := cwatch.NewService("root", "key", "us-east-1", "Foo", "testing")
 	assert.NoError(t, err)
 
 	assert.Equal(t, &cloudwatch.PutMetricDataInput{
@@ -41,9 +39,8 @@ func TestService(t *testing.T) {
 		{MetricName: aws.String("NumSheep"), Dimensions: []types.Dimension{{Name: aws.String("Host"), Value: aws.String("foo1")}}, Value: aws.Float64(20)},
 	}))
 
-	svc.Start()
-
-	svc.Stop()
-
+	wg := &sync.WaitGroup{}
+	svc.StartQueue(wg)
+	svc.StopQueue()
 	wg.Wait()
 }
