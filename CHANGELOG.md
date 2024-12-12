@@ -1,3 +1,7 @@
+v1.60.0 (2024-12-12)
+-------------------------
+ * Add cloudwatch service with support for batching metric data
+
 v1.59.3 (2024-11-29)
 -------------------------
  * Update deps
