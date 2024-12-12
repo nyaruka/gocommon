@@ -17,7 +17,7 @@ type Service struct {
 	tablePrefix string
 }
 
-// NewService creates a new S3 service with the given credentials and configuration
+// NewService creates a new dynamodb service with the given credentials and configuration
 func NewService(accessKey, secretKey, region, endpoint, tablePrefix string) (*Service, error) {
 	opts := []func(*config.LoadOptions) error{config.WithRegion(region)}
 
