@@ -71,3 +71,11 @@ func (s *Service) processBatch(batch []types.MetricDatum) {
 		slog.Error("error sending metrics to cloudwatch", "error", err, "count", len(batch))
 	}
 }
+
+type CWService interface {
+	Queue(d types.MetricDatum)
+	StartQueue(wg *sync.WaitGroup)
+	StopQueue()
+}
+
+var _ CWService = (*Service)(nil)
