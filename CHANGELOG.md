@@ -1,3 +1,7 @@
+v1.60.2 (2024-12-13)
+-------------------------
+ * For dev deployments, cloudwatch service should just log to console
+
 v1.60.1 (2024-12-12)
 -------------------------
  * Make batch queue processing optional on cloudwatch service
