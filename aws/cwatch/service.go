@@ -20,7 +20,8 @@ type Service struct {
 	batcher    *syncx.Batcher[types.MetricDatum]
 }
 
-// NewService creates a new Cloudwatch service with the given credentials and configuration
+// NewService creates a new Cloudwatch service with the given credentials and configuration. If deployment is "dev" then
+// then instead of a real Cloudwatch client, the service will get a mocked version that just logs metrics.
 func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
 	var client Client
 
@@ -75,6 +76,6 @@ func (s *Service) Prepare(data []types.MetricDatum) *cloudwatch.PutMetricDataInp
 func (s *Service) processBatch(batch []types.MetricDatum) {
 	_, err := s.Client.PutMetricData(context.TODO(), s.Prepare(batch))
 	if err != nil {
-		slog.Error("error sending metrics to cloudwatch", "error", err, "count", len(batch))
+		slog.Error("error sending metric data batch", "error", err, "count", len(batch))
 	}
 }

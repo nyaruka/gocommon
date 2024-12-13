@@ -46,13 +46,13 @@ func TestService(t *testing.T) {
 
 	// test writing metrics directly via the client
 	_, err = svc.Client.PutMetricData(context.Background(), svc.Prepare([]types.MetricDatum{
-		{MetricName: aws.String("NumGoats"), Value: aws.Float64(10)},
-		{MetricName: aws.String("NumSheep"), Dimensions: []types.Dimension{{Name: aws.String("Host"), Value: aws.String("foo1")}}, Value: aws.Float64(20)},
+		{MetricName: aws.String("NumGoats"), Value: aws.Float64(10), Unit: types.StandardUnitCount},
+		{MetricName: aws.String("NumSheep"), Dimensions: []types.Dimension{{Name: aws.String("Host"), Value: aws.String("foo1")}}, Value: aws.Float64(20), Unit: types.StandardUnitCount},
 	}))
 	assert.NoError(t, err)
 
 	// test queuing metrics to be sent by batching process
-	svc.Queue(types.MetricDatum{MetricName: aws.String("NumFish"), Value: aws.Float64(30)})
+	svc.Queue(types.MetricDatum{MetricName: aws.String("SleepTime"), Value: aws.Float64(30), Unit: types.StandardUnitSeconds})
 
 	svc.StopQueue()
 	wg.Wait()

@@ -28,7 +28,7 @@ func (c *DevClient) PutMetricData(ctx context.Context, params *cloudwatch.PutMet
 		for _, dim := range md.Dimensions {
 			log = log.With(strings.ToLower(aws.ToString(dim.Name)), aws.ToString(dim.Value))
 		}
-		log.With("metric", aws.ToString(md.MetricName), "value", aws.ToFloat64(md.Value)).Info("put metric data")
+		log.With("metric", aws.ToString(md.MetricName), "value", aws.ToFloat64(md.Value), "unit", md.Unit).Info("put metric data")
 	}
 
 	c.callCount.Add(1)
