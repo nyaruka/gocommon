@@ -16,16 +16,19 @@ import (
 type Service struct {
 	Client     Client
 	namespace  string
-	deployment types.Dimension
+	deployment string
 	batcher    *syncx.Batcher[types.MetricDatum]
 }
 
-// NewService creates a new Cloudwatch service with the given credentials and configuration. If deployment is "dev" then
-// then instead of a real Cloudwatch client, the service will get a mocked version that just logs metrics.
+// NewService creates a new Cloudwatch service with the given credentials and configuration. Some behaviours depend on
+// the given deployment value:
+//   - "test": metrics just logged, Queue(..) sends synchronously
+//   - "dev": metrics just logged, Queue(..) adds to batcher
+//   - "*": metrics sent to Cloudwatch, Queue(..) adds to batcher
 func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
 	var client Client
 
-	if deployment == "dev" {
+	if deployment == "dev" || deployment == "test" {
 		client = &DevClient{}
 	} else {
 		cfg, err := awsx.NewConfig(accessKey, secretKey, region)
@@ -35,11 +38,7 @@ func NewService(accessKey, secretKey, region, namespace, deployment string) (*Se
 		client = cloudwatch.NewFromConfig(cfg)
 	}
 
-	return &Service{
-		Client:     client,
-		namespace:  namespace,
-		deployment: types.Dimension{Name: aws.String("Deployment"), Value: aws.String(deployment)},
-	}, nil
+	return &Service{Client: client, namespace: namespace, deployment: deployment}, nil
 }
 
 func (s *Service) StartQueue(wg *sync.WaitGroup, maxAge time.Duration) {
@@ -57,14 +56,25 @@ func (s *Service) StopQueue() {
 	s.batcher.Stop()
 }
 
-func (s *Service) Queue(d types.MetricDatum) {
-	s.batcher.Queue(d)
+func (s *Service) Queue(data ...types.MetricDatum) {
+	if s.deployment == "test" {
+		s.Send(context.TODO(), data...)
+	} else {
+		for _, d := range data {
+			s.batcher.Queue(d)
+		}
+	}
 }
 
-func (s *Service) Prepare(data []types.MetricDatum) *cloudwatch.PutMetricDataInput {
+func (s *Service) Send(ctx context.Context, data ...types.MetricDatum) error {
+	_, err := s.Client.PutMetricData(ctx, s.prepare(data))
+	return err
+}
+
+func (s *Service) prepare(data []types.MetricDatum) *cloudwatch.PutMetricDataInput {
 	// add deployment as the first dimension to all metrics
 	for i := range data {
-		data[i].Dimensions = append([]types.Dimension{s.deployment}, data[i].Dimensions...)
+		data[i].Dimensions = append([]types.Dimension{{Name: aws.String("Deployment"), Value: aws.String(s.deployment)}}, data[i].Dimensions...)
 	}
 
 	return &cloudwatch.PutMetricDataInput{
@@ -74,8 +84,7 @@ func (s *Service) Prepare(data []types.MetricDatum) *cloudwatch.PutMetricDataInp
 }
 
 func (s *Service) processBatch(batch []types.MetricDatum) {
-	_, err := s.Client.PutMetricData(context.TODO(), s.Prepare(batch))
-	if err != nil {
+	if err := s.Send(context.TODO(), batch...); err != nil {
 		slog.Error("error sending metric data batch", "error", err, "count", len(batch))
 	}
 }
