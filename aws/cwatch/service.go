@@ -14,7 +14,7 @@ import (
 )
 
 type Service struct {
-	Client     *cloudwatch.Client
+	Client     Client
 	namespace  string
 	deployment types.Dimension
 	batcher    *syncx.Batcher[types.MetricDatum]
@@ -22,23 +22,30 @@ type Service struct {
 
 // NewService creates a new Cloudwatch service with the given credentials and configuration
 func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
-	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
-	if err != nil {
-		return nil, err
+	var client Client
+
+	if deployment == "dev" {
+		client = &DevClient{}
+	} else {
+		cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+		if err != nil {
+			return nil, err
+		}
+		client = cloudwatch.NewFromConfig(cfg)
 	}
 
 	return &Service{
-		Client:     cloudwatch.NewFromConfig(cfg),
+		Client:     client,
 		namespace:  namespace,
 		deployment: types.Dimension{Name: aws.String("Deployment"), Value: aws.String(deployment)},
 	}, nil
 }
 
-func (s *Service) StartQueue(wg *sync.WaitGroup) {
+func (s *Service) StartQueue(wg *sync.WaitGroup, maxAge time.Duration) {
 	if s.batcher != nil {
 		panic("queue already started")
 	}
-	s.batcher = syncx.NewBatcher(s.processBatch, 100, time.Second*3, 1000, wg)
+	s.batcher = syncx.NewBatcher(s.processBatch, 100, maxAge, 1000, wg)
 	s.batcher.Start()
 }
 
