@@ -14,31 +14,39 @@ import (
 )
 
 type Service struct {
-	Client     *cloudwatch.Client
+	Client     Client
 	namespace  string
 	deployment types.Dimension
 	batcher    *syncx.Batcher[types.MetricDatum]
 }
 
-// NewService creates a new Cloudwatch service with the given credentials and configuration
+// NewService creates a new Cloudwatch service with the given credentials and configuration. If deployment is "dev" then
+// then instead of a real Cloudwatch client, the service will get a mocked version that just logs metrics.
 func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
-	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
-	if err != nil {
-		return nil, err
+	var client Client
+
+	if deployment == "dev" {
+		client = &DevClient{}
+	} else {
+		cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+		if err != nil {
+			return nil, err
+		}
+		client = cloudwatch.NewFromConfig(cfg)
 	}
 
 	return &Service{
-		Client:     cloudwatch.NewFromConfig(cfg),
+		Client:     client,
 		namespace:  namespace,
 		deployment: types.Dimension{Name: aws.String("Deployment"), Value: aws.String(deployment)},
 	}, nil
 }
 
-func (s *Service) StartQueue(wg *sync.WaitGroup) {
+func (s *Service) StartQueue(wg *sync.WaitGroup, maxAge time.Duration) {
 	if s.batcher != nil {
 		panic("queue already started")
 	}
-	s.batcher = syncx.NewBatcher(s.processBatch, 100, time.Second*3, 1000, wg)
+	s.batcher = syncx.NewBatcher(s.processBatch, 100, maxAge, 1000, wg)
 	s.batcher.Start()
 }
 
@@ -68,6 +76,6 @@ func (s *Service) Prepare(data []types.MetricDatum) *cloudwatch.PutMetricDataInp
 func (s *Service) processBatch(batch []types.MetricDatum) {
 	_, err := s.Client.PutMetricData(context.TODO(), s.Prepare(batch))
 	if err != nil {
-		slog.Error("error sending metrics to cloudwatch", "error", err, "count", len(batch))
+		slog.Error("error sending metric data batch", "error", err, "count", len(batch))
 	}
 }
