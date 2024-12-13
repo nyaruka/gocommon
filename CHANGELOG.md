@@ -1,3 +1,7 @@
+v1.60.3 (2024-12-13)
+-------------------------
+ * Add special handling deployment=test in cloudwatch service
+
 v1.60.2 (2024-12-13)
 -------------------------
  * For dev deployments, cloudwatch service should just log to console
