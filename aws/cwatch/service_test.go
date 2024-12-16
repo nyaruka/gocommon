@@ -2,7 +2,6 @@ package cwatch_test
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -29,8 +28,7 @@ func TestService(t *testing.T) {
 	svc, err = cwatch.NewService("root", "key", "us-east-1", "Foo", "dev")
 	assert.NoError(t, err)
 
-	wg := &sync.WaitGroup{}
-	svc.StartQueue(wg, time.Millisecond*100)
+	svc.StartQueue(time.Millisecond * 100)
 
 	svc.Queue(cwatch.Datum("NumGoats", 10, types.StandardUnitCount, cwatch.Dimension("Host", "foo1")))
 	svc.Queue(cwatch.Datum("NumSheep", 20, types.StandardUnitCount))
@@ -43,7 +41,6 @@ func TestService(t *testing.T) {
 	svc.Queue(cwatch.Datum("SleepTime", 30, types.StandardUnitSeconds))
 
 	svc.StopQueue()
-	wg.Wait()
 
 	// check the queued metric was sent
 	assert.Equal(t, 2, svc.Client.(*cwatch.DevClient).CallCount())
