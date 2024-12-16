@@ -17,7 +17,9 @@ type Service struct {
 	Client     Client
 	namespace  string
 	deployment string
-	batcher    *syncx.Batcher[types.MetricDatum]
+
+	batcher   *syncx.Batcher[types.MetricDatum]
+	batcherWG *sync.WaitGroup
 }
 
 // NewService creates a new Cloudwatch service with the given credentials and configuration. Some behaviours depend on
@@ -41,11 +43,13 @@ func NewService(accessKey, secretKey, region, namespace, deployment string) (*Se
 	return &Service{Client: client, namespace: namespace, deployment: deployment}, nil
 }
 
-func (s *Service) StartQueue(wg *sync.WaitGroup, maxAge time.Duration) {
+func (s *Service) StartQueue(maxAge time.Duration) {
 	if s.batcher != nil {
 		panic("queue already started")
 	}
-	s.batcher = syncx.NewBatcher(s.processBatch, 100, maxAge, 1000, wg)
+
+	s.batcherWG = &sync.WaitGroup{}
+	s.batcher = syncx.NewBatcher(s.processBatch, 100, maxAge, 1000, s.batcherWG)
 	s.batcher.Start()
 }
 
@@ -54,6 +58,7 @@ func (s *Service) StopQueue() {
 		panic("queue wasn't started")
 	}
 	s.batcher.Stop()
+	s.batcherWG.Wait()
 }
 
 func (s *Service) Queue(data ...types.MetricDatum) {
