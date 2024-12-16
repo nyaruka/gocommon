@@ -32,15 +32,15 @@ func TestService(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	svc.StartQueue(wg, time.Millisecond*100)
 
-	svc.Queue(types.MetricDatum{MetricName: aws.String("NumGoats"), Value: aws.Float64(10), Unit: types.StandardUnitCount})
-	svc.Queue(types.MetricDatum{MetricName: aws.String("NumSheep"), Value: aws.Float64(20), Unit: types.StandardUnitCount})
+	svc.Queue(cwatch.Datum("NumGoats", 10, types.StandardUnitCount, cwatch.Dimension("Host", "foo1")))
+	svc.Queue(cwatch.Datum("NumSheep", 20, types.StandardUnitCount))
 	assert.Equal(t, 0, svc.Client.(*cwatch.DevClient).CallCount()) // not sent yet
 
 	time.Sleep(time.Millisecond * 200)
 
 	assert.Equal(t, 1, svc.Client.(*cwatch.DevClient).CallCount()) // sent as one call
 
-	svc.Queue(types.MetricDatum{MetricName: aws.String("SleepTime"), Value: aws.Float64(30), Unit: types.StandardUnitSeconds})
+	svc.Queue(cwatch.Datum("SleepTime", 30, types.StandardUnitSeconds))
 
 	svc.StopQueue()
 	wg.Wait()
