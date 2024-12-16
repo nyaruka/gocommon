@@ -1,3 +1,7 @@
+v1.60.4 (2024-12-16)
+-------------------------
+ * Add utils funcs for creating metrics data
+
 v1.60.3 (2024-12-13)
 -------------------------
  * Add special handling deployment=test in cloudwatch service
