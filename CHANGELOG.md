@@ -1,3 +1,7 @@
+v1.60.5 (2024-12-16)
+-------------------------
+ * CloudwatchService.Stop should wait for batcher
+
 v1.60.4 (2024-12-16)
 -------------------------
  * Add utils funcs for creating metrics data
