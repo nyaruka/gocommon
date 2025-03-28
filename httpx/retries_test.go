@@ -8,6 +8,7 @@ import (
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/nyaruka/gocommon/httpx"
 	"github.com/nyaruka/gocommon/random"
+	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,8 @@ func TestNewExponentialRetries(t *testing.T) {
 }
 
 func TestDoWithRetries(t *testing.T) {
+	ctx := context.Background()
+
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
 	mocks := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
@@ -86,7 +89,7 @@ func TestDoWithRetries(t *testing.T) {
 	httpx.SetRequestor(mocks)
 
 	call := func(method, url string, headers map[string]string, retries *httpx.RetryConfig) *httpx.Trace {
-		request, err := httpx.NewRequest(method, url, nil, headers)
+		request, err := httpx.NewRequest(ctx, method, url, nil, headers)
 		require.NoError(t, err)
 
 		trace, err := httpx.DoTrace(http.DefaultClient, request, retries, nil, -1)

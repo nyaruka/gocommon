@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -161,9 +162,9 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 	return trace, nil
 }
 
-// NewRequest is a convenience method to create a request with the given headers
-func NewRequest(method string, url string, body io.Reader, headers map[string]string) (*http.Request, error) {
-	r, err := http.NewRequest(method, url, body)
+// NewRequest is a convenience method to create a request with the given context and headers
+func NewRequest(ctx context.Context, method string, url string, body io.Reader, headers map[string]string) (*http.Request, error) {
+	r, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
 	}

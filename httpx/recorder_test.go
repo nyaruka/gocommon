@@ -10,12 +10,15 @@ import (
 	"testing"
 
 	"github.com/nyaruka/gocommon/httpx"
+	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRecorder(t *testing.T) {
+	ctx := context.Background()
+
 	// set by handler
 	var readBody []byte
 	var trace *httpx.Trace
@@ -117,7 +120,7 @@ func TestRecorder(t *testing.T) {
 	for i, tc := range tcs {
 		testReconstruct = tc.reconstruct
 
-		req, err := httpx.NewRequest(tc.method, tc.url, tc.requestBody, tc.headers)
+		req, err := httpx.NewRequest(ctx, tc.method, tc.url, tc.requestBody, tc.headers)
 		require.NoError(t, err)
 
 		_, err = httpx.Do(http.DefaultClient, req, nil, nil)

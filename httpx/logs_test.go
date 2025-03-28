@@ -9,9 +9,12 @@ import (
 	"github.com/nyaruka/gocommon/stringsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 func TestLogs(t *testing.T) {
+	ctx := context.Background()
+
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
 	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
@@ -25,6 +28,7 @@ func TestLogs(t *testing.T) {
 	}))
 
 	req1, err := httpx.NewRequest(
+		ctx,
 		"GET", "http://temba.io/code/987654321/long-url/rwhrehreh/erhether/yreyrreyeyreureuetutrurtueyre/y",
 		strings.NewReader("long request long request long request long request long request long request long request long request "),
 		nil,
@@ -40,13 +44,13 @@ func TestLogs(t *testing.T) {
 	assert.Equal(t, "HTTP/1.0 400 Bad Request\r\nContent-Length: 97\r\n\r\nlong response...", log1.Response)
 
 	// create a request with a code we need to redact in the URL and in the header
-	req2, err := httpx.NewRequest("GET", "http://temba.io/code/987654321/", nil, map[string]string{"X-Code": "987654321"})
+	req2, err := httpx.NewRequest(ctx, "GET", "http://temba.io/code/987654321/", nil, map[string]string{"X-Code": "987654321"})
 	require.NoError(t, err)
 	trace2, err := httpx.DoTrace(http.DefaultClient, req2, nil, nil, -1)
 	require.NoError(t, err)
 
 	// create a request with a code we need to redact in the URL and in the request body
-	req3, err := httpx.NewRequest("GET", "http://temba.io/code/987654321/", strings.NewReader("My code is 987654321"), nil)
+	req3, err := httpx.NewRequest(ctx, "GET", "http://temba.io/code/987654321/", strings.NewReader("My code is 987654321"), nil)
 	require.NoError(t, err)
 	trace3, err := httpx.DoTrace(http.DefaultClient, req3, nil, nil, -1)
 	require.NoError(t, err)
