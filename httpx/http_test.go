@@ -2,6 +2,7 @@ package httpx_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -64,6 +65,8 @@ func newTestHTTPServer(port int) *httptest.Server {
 }
 
 func TestDoTrace(t *testing.T) {
+	ctx := context.Background()
+
 	defer dates.SetNowFunc(time.Now)
 
 	dates.SetNowFunc(dates.NewSequentialNow(time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), time.Second))
@@ -71,7 +74,7 @@ func TestDoTrace(t *testing.T) {
 	server := newTestHTTPServer(52025)
 
 	// test with a text response
-	request, err := httpx.NewRequest("GET", server.URL+"?cmd=success", nil, nil)
+	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 
 	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
@@ -89,7 +92,7 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, ">>>>>>>> GET http://127.0.0.1:52025?cmd=success\nGET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n\n<<<<<<<<\nHTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", trace.String())
 
 	// test with a binary response
-	request, err = httpx.NewRequest("GET", server.URL+"?cmd=binary", nil, nil)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=binary", nil, nil)
 	require.NoError(t, err)
 
 	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
@@ -100,7 +103,7 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
 
 	// test with a response containing null chars
-	request, err = httpx.NewRequest("GET", server.URL+"?cmd=nullchars", nil, nil)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=nullchars", nil, nil)
 	require.NoError(t, err)
 
 	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
@@ -111,7 +114,7 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\nab�cd��", string(trace.SanitizedResponse("...")))
 
 	// test with a response containing invalid UTF8 sequences
-	request, err = httpx.NewRequest("GET", server.URL+"?cmd=badutf8", nil, nil)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=badutf8", nil, nil)
 	require.NoError(t, err)
 
 	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
@@ -164,6 +167,8 @@ func TestMaxBodyBytes(t *testing.T) {
 }
 
 func TestNonUTF8Request(t *testing.T) {
+	ctx := context.Background()
+
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
 	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
@@ -172,7 +177,7 @@ func TestNonUTF8Request(t *testing.T) {
 		},
 	}))
 
-	request, err := httpx.NewRequest("GET", "https://temba.io", bytes.NewReader([]byte{'\xc3', '\x28'}), map[string]string{"X-Badness": string([]byte{'\xc3', '\x28'})})
+	request, err := httpx.NewRequest(ctx, "GET", "https://temba.io", bytes.NewReader([]byte{'\xc3', '\x28'}), map[string]string{"X-Badness": string([]byte{'\xc3', '\x28'})})
 	require.NoError(t, err)
 
 	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
@@ -189,6 +194,8 @@ func TestNonUTF8Request(t *testing.T) {
 }
 
 func TestNonUTF8Response(t *testing.T) {
+	ctx := context.Background()
+
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
 	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
@@ -197,7 +204,7 @@ func TestNonUTF8Response(t *testing.T) {
 		},
 	}))
 
-	request, err := httpx.NewRequest("GET", "https://temba.io", nil, nil)
+	request, err := httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 
 	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
