@@ -1,3 +1,9 @@
+v1.61.1 (2025-03-28)
+-------------------------
+ * httpx should use requetss with context
+ * Update dependencies
+ * Remove no longer used batching/queuing functionality from cloudwatch service
+
 v1.60.5 (2024-12-16)
 -------------------------
  * CloudwatchService.Stop should wait for batcher
