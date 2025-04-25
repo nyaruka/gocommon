@@ -1,3 +1,8 @@
+v1.62.0 (2025-04-25)
+-------------------------
+ * Update dependencies
+ * Update locale data for dates
+
 v1.61.1 (2025-03-28)
 -------------------------
  * httpx should use requetss with context
