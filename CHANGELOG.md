@@ -1,3 +1,7 @@
+v1.62.1 (2025-04-29)
+-------------------------
+ * Allow http.MockRequestor to be used as a round tripper
+
 v1.62.0 (2025-04-25)
 -------------------------
  * Update dependencies
