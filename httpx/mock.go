@@ -38,6 +38,11 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 		return DefaultRequestor.Do(client, request)
 	}
 
+	return r.RoundTrip(request)
+}
+
+// RoundTrip allows this to be used as a http.RoundTripper
+func (r *MockRequestor) RoundTrip(request *http.Request) (*http.Response, error) {
 	r.requests = append(r.requests, request)
 
 	url := request.URL.String()
