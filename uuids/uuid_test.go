@@ -25,6 +25,13 @@ func TestNewV7(t *testing.T) {
 	assert.Equal(t, 7, uuids.Version(string(uuid1)))
 	assert.Equal(t, 7, uuids.Version(string(uuid2)))
 	assert.NotEqual(t, uuid1, uuid2)
+
+	u1 := uuids.NewV7()
+	for range 1000000 {
+		u2 := uuids.NewV7()
+		assert.Greater(t, string(u2), string(u1))
+		u1 = u2
+	}
 }
 
 func TestSeededGenerator(t *testing.T) {

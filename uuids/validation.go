@@ -11,7 +11,7 @@ var (
 	onlyRegex = regexp.MustCompile(`^` + Regex.String() + `$`)
 )
 
-// Is returns whether the given string contains only a valid v4 UUID
+// Is returns whether the given string contains only a valid UUID
 func Is(s string) bool {
 	return onlyRegex.MatchString(s)
 }
