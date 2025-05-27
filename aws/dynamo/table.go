@@ -15,14 +15,9 @@ type Table[K, I any] struct {
 	name   string
 }
 
-// NewTable creates a new dynamodb table with the given credentials and configuration
-func NewTable[K, I any](accessKey, secretKey, region, endpoint, name string) (*Table[K, I], error) {
-	client, err := NewClient(accessKey, secretKey, region, endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Table[K, I]{Client: client, name: name}, nil
+// NewTable creates a new dynamodb table
+func NewTable[K, I any](client *dynamodb.Client, name string) *Table[K, I] {
+	return &Table[K, I]{Client: client, name: name}
 }
 
 // Name returns the name of the table

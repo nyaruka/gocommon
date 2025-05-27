@@ -26,14 +26,17 @@ type ThingItem struct {
 func TestTable(t *testing.T) {
 	ctx := context.Background()
 
-	tbl, err := dynamo.NewTable[ThingKey, ThingItem]("root", "badkey", "us-east-1", "http://localhost:6666", "TestThings")
+	client, err := dynamo.NewClient("root", "badkey", "us-east-1", "http://localhost:6666")
 	assert.NoError(t, err)
 
+	tbl := dynamo.NewTable[ThingKey, ThingItem](client, "TestThings")
 	err = tbl.Test(ctx)
 	assert.ErrorContains(t, err, "exceeded maximum number of attempts, 3")
 
-	tbl, err = dynamo.NewTable[ThingKey, ThingItem]("root", "tembatemba", "us-east-1", "http://localhost:6000", "TestThings")
+	client, err = dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)
+
+	tbl = dynamo.NewTable[ThingKey, ThingItem](client, "TestThings")
 	assert.Equal(t, "TestThings", tbl.Name())
 
 	err = tbl.Test(ctx)
