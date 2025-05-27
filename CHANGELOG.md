@@ -1,3 +1,7 @@
+v1.63.2 (2025-05-27)
+-------------------------
+ * Separate dynamodb client construction from table construction
+
 v1.63.1 (2025-05-27)
 -------------------------
  * Add dynamo.NewClient
