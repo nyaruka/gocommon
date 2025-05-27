@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	awsx "github.com/nyaruka/gocommon/aws"
 )
 
 // Table is abstraction layer to work with a DynamoDB-compatible table
@@ -18,16 +17,10 @@ type Table[K, I any] struct {
 
 // NewTable creates a new dynamodb table with the given credentials and configuration
 func NewTable[K, I any](accessKey, secretKey, region, endpoint, name string) (*Table[K, I], error) {
-	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+	client, err := NewClient(accessKey, secretKey, region, endpoint)
 	if err != nil {
 		return nil, err
 	}
-
-	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-		if endpoint != "" {
-			o.BaseEndpoint = aws.String(endpoint)
-		}
-	})
 
 	return &Table[K, I]{Client: client, name: name}, nil
 }
