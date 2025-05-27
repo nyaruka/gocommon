@@ -23,22 +23,23 @@ type ThingItem struct {
 	Count int    `dynamodbav:"Count"`
 }
 
-func TestService(t *testing.T) {
+func TestTable(t *testing.T) {
 	ctx := context.Background()
 
-	svc, err := dynamo.NewService[ThingKey, ThingItem]("root", "badkey", "us-east-1", "http://localhost:6666", "Test")
+	tbl, err := dynamo.NewTable[ThingKey, ThingItem]("root", "badkey", "us-east-1", "http://localhost:6666", "TestThings")
 	assert.NoError(t, err)
 
-	err = svc.Test(ctx)
+	err = tbl.Test(ctx)
 	assert.ErrorContains(t, err, "exceeded maximum number of attempts, 3")
 
-	svc, err = dynamo.NewService[ThingKey, ThingItem]("root", "tembatemba", "us-east-1", "http://localhost:6000", "Test")
+	tbl, err = dynamo.NewTable[ThingKey, ThingItem]("root", "tembatemba", "us-east-1", "http://localhost:6000", "TestThings")
 	assert.NoError(t, err)
+	assert.Equal(t, "TestThings", tbl.Name())
 
-	err = svc.Test(ctx)
-	assert.NoError(t, err)
+	err = tbl.Test(ctx)
+	assert.ErrorContains(t, err, "Cannot do operations on a non-existent table")
 
-	_, err = svc.Client.CreateTable(ctx, &dynamodb.CreateTableInput{
+	_, err = tbl.Client.CreateTable(ctx, &dynamodb.CreateTableInput{
 		TableName: aws.String("TestThings"),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
@@ -52,15 +53,18 @@ func TestService(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	thing1 := &ThingItem{ThingKey: ThingKey{PK: "11", SK: "22"}, Name: "Test Thing", Count: 42}
-
-	err = svc.PutItem(ctx, "Things", thing1)
+	err = tbl.Test(ctx)
 	assert.NoError(t, err)
 
-	thing2, err := svc.GetItem(ctx, "Things", ThingKey{PK: "11", SK: "22"})
+	thing1 := &ThingItem{ThingKey: ThingKey{PK: "11", SK: "22"}, Name: "Test Thing", Count: 42}
+
+	err = tbl.PutItem(ctx, thing1)
+	assert.NoError(t, err)
+
+	thing2, err := tbl.GetItem(ctx, ThingKey{PK: "11", SK: "22"})
 	assert.NoError(t, err)
 	assert.Equal(t, thing1, thing2)
 
-	_, err = svc.Client.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String("TestThings")})
+	err = tbl.Delete(ctx)
 	assert.NoError(t, err)
 }
