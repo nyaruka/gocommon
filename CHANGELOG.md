@@ -1,3 +1,7 @@
+v1.63.0 (2025-05-27)
+-------------------------
+ * Rework dynamodb service into a table specific utility
+
 v1.62.1 (2025-04-29)
 -------------------------
  * Allow http.MockRequestor to be used as a round tripper
