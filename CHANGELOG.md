@@ -1,3 +1,7 @@
+v1.63.1 (2025-05-27)
+-------------------------
+ * Add dynamo.NewClient
+
 v1.63.0 (2025-05-27)
 -------------------------
  * Rework dynamodb service into a table specific utility
