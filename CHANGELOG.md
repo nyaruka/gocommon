@@ -1,3 +1,7 @@
+v1.64.0 (2025-06-03)
+-------------------------
+ * Add dynamo.Table.Purge and .Count methods for testing
+
 v1.63.2 (2025-05-27)
 -------------------------
  * Separate dynamodb client construction from table construction
