@@ -3,10 +3,12 @@ package dynamo
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 // Table is abstraction layer to work with a DynamoDB-compatible table
@@ -73,6 +75,8 @@ func (t *Table[K, I]) PutItem(ctx context.Context, item *I) error {
 
 // Count returns the number of items in the table.. for testing purposes
 func (t *Table[K, I]) Count(ctx context.Context) (int, error) {
+	t.assertTesting()
+
 	output, err := t.Client.Scan(ctx, &dynamodb.ScanInput{
 		TableName: aws.String(t.name),
 		Select:    "COUNT",
@@ -84,8 +88,56 @@ func (t *Table[K, I]) Count(ctx context.Context) (int, error) {
 	return int(output.Count), nil
 }
 
-// Delete deletes the entire table
+// Purge deletes all items in the table.. for testing purposes
+func (t *Table[K, I]) Purge(ctx context.Context) error {
+	t.assertTesting()
+
+	var lastEvaluatedKey map[string]types.AttributeValue
+	for {
+		output, err := t.Client.Scan(ctx, &dynamodb.ScanInput{
+			TableName:         aws.String(t.name),
+			ExclusiveStartKey: lastEvaluatedKey,
+		})
+		if err != nil {
+			return fmt.Errorf("error scanning table for purge: %w", err)
+		}
+
+		for _, item := range output.Items {
+			key := new(K)
+			if err := attributevalue.UnmarshalMap(item, &key); err != nil {
+				return fmt.Errorf("error unmarshalling dynamo item: %w", err)
+			}
+
+			keyAttrs, _ := attributevalue.MarshalMap(key)
+
+			_, err := t.Client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+				TableName: aws.String(t.name),
+				Key:       keyAttrs,
+			})
+			if err != nil {
+				return fmt.Errorf("error deleting item during purge: %w", err)
+			}
+		}
+
+		lastEvaluatedKey = output.LastEvaluatedKey
+		if lastEvaluatedKey == nil {
+			break // no more items to delete
+		}
+	}
+
+	return nil
+}
+
+// Delete deletes the entire table.. for testing purposes
 func (t *Table[K, I]) Delete(ctx context.Context) error {
+	t.assertTesting()
+
 	_, err := t.Client.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t.name)})
 	return err
+}
+
+func (t *Table[K, I]) assertTesting() {
+	if !strings.HasPrefix(t.name, "Test") {
+		panic("can only be called on table named with 'Test' prefix")
+	}
 }
