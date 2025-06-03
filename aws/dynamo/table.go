@@ -71,6 +71,19 @@ func (t *Table[K, I]) PutItem(ctx context.Context, item *I) error {
 	return nil
 }
 
+// Count returns the number of items in the table.. for testing purposes
+func (t *Table[K, I]) Count(ctx context.Context) (int, error) {
+	output, err := t.Client.Scan(ctx, &dynamodb.ScanInput{
+		TableName: aws.String(t.name),
+		Select:    "COUNT",
+	})
+	if err != nil {
+		return 0, fmt.Errorf("error scanning table for count: %w", err)
+	}
+
+	return int(output.Count), nil
+}
+
 // Delete deletes the entire table
 func (t *Table[K, I]) Delete(ctx context.Context) error {
 	_, err := t.Client.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t.name)})

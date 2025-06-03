@@ -59,15 +59,25 @@ func TestTable(t *testing.T) {
 	err = tbl.Test(ctx)
 	assert.NoError(t, err)
 
-	thing1 := &ThingItem{ThingKey: ThingKey{PK: "11", SK: "22"}, Name: "Test Thing", Count: 42}
+	thing1 := &ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Test Thing 1", Count: 42}
+	thing2 := &ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Test Thing 2", Count: 235}
 
 	err = tbl.PutItem(ctx, thing1)
 	assert.NoError(t, err)
-
-	thing2, err := tbl.GetItem(ctx, ThingKey{PK: "11", SK: "22"})
+	err = tbl.PutItem(ctx, thing2)
 	assert.NoError(t, err)
-	assert.Equal(t, thing1, thing2)
+
+	count, err := tbl.Count(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	read, err := tbl.GetItem(ctx, ThingKey{PK: "P11", SK: "SAA"})
+	assert.NoError(t, err)
+	assert.Equal(t, thing1, read)
 
 	err = tbl.Delete(ctx)
 	assert.NoError(t, err)
+
+	_, err = tbl.Count(ctx)
+	assert.ErrorContains(t, err, "non-existent table")
 }
