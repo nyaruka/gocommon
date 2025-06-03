@@ -75,6 +75,13 @@ func TestTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, thing1, read)
 
+	err = tbl.Purge(ctx)
+	assert.NoError(t, err)
+
+	count, err = tbl.Count(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+
 	err = tbl.Delete(ctx)
 	assert.NoError(t, err)
 
