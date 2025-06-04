@@ -1,3 +1,7 @@
+v1.64.1 (2025-06-04)
+-------------------------
+ * Update to null library v3
+
 v1.64.0 (2025-06-03)
 -------------------------
  * Add dynamo.Table.Purge and .Count methods for testing
