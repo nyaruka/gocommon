@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nyaruka/null/v2"
+	"github.com/nyaruka/null/v3"
 	"golang.org/x/text/language"
 )
 
