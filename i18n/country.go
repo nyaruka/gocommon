@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"regexp"
 
-	"github.com/nyaruka/null/v2"
+	"github.com/nyaruka/null/v3"
 	"github.com/nyaruka/phonenumbers"
 )
 
