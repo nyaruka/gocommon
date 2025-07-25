@@ -12,11 +12,11 @@ import (
 
 // Writer provides buffered writes to a DynamoDB table using a batcher
 type Writer[K, I any] struct {
+	ctx     context.Context
 	table   *Table[K, I]
 	batcher *syncx.Batcher[*I]
-	ctx     context.Context
-	wg      *sync.WaitGroup
 	spool   *Spool[I]
+	wg      *sync.WaitGroup
 }
 
 // NewWriter creates a new writer that buffers writes to the given table.
@@ -26,8 +26,8 @@ func NewWriter[K, I any](ctx context.Context, table *Table[K, I], maxAge time.Du
 	w := &Writer[K, I]{
 		table: table,
 		ctx:   ctx,
-		wg:    wg,
 		spool: spool,
+		wg:    wg,
 	}
 	w.batcher = syncx.NewBatcher(w.writeBatch, 25, maxAge, bufferSize, wg)
 
@@ -54,6 +54,7 @@ func (w *Writer[K, I]) Write(item *I) int {
 // Stop stops the writer and flushes any remaining items
 func (w *Writer[K, I]) Stop() {
 	w.batcher.Stop()
+	w.spool.Stop()
 }
 
 func (w *Writer[K, I]) writeBatch(batch []*I) {
