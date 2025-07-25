@@ -88,3 +88,73 @@ func TestTable(t *testing.T) {
 	_, err = tbl.Count(ctx)
 	assert.ErrorContains(t, err, "non-existent table")
 }
+
+func TestBatchWriteItem(t *testing.T) {
+	ctx := context.Background()
+
+	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
+	assert.NoError(t, err)
+
+	tbl := dynamo.NewTable[ThingKey, ThingItem](client, "TestBatchThings")
+
+	// Create table
+	_, err = tbl.Client.CreateTable(ctx, &dynamodb.CreateTableInput{
+		TableName: aws.String("TestBatchThings"),
+		KeySchema: []types.KeySchemaElement{
+			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
+			{AttributeName: aws.String("SK"), KeyType: types.KeyTypeRange},
+		},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: aws.String("PK"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("SK"), AttributeType: types.ScalarAttributeTypeS},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+	})
+	assert.NoError(t, err)
+
+	// Test with empty slice
+	unprocessed, err := tbl.BatchWriteItem(ctx, []*ThingItem{})
+	assert.NoError(t, err)
+	assert.Nil(t, unprocessed)
+
+	// Test with multiple items
+	items := []*ThingItem{
+		{ThingKey: ThingKey{PK: "BATCH1", SK: "S1"}, Name: "Batch Item 1", Count: 10},
+		{ThingKey: ThingKey{PK: "BATCH2", SK: "S2"}, Name: "Batch Item 2", Count: 20},
+		{ThingKey: ThingKey{PK: "BATCH3", SK: "S3"}, Name: "Batch Item 3", Count: 30},
+		{ThingKey: ThingKey{PK: "BATCH4", SK: "S4"}, Name: "Batch Item 4", Count: 40},
+	}
+
+	unprocessed, err = tbl.BatchWriteItem(ctx, items)
+	assert.NoError(t, err)
+	assert.Empty(t, unprocessed) // All items should be processed successfully
+
+	// Verify items were written
+	count, err := tbl.Count(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, count)
+
+	// Verify individual items can be retrieved
+	for _, item := range items {
+		retrieved, err := tbl.GetItem(ctx, item.ThingKey)
+		assert.NoError(t, err)
+		assert.Equal(t, item, retrieved)
+	}
+
+	// Test with single item
+	singleItem := []*ThingItem{
+		{ThingKey: ThingKey{PK: "SINGLE", SK: "S1"}, Name: "Single Item", Count: 100},
+	}
+
+	unprocessed, err = tbl.BatchWriteItem(ctx, singleItem)
+	assert.NoError(t, err)
+	assert.Empty(t, unprocessed)
+
+	count, err = tbl.Count(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 5, count)
+
+	// Clean up
+	err = tbl.Delete(ctx)
+	assert.NoError(t, err)
+}

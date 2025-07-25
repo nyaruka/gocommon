@@ -73,6 +73,48 @@ func (t *Table[K, I]) PutItem(ctx context.Context, item *I) error {
 	return nil
 }
 
+// BatchWriteItem puts multiple items into the table (max 25 items)
+func (t *Table[K, I]) BatchWriteItem(ctx context.Context, items []*I) ([]*I, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	writeRequests := make([]types.WriteRequest, 0, len(items))
+
+	for _, item := range items {
+		itemAttrs, err := attributevalue.MarshalMap(item)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling dynamo item: %w", err)
+		}
+
+		writeRequests = append(writeRequests, types.WriteRequest{PutRequest: &types.PutRequest{Item: itemAttrs}})
+	}
+
+	resp, err := t.Client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
+			t.name: writeRequests,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error batch writing items to dynamo: %w", err)
+	}
+
+	var unprocessed []*I
+	if unprocessedRequests, exists := resp.UnprocessedItems[t.name]; exists {
+		for _, req := range unprocessedRequests {
+			if req.PutRequest != nil {
+				item := new(I)
+				if err := attributevalue.UnmarshalMap(req.PutRequest.Item, &item); err != nil {
+					return nil, fmt.Errorf("error unmarshalling unprocessed dynamo item: %w", err)
+				}
+				unprocessed = append(unprocessed, item)
+			}
+		}
+	}
+
+	return unprocessed, nil
+}
+
 // Count returns the number of items in the table.. for testing purposes
 func (t *Table[K, I]) Count(ctx context.Context) (int, error) {
 	t.assertTesting()
