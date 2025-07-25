@@ -23,12 +23,9 @@ func TestWriter(t *testing.T) {
 	createTestTable(t, client, "TestWriterThings")
 	tbl := dynamo.NewTable[ThingKey, ThingItem](client, "TestWriterThings")
 
-	// Wait a bit for table to be ready
-	time.Sleep(100 * time.Millisecond)
-
 	wg := &sync.WaitGroup{}
 
-	spool := dynamo.NewSpool[ThingItem]("./_test_spool", wg)
+	spool := dynamo.NewSpool[ThingItem](ctx, "./_test_spool", wg)
 
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
 
@@ -78,12 +75,12 @@ func TestWriter(t *testing.T) {
 	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b@25.jsonl")
 	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77@5.jsonl")
 
-	// stop writer and its spool
+	// Stop writer and its spool
 	writer.Stop()
 	wg.Wait()
 
-	// start new spool to verify it can read the existing spool files
-	spool = dynamo.NewSpool[ThingItem]("./_test_spool", wg)
+	// Start new spool to verify it can read the existing spool files
+	spool = dynamo.NewSpool[ThingItem](ctx, "./_test_spool", wg)
 	spool.Start()
 	assert.Equal(t, 30, spool.Size())
 

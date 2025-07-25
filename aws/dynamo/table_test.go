@@ -3,6 +3,7 @@ package dynamo_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -38,6 +39,9 @@ func createTestTable(t *testing.T, client *dynamodb.Client, name string) {
 		BillingMode: types.BillingModePayPerRequest,
 	})
 	require.NoError(t, err)
+
+	// Wait a bit for table to be ready
+	time.Sleep(50 * time.Millisecond)
 }
 
 func TestTable(t *testing.T) {
