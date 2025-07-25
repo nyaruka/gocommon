@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type ThingKey struct {
@@ -21,6 +22,22 @@ type ThingItem struct {
 
 	Name  string `dynamodbav:"Name"`
 	Count int    `dynamodbav:"Count"`
+}
+
+func createTestTable(t *testing.T, client *dynamodb.Client, name string) {
+	_, err := client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
+		TableName: aws.String(name),
+		KeySchema: []types.KeySchemaElement{
+			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
+			{AttributeName: aws.String("SK"), KeyType: types.KeyTypeRange},
+		},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: aws.String("PK"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("SK"), AttributeType: types.ScalarAttributeTypeS},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+	})
+	require.NoError(t, err)
 }
 
 func TestTable(t *testing.T) {
@@ -42,19 +59,7 @@ func TestTable(t *testing.T) {
 	err = tbl.Test(ctx)
 	assert.ErrorContains(t, err, "Cannot do operations on a non-existent table")
 
-	_, err = tbl.Client.CreateTable(ctx, &dynamodb.CreateTableInput{
-		TableName: aws.String("TestThings"),
-		KeySchema: []types.KeySchemaElement{
-			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
-			{AttributeName: aws.String("SK"), KeyType: types.KeyTypeRange},
-		},
-		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: aws.String("PK"), AttributeType: types.ScalarAttributeTypeS},
-			{AttributeName: aws.String("SK"), AttributeType: types.ScalarAttributeTypeS},
-		},
-		BillingMode: types.BillingModePayPerRequest,
-	})
-	assert.NoError(t, err)
+	createTestTable(t, client, "TestThings")
 
 	err = tbl.Test(ctx)
 	assert.NoError(t, err)
@@ -95,22 +100,10 @@ func TestBatchWriteItem(t *testing.T) {
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)
 
+	createTestTable(t, client, "TestBatchThings")
 	tbl := dynamo.NewTable[ThingKey, ThingItem](client, "TestBatchThings")
 
-	// Create table
-	_, err = tbl.Client.CreateTable(ctx, &dynamodb.CreateTableInput{
-		TableName: aws.String("TestBatchThings"),
-		KeySchema: []types.KeySchemaElement{
-			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
-			{AttributeName: aws.String("SK"), KeyType: types.KeyTypeRange},
-		},
-		AttributeDefinitions: []types.AttributeDefinition{
-			{AttributeName: aws.String("PK"), AttributeType: types.ScalarAttributeTypeS},
-			{AttributeName: aws.String("SK"), AttributeType: types.ScalarAttributeTypeS},
-		},
-		BillingMode: types.BillingModePayPerRequest,
-	})
-	assert.NoError(t, err)
+	defer tbl.Delete(ctx)
 
 	// Test with empty slice
 	unprocessed, err := tbl.BatchWriteItem(ctx, []*ThingItem{})
@@ -153,8 +146,4 @@ func TestBatchWriteItem(t *testing.T) {
 	count, err = tbl.Count(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 5, count)
-
-	// Clean up
-	err = tbl.Delete(ctx)
-	assert.NoError(t, err)
 }
