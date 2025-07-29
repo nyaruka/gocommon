@@ -52,6 +52,20 @@ func PutItem[I any](ctx context.Context, c *dynamodb.Client, table string, item 
 
 // BatchPutItem puts multiple items into the table (max 25 items)
 func BatchPutItem[I any](ctx context.Context, c *dynamodb.Client, table string, items []*I) ([]map[string]types.AttributeValue, error) {
+	marshaled := make([]map[string]types.AttributeValue, len(items))
+	for i, item := range items {
+		var err error
+		marshaled[i], err = Marshal(item)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling item for batch put: %w", err)
+		}
+	}
+
+	return batchPutItem(ctx, c, table, marshaled)
+}
+
+// puts multiple items into the table (max 25 items)
+func batchPutItem(ctx context.Context, c *dynamodb.Client, table string, items []map[string]types.AttributeValue) ([]map[string]types.AttributeValue, error) {
 	if len(items) == 0 {
 		return nil, nil
 	}
@@ -59,12 +73,7 @@ func BatchPutItem[I any](ctx context.Context, c *dynamodb.Client, table string, 
 	writeRequests := make([]types.WriteRequest, 0, len(items))
 
 	for _, item := range items {
-		itemAttrs, err := Marshal(item)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling dynamo item: %w", err)
-		}
-
-		writeRequests = append(writeRequests, types.WriteRequest{PutRequest: &types.PutRequest{Item: itemAttrs}})
+		writeRequests = append(writeRequests, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
 	}
 
 	resp, err := c.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
