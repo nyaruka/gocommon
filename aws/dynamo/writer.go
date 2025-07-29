@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -20,6 +21,9 @@ type Writer struct {
 	batcher *syncx.Batcher[map[string]types.AttributeValue]
 	spool   *Spool
 	wg      *sync.WaitGroup
+
+	numWritten atomic.Int64 // number of items that have been written
+	numSpooled atomic.Int64 // number of items that have been spooled
 }
 
 // NewWriter creates a new writer.
@@ -56,6 +60,11 @@ func (w *Writer) Stop() {
 	w.batcher.Stop()
 }
 
+// Stats returns the number of items written and spooled.
+func (w *Writer) Stats() (int64, int64) {
+	return w.numWritten.Load(), w.numSpooled.Load()
+}
+
 func (w *Writer) flush(batch []map[string]types.AttributeValue) {
 	ctx := context.TODO()
 
@@ -67,9 +76,13 @@ func (w *Writer) flush(batch []map[string]types.AttributeValue) {
 		}
 	}
 
+	w.numWritten.Add(int64(len(batch) - len(unprocessed)))
+
 	if len(unprocessed) > 0 {
 		if err := w.spool.Add(w.table, unprocessed); err != nil {
 			slog.Error("error writing unprocessed items to spool", "count", len(unprocessed), "error", err)
 		}
+
+		w.numSpooled.Add(int64(len(unprocessed)))
 	}
 }

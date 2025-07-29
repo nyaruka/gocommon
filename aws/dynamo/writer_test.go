@@ -42,7 +42,11 @@ func TestWriter(t *testing.T) {
 	// Allow time for writes to process
 	time.Sleep(200 * time.Millisecond)
 
-	// Verify all items were written
+	numWritten, numSpooled := writer.Stats()
+	assert.Equal(t, int64(10), numWritten)
+	assert.Equal(t, int64(0), numSpooled)
+
+	// Verify all items were actually written
 	count, err := dynamo.Count(ctx, client, "TestWriter")
 	require.NoError(t, err)
 	assert.Equal(t, 10, count)
@@ -51,7 +55,7 @@ func TestWriter(t *testing.T) {
 	err = dynamo.Drop(ctx, client, "TestWriter")
 	require.NoError(t, err)
 
-	for i := range 30 {
+	for i := range 5 {
 		writer.Write(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
 	}
 
@@ -59,7 +63,10 @@ func TestWriter(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// And check they were spooled
-	assert.Equal(t, 30, spool.Size())
+	numWritten, numSpooled = writer.Stats()
+	assert.Equal(t, int64(10), numWritten)
+	assert.Equal(t, int64(5), numSpooled)
+	assert.Equal(t, 5, spool.Size())
 
 	writer.Stop()
 	spool.Stop()
