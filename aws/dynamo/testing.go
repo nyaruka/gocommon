@@ -27,8 +27,8 @@ func Count(ctx context.Context, c *dynamodb.Client, table string) (int, error) {
 	return int(output.Count), nil
 }
 
-// Purge deletes all items in the table
-func Purge(ctx context.Context, c *dynamodb.Client, table string) error {
+// Truncate deletes all items in the table
+func Truncate(ctx context.Context, c *dynamodb.Client, table string) error {
 	assertTesting(table)
 
 	desc, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
@@ -73,8 +73,8 @@ func Purge(ctx context.Context, c *dynamodb.Client, table string) error {
 	return nil
 }
 
-// Delete deletes the entire table.. for testing purposes
-func Delete(ctx context.Context, c *dynamodb.Client, table string) error {
+// Drop deletes the entire table.. for testing purposes
+func Drop(ctx context.Context, c *dynamodb.Client, table string) error {
 	assertTesting(table)
 
 	_, err := c.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(table)})
