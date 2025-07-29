@@ -72,6 +72,11 @@ func TestPutAndGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Thing 1", obj.Name)
 
+	// try to get a non-existent item
+	obj, err = dynamo.GetItem[ThingKey, ThingItem](ctx, client, "TestThings", ThingKey{PK: "P77", SK: "SAA"})
+	assert.NoError(t, err)
+	assert.Nil(t, obj)
+
 	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestThings", []*ThingItem{})
 	assert.NoError(t, err)
 	assert.Nil(t, unprocessed)

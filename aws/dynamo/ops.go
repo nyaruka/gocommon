@@ -24,6 +24,10 @@ func GetItem[K, I any](ctx context.Context, c *dynamodb.Client, table string, ke
 		return nil, fmt.Errorf("error getting item from dynamo: %w", err)
 	}
 
+	if resp.Item == nil {
+		return nil, nil // item not found
+	}
+
 	item := new(I)
 	if err := Unmarshal(resp.Item, item); err != nil {
 		return nil, err
