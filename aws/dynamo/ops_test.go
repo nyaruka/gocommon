@@ -56,8 +56,8 @@ func TestPutAndGet(t *testing.T) {
 	err = dynamo.Test(ctx, client, "TestThings")
 	assert.NoError(t, err)
 
-	thing1 := &ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Test Thing 1", Count: 42}
-	thing2 := &ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Test Thing 2", Count: 235}
+	thing1 := &ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Thing 1", Count: 42}
+	thing2 := &ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Thing 2", Count: 235}
 
 	err = dynamo.PutItem(ctx, client, "TestThings", thing1)
 	assert.NoError(t, err)
@@ -70,7 +70,7 @@ func TestPutAndGet(t *testing.T) {
 
 	obj, err := dynamo.GetItem[ThingKey, ThingItem](ctx, client, "TestThings", ThingKey{PK: "P11", SK: "SAA"})
 	assert.NoError(t, err)
-	assert.NotNil(t, obj)
+	assert.Equal(t, "Thing 1", obj.Name)
 
 	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestThings", []*ThingItem{})
 	assert.NoError(t, err)
