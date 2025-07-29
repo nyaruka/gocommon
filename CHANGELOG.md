@@ -1,3 +1,7 @@
+v1.65.1 (2025-07-29)
+-------------------------
+ * Fix dynamo.GetItem when item not found
+
 v1.65.0 (2025-07-29)
 -------------------------
  * Replace dynamo.Table with generic funcs and new dynamo.Writer and dynamo.Spool types
