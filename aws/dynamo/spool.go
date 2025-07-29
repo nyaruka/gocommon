@@ -66,29 +66,27 @@ func (s *Spool) Start() error {
 	}
 	s.size.Store(int64(total))
 
-	// start flush goroutine
 	s.wg.Add(1)
-	go s.flushLoop()
 
-	return nil
-}
+	go func() {
+		defer s.wg.Done()
 
-func (s *Spool) flushLoop() {
-	defer s.wg.Done()
+		ticker := time.NewTicker(s.flushInterval)
+		defer ticker.Stop()
 
-	ticker := time.NewTicker(s.flushInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
-			if err := s.flush(); err != nil {
-				slog.Error("error flushing spool", "error", err)
+		for {
+			select {
+			case <-s.ctx.Done():
+				return
+			case <-ticker.C:
+				if err := s.flush(); err != nil {
+					slog.Error("error flushing spool", "error", err)
+				}
 			}
 		}
-	}
+	}()
+
+	return nil
 }
 
 func (s *Spool) Stop() {

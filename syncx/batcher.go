@@ -1,6 +1,7 @@
 package syncx
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -13,23 +14,28 @@ type Batcher[T any] struct {
 
 	wg      *sync.WaitGroup
 	buffer  chan T
-	stop    chan bool
 	batch   []T
 	timeout <-chan time.Time
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewBatcher creates a new batcher. Queued items are passed to the `process` callback in batches of `maxItems` maximum
 // size. Processing of a batch is triggered by reaching `maxItems` or `maxAge` since the oldest unprocessed item was queued.
 func NewBatcher[T any](process func(batch []T), maxItems int, maxAge time.Duration, bufferSize int, wg *sync.WaitGroup) *Batcher[T] {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &Batcher[T]{
 		process:  process,
 		maxItems: maxItems,
 		maxAge:   maxAge,
 		wg:       wg,
 		buffer:   make(chan T, bufferSize),
-		stop:     make(chan bool),
 		batch:    make([]T, 0, maxItems),
 		timeout:  nil,
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 }
 
@@ -59,7 +65,7 @@ func (b *Batcher[T]) Start() {
 				// flush whatever we have
 				b.flush()
 
-			case <-b.stop:
+			case <-b.ctx.Done():
 				b.drain()
 				close(b.buffer)
 				return
@@ -77,7 +83,7 @@ func (b *Batcher[T]) Queue(value T) int {
 
 // Stop stops this batcher.
 func (b *Batcher[T]) Stop() {
-	close(b.stop)
+	b.cancel()
 }
 
 // flushes whatever has been batched
