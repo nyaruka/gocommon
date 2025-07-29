@@ -30,7 +30,7 @@ func TestSpool(t *testing.T) {
 	item3, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P33", SK: "SAA"}, Name: "Thing 3", Count: 345})
 
 	wg := &sync.WaitGroup{}
-	spool := dynamo.NewSpool(ctx, client, "./_test_spool", 30*time.Second, wg)
+	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second, wg)
 
 	defer spool.Delete()
 
@@ -50,7 +50,7 @@ func TestSpool(t *testing.T) {
 	wg.Wait()
 
 	// Start new spool to verify it can read the existing spool files
-	spool = dynamo.NewSpool(ctx, client, "./_test_spool", 100*time.Millisecond, wg)
+	spool = dynamo.NewSpool(client, "./_test_spool", 100*time.Millisecond, wg)
 	spool.Start()
 	assert.Equal(t, 3, spool.Size())
 

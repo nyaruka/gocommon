@@ -12,25 +12,21 @@ import (
 	"github.com/nyaruka/gocommon/syncx"
 )
 
-// Writer provides buffered writes to a DynamoDB table using a batcher
+// Writer provides buffered writes to a DynamoDB table using a batcher. If writes fail, they are added to the given
+// spool for later processing.
 type Writer struct {
 	client  *dynamodb.Client
 	table   string
 	batcher *syncx.Batcher[map[string]types.AttributeValue]
 	spool   *Spool
 	wg      *sync.WaitGroup
-
-	ctx context.Context
 }
 
-// NewWriter creates a new writer that buffers writes to the given table.
-// maxAge is the maximum time to wait before flushing a partial batch.
-// bufferSize is the size of the internal buffer for queued items.
-func NewWriter(ctx context.Context, client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool, wg *sync.WaitGroup) *Writer {
+// NewWriter creates a new writer.
+func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool, wg *sync.WaitGroup) *Writer {
 	w := &Writer{
 		client: client,
 		table:  table,
-		ctx:    ctx,
 		spool:  spool,
 		wg:     wg,
 	}
@@ -39,7 +35,7 @@ func NewWriter(ctx context.Context, client *dynamodb.Client, table string, maxAg
 	return w
 }
 
-// Start starts the writer's background processing
+// Start starts the writer's batch processing.
 func (w *Writer) Start() {
 	w.batcher.Start()
 }
@@ -61,7 +57,9 @@ func (w *Writer) Stop() {
 }
 
 func (w *Writer) flush(batch []map[string]types.AttributeValue) {
-	unprocessed, err := batchPutItem(w.ctx, w.client, w.table, batch)
+	ctx := context.TODO()
+
+	unprocessed, err := batchPutItem(ctx, w.client, w.table, batch)
 	if err != nil {
 		slog.Error("error writing batch to dynamo", "count", len(batch), "error", err)
 		if unprocessed == nil {

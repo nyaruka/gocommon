@@ -22,7 +22,7 @@ func TestWriter(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 
-	spool := dynamo.NewSpool(ctx, client, "./_test_spool", 30*time.Second, wg)
+	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second, wg)
 	spool.Start()
 
 	defer func() {
@@ -30,7 +30,7 @@ func TestWriter(t *testing.T) {
 		dynamo.Drop(ctx, client, "TestWriter")
 	}()
 
-	writer := dynamo.NewWriter(ctx, client, "TestWriter", 100*time.Millisecond, 10, spool, wg)
+	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool, wg)
 	writer.Start()
 
 	for i := range 10 {

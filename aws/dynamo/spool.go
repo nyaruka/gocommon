@@ -37,8 +37,9 @@ type Spool struct {
 	cancel context.CancelFunc
 }
 
-func NewSpool(ctx context.Context, client *dynamodb.Client, directory string, flushInterval time.Duration, wg *sync.WaitGroup) *Spool {
-	ctx, cancel := context.WithCancel(ctx)
+func NewSpool(client *dynamodb.Client, directory string, flushInterval time.Duration, wg *sync.WaitGroup) *Spool {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &Spool{
 		client:        client,
 		directory:     directory,
@@ -120,6 +121,8 @@ func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error
 }
 
 func (s *Spool) flush() error {
+	ctx := context.TODO()
+
 	files, err := s.enumerateFiles()
 	if err != nil {
 		return fmt.Errorf("error enumerating files to flush: %w", err)
@@ -131,7 +134,7 @@ func (s *Spool) flush() error {
 			return fmt.Errorf("error loading spool file %s: %w", file.path, err)
 		}
 
-		unprocessed, err := batchPutItem(s.ctx, s.client, file.table, items)
+		unprocessed, err := batchPutItem(ctx, s.client, file.table, items)
 		if err != nil {
 			slog.Error("error flushing spooled dynamo batch", "error", err, "file", file.path)
 			continue
