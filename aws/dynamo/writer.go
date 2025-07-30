@@ -60,6 +60,11 @@ func (w *Writer) Stop() {
 	w.batcher.Stop()
 }
 
+// Table returns the table name this writer is writing to.
+func (w *Writer) Table() string {
+	return w.table
+}
+
 // Stats returns the number of items written and spooled.
 func (w *Writer) Stats() (int64, int64) {
 	return w.numWritten.Load(), w.numSpooled.Load()
