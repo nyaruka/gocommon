@@ -101,13 +101,3 @@ func batchPutItem(ctx context.Context, c *dynamodb.Client, table string, items [
 
 	return unprocessed, nil
 }
-
-// Test checks if the given table exists
-func Test(ctx context.Context, c *dynamodb.Client, table string) error {
-	_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(table)})
-	if err != nil {
-		return fmt.Errorf("error describing dynamo table: %w", err)
-	}
-
-	return nil
-}

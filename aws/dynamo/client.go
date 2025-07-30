@@ -1,6 +1,9 @@
 package dynamo
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	awsx "github.com/nyaruka/gocommon/aws"
@@ -20,4 +23,16 @@ func NewClient(accessKey, secretKey, region, endpoint string) (*dynamodb.Client,
 	})
 
 	return client, nil
+}
+
+// Test checks that the given tables exist.
+func Test(ctx context.Context, c *dynamodb.Client, tables ...string) error {
+	for _, table := range tables {
+		_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(table)})
+		if err != nil {
+			return fmt.Errorf("error describing dynamo table: %w", err)
+		}
+	}
+
+	return nil
 }
