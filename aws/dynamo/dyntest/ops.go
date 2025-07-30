@@ -3,7 +3,6 @@
 package dyntest
 
 import (
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -18,7 +17,7 @@ import (
 
 func CreateTables(t *testing.T, c *dynamodb.Client, path string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tablesFile, err := os.Open(path)
 	require.NoError(t, err)
@@ -47,8 +46,8 @@ func CreateTables(t *testing.T, c *dynamodb.Client, path string) {
 // Truncate deletes all items in the table
 func Truncate(t *testing.T, c *dynamodb.Client, table string) {
 	t.Helper()
-	ctx := context.Background()
-	assertTesting(table)
+	assertTesting(t, table)
+	ctx := t.Context()
 
 	desc, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{
 		TableName: aws.String(table),
@@ -87,10 +86,10 @@ func Truncate(t *testing.T, c *dynamodb.Client, table string) {
 // Drop deletes entire tables.
 func Drop(t *testing.T, c *dynamodb.Client, tables ...string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, table := range tables {
-		assertTesting(table)
+		assertTesting(t, table)
 
 		_, err := c.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(table)})
 		require.NoError(t, err)

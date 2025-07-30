@@ -1,7 +1,6 @@
 package dynamo_test
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestSpool(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
 

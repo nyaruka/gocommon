@@ -1,7 +1,6 @@
 package dyntest
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -14,10 +13,9 @@ import (
 // AssertCount asserts the total number of items in a table
 func AssertCount(t *testing.T, c *dynamodb.Client, table string, expected int, msgAndArgs ...any) bool {
 	t.Helper()
-	ctx := context.Background()
-	assertTesting(table)
+	assertTesting(t, table)
 
-	output, err := c.Scan(ctx, &dynamodb.ScanInput{
+	output, err := c.Scan(t.Context(), &dynamodb.ScanInput{
 		TableName: aws.String(table),
 		Select:    "COUNT",
 	})
@@ -26,8 +24,6 @@ func AssertCount(t *testing.T, c *dynamodb.Client, table string, expected int, m
 	return assert.Equal(t, expected, int(output.Count), msgAndArgs...)
 }
 
-func assertTesting(table string) {
-	if !strings.HasPrefix(table, "Test") {
-		panic("can only be called on table named with 'Test' prefix")
-	}
+func assertTesting(t *testing.T, table string) {
+	require.True(t, strings.HasPrefix(table, "Test"), "table name must start with 'Test' prefix")
 }

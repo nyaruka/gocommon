@@ -1,7 +1,6 @@
 package dynamo_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,7 +25,7 @@ type ThingItem struct {
 }
 
 func createTestTable(t *testing.T, client *dynamodb.Client, name string) {
-	_, err := client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
+	_, err := client.CreateTable(t.Context(), &dynamodb.CreateTableInput{
 		TableName: aws.String(name),
 		KeySchema: []types.KeySchemaElement{
 			{AttributeName: aws.String("PK"), KeyType: types.KeyTypeHash},
@@ -42,7 +41,7 @@ func createTestTable(t *testing.T, client *dynamodb.Client, name string) {
 }
 
 func TestPutAndGet(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)

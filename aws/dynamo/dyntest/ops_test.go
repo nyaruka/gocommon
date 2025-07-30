@@ -1,7 +1,6 @@
 package dyntest_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/nyaruka/gocommon/aws/dynamo"
@@ -22,7 +21,7 @@ type ThingItem struct {
 }
 
 func TestOps(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)
