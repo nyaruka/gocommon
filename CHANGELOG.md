@@ -1,3 +1,7 @@
+v1.65.4 (2025-07-30)
+-------------------------
+ * Move testing-only functions for DynsamoDB into new dyntest package
+
 v1.65.3 (2025-07-30)
 -------------------------
  * Tweak dynamo.Test to allow passing multiple table names
