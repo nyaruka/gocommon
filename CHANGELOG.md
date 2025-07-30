@@ -1,3 +1,7 @@
+v1.65.3 (2025-07-30)
+-------------------------
+ * Tweak dynamo.Test to allow passing multiple table names
+
 v1.65.2 (2025-07-30)
 -------------------------
  * Add Writer.Table() method
