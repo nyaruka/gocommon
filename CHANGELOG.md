@@ -1,3 +1,7 @@
+v1.65.2 (2025-07-30)
+-------------------------
+ * Add Writer.Table() method
+
 v1.65.1 (2025-07-29)
 -------------------------
  * Fix dynamo.GetItem when item not found
