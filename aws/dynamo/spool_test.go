@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
+	"github.com/nyaruka/gocommon/aws/dynamo/dyntest"
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/nyaruka/gocommon/uuids"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestSpool(t *testing.T) {
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)
 
-	defer dynamo.Drop(ctx, client, "TestSpool")
+	defer dyntest.Drop(t, client, "TestSpool")
 
 	createTestTable(t, client, "TestSpool")
 
