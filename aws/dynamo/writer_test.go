@@ -20,13 +20,13 @@ func TestWriter(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 
-	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second, wg)
-	spool.Start()
+	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second)
+	spool.Start(wg)
 
 	defer spool.Delete()
 
-	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool, wg)
-	writer.Start()
+	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool)
+	writer.Start(wg)
 
 	for i := range 10 {
 		rem, err := writer.Write(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})

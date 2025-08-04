@@ -12,12 +12,12 @@ import (
 func TestBatcher(t *testing.T) {
 	batches := make([][]int, 0)
 
-	wg := &sync.WaitGroup{}
 	b := syncx.NewBatcher(func(batch []int) {
 		batches = append(batches, batch)
-	}, 2, time.Second, 3, wg)
+	}, 2, time.Second, 3)
 
-	b.Start()
+	wg := &sync.WaitGroup{}
+	b.Start(wg)
 
 	assert.Equal(t, 4, b.Queue(1)) // won't trigger a batch
 

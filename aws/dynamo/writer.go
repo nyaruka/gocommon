@@ -20,28 +20,26 @@ type Writer struct {
 	table   string
 	batcher *syncx.Batcher[map[string]types.AttributeValue]
 	spool   *Spool
-	wg      *sync.WaitGroup
 
 	numWritten atomic.Int64 // number of items that have been written
 	numSpooled atomic.Int64 // number of items that have been spooled
 }
 
 // NewWriter creates a new writer.
-func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool, wg *sync.WaitGroup) *Writer {
+func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
 	w := &Writer{
 		client: client,
 		table:  table,
 		spool:  spool,
-		wg:     wg,
 	}
-	w.batcher = syncx.NewBatcher(w.flush, 25, maxAge, bufferSize, wg)
+	w.batcher = syncx.NewBatcher(w.flush, 25, maxAge, bufferSize)
 
 	return w
 }
 
 // Start starts the writer's batch processing.
-func (w *Writer) Start() {
-	w.batcher.Start()
+func (w *Writer) Start(wg *sync.WaitGroup) {
+	w.batcher.Start(wg)
 }
 
 // Write queues an item for writing and will block if the buffer is full.
