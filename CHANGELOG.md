@@ -1,3 +1,9 @@
+v1.66.0 (2025-08-04)
+-------------------------
+ * Update deps
+ * For Batcher, Writer and Spool, apss WaitGroup via start method instead of constructor
+ * Update to go 1.24 and use t.Context() in tests
+
 v1.65.4 (2025-07-30)
 -------------------------
  * Move testing-only functions for DynsamoDB into new dyntest package
