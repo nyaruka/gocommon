@@ -29,12 +29,12 @@ func TestSpool(t *testing.T) {
 	item2, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Thing 2", Count: 234})
 	item3, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P33", SK: "SAA"}, Name: "Thing 3", Count: 345})
 
-	wg := &sync.WaitGroup{}
-	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second, wg)
+	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second)
 
 	defer spool.Delete()
 
-	err = spool.Start()
+	wg := &sync.WaitGroup{}
+	err = spool.Start(wg)
 	assert.NoError(t, err)
 
 	err = spool.Add("TestSpool", []map[string]types.AttributeValue{item1, item2})
@@ -50,8 +50,8 @@ func TestSpool(t *testing.T) {
 	wg.Wait()
 
 	// Start new spool to verify it can read the existing spool files
-	spool = dynamo.NewSpool(client, "./_test_spool", 100*time.Millisecond, wg)
-	spool.Start()
+	spool = dynamo.NewSpool(client, "./_test_spool", 100*time.Millisecond)
+	spool.Start(wg)
 	assert.Equal(t, 3, spool.Size())
 
 	// Give spool time to try a flush
