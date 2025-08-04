@@ -34,6 +34,7 @@ type Spool struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 func NewSpool(client *dynamodb.Client, directory string, flushInterval time.Duration) *Spool {
@@ -48,7 +49,7 @@ func NewSpool(client *dynamodb.Client, directory string, flushInterval time.Dura
 	}
 }
 
-func (s *Spool) Start(wg *sync.WaitGroup) error {
+func (s *Spool) Start() error {
 	// ensure directory exists
 	if err := os.MkdirAll(s.directory, 0755); err != nil {
 		return fmt.Errorf("error creating spool directory %s: %w", s.directory, err)
@@ -65,10 +66,10 @@ func (s *Spool) Start(wg *sync.WaitGroup) error {
 	}
 	s.size.Store(int64(total))
 
-	wg.Add(1)
+	s.wg.Add(1)
 
 	go func() {
-		defer wg.Done()
+		defer s.wg.Done()
 
 		ticker := time.NewTicker(s.flushInterval)
 		defer ticker.Stop()
@@ -90,6 +91,8 @@ func (s *Spool) Start(wg *sync.WaitGroup) error {
 
 func (s *Spool) Stop() {
 	s.cancel()
+
+	s.wg.Wait()
 }
 
 func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error {

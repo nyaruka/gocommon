@@ -21,6 +21,8 @@ type Writer struct {
 	batcher *syncx.Batcher[map[string]types.AttributeValue]
 	spool   *Spool
 
+	wg sync.WaitGroup
+
 	numWritten atomic.Int64 // number of items that have been written
 	numSpooled atomic.Int64 // number of items that have been spooled
 }
@@ -38,8 +40,8 @@ func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, buff
 }
 
 // Start starts the writer's batch processing.
-func (w *Writer) Start(wg *sync.WaitGroup) {
-	w.batcher.Start(wg)
+func (w *Writer) Start() {
+	w.batcher.Start(&w.wg)
 }
 
 // Write queues an item for writing and will block if the buffer is full.
@@ -56,6 +58,7 @@ func (w *Writer) Write(item any) (int, error) {
 // Stop stops the writer and flushes any remaining items
 func (w *Writer) Stop() {
 	w.batcher.Stop()
+	w.wg.Wait()
 }
 
 // Table returns the table name this writer is writing to.
