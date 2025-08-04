@@ -1,7 +1,6 @@
 package dynamo_test
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -33,8 +32,7 @@ func TestSpool(t *testing.T) {
 
 	defer spool.Delete()
 
-	wg := &sync.WaitGroup{}
-	err = spool.Start(wg)
+	err = spool.Start()
 	assert.NoError(t, err)
 
 	err = spool.Add("TestSpool", []map[string]types.AttributeValue{item1, item2})
@@ -47,11 +45,10 @@ func TestSpool(t *testing.T) {
 	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1@TestSpool.jsonl")
 
 	spool.Stop()
-	wg.Wait()
 
 	// Start new spool to verify it can read the existing spool files
 	spool = dynamo.NewSpool(client, "./_test_spool", 100*time.Millisecond)
-	spool.Start(wg)
+	spool.Start()
 	assert.Equal(t, 3, spool.Size())
 
 	// Give spool time to try a flush
@@ -64,5 +61,4 @@ func TestSpool(t *testing.T) {
 	assert.Equal(t, "Thing 1", obj.Name)
 
 	spool.Stop()
-	wg.Wait()
 }
