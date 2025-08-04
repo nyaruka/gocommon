@@ -1,3 +1,7 @@
+v1.66.1 (2025-08-04)
+-------------------------
+ * Rework stopping writers and spools to be synchronous
+
 v1.66.0 (2025-08-04)
 -------------------------
  * Update deps
