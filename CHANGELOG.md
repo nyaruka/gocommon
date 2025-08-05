@@ -1,3 +1,8 @@
+v1.67.0 (2025-08-05)
+-------------------------
+ * Add Batcher.Flush and Writer.Flush
+ * Rename Writer.Write to .Queue for clarity
+
 v1.66.1 (2025-08-04)
 -------------------------
  * Rework stopping writers and spools to be synchronous
