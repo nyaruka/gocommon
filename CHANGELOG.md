@@ -1,3 +1,7 @@
+v1.67.1 (2025-08-05)
+-------------------------
+ * Tweak error message
+
 v1.67.0 (2025-08-05)
 -------------------------
  * Add Batcher.Flush and Writer.Flush
