@@ -44,9 +44,9 @@ func (w *Writer) Start() {
 	w.batcher.Start(&w.wg)
 }
 
-// Write queues an item for writing and will block if the buffer is full.
+// Queue queues an item for writing and will block if the buffer is full.
 // Returns the remaining free capacity (batch + buffer).
-func (w *Writer) Write(item any) (int, error) {
+func (w *Writer) Queue(item any) (int, error) {
 	marshaled, err := Marshal(item)
 	if err != nil {
 		return 0, fmt.Errorf("error marshaling item: %w", err)

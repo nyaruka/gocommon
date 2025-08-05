@@ -26,7 +26,7 @@ func TestWriter(t *testing.T) {
 	writer.Start()
 
 	for i := range 10 {
-		rem, err := writer.Write(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
+		rem, err := writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
 		assert.NoError(t, err)
 		assert.NotZero(t, rem)
 	}
@@ -45,7 +45,7 @@ func TestWriter(t *testing.T) {
 	dyntest.Drop(t, client, "TestWriter")
 
 	for i := range 5 {
-		writer.Write(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
+		writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
 	}
 
 	// Allow time for writes to fail
