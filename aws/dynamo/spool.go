@@ -26,6 +26,7 @@ type spooledFile struct {
 
 var spooledFileRegex = regexp.MustCompile(`^[^@]+#(\d+)@(\w+)\.jsonl$`) // <uuid>#<count>@<table>.jsonl
 
+// Spool writes DynamoDB items to local files and periodically retries putting them in DynamoDB.
 type Spool struct {
 	client        *dynamodb.Client
 	directory     string

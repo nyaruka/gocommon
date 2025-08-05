@@ -86,7 +86,7 @@ func batchPutItem(ctx context.Context, c *dynamodb.Client, table string, items [
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error batch writing items to dynamo: %w", err)
+		return nil, fmt.Errorf("error batch writing items to table %s: %w", table, err)
 	}
 
 	var unprocessed []map[string]types.AttributeValue
