@@ -13,6 +13,7 @@ type Batcher[T any] struct {
 	maxAge   time.Duration
 
 	buffer  chan T
+	force   chan *sync.WaitGroup
 	batch   []T
 	timeout <-chan time.Time
 
@@ -32,6 +33,7 @@ func NewBatcher[T any](process func(batch []T), maxItems int, maxAge time.Durati
 		buffer:   make(chan T, bufferSize),
 		batch:    make([]T, 0, maxItems),
 		timeout:  nil,
+		force:    make(chan *sync.WaitGroup, 1),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -59,6 +61,11 @@ func (b *Batcher[T]) Start(wg *sync.WaitGroup) {
 					b.flush()
 				}
 
+			case fwg := <-b.force:
+				// drain everything (batch + buffer) and signal completion
+				b.drain()
+				fwg.Done()
+
 			case <-b.timeout:
 				// flush whatever we have
 				b.flush()
@@ -84,6 +91,14 @@ func (b *Batcher[T]) Stop() {
 	b.cancel()
 }
 
+// Flush forces a flush of the current batch.
+func (b *Batcher[T]) Flush() {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	b.force <- wg
+	wg.Wait()
+}
+
 // flushes whatever has been batched
 func (b *Batcher[T]) flush() {
 	if len(b.batch) > 0 {
@@ -99,7 +114,7 @@ func (b *Batcher[T]) drain() {
 		buffSize := len(b.buffer)
 		canRead := min(b.maxItems-len(b.batch), buffSize)
 
-		for i := 0; i < canRead; i++ {
+		for range canRead {
 			v := <-b.buffer
 			b.batch = append(b.batch, v)
 		}

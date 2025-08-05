@@ -61,6 +61,11 @@ func (w *Writer) Stop() {
 	w.wg.Wait()
 }
 
+// Flush forces a flush of current queue. Should only be used in tests.
+func (w *Writer) Flush() {
+	w.batcher.Flush()
+}
+
 // Table returns the table name this writer is writing to.
 func (w *Writer) Table() string {
 	return w.table

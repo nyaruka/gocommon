@@ -41,6 +41,16 @@ func TestWriter(t *testing.T) {
 	// Verify all items were actually written
 	dyntest.AssertCount(t, client, "TestWriter", 10)
 
+	for i := range 5 {
+		writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
+	}
+
+	writer.Flush()
+
+	numWritten, numSpooled = writer.Stats()
+	assert.Equal(t, int64(15), numWritten)
+	assert.Equal(t, int64(0), numSpooled)
+
 	// Break writing by deleting the underlying table
 	dyntest.Drop(t, client, "TestWriter")
 
@@ -53,7 +63,7 @@ func TestWriter(t *testing.T) {
 
 	// And check they were spooled
 	numWritten, numSpooled = writer.Stats()
-	assert.Equal(t, int64(10), numWritten)
+	assert.Equal(t, int64(15), numWritten)
 	assert.Equal(t, int64(5), numSpooled)
 	assert.Equal(t, 5, spool.Size())
 
