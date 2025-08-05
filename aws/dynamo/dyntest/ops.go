@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CreateTables(t *testing.T, c *dynamodb.Client, path string) {
+func CreateTables(t *testing.T, c *dynamodb.Client, path string, delExisting bool) {
 	t.Helper()
 	ctx := t.Context()
 
@@ -32,14 +32,21 @@ func CreateTables(t *testing.T, c *dynamodb.Client, path string) {
 	for _, input := range inputs {
 		input.TableName = aws.String("Test" + *input.TableName) // add "Test" prefix
 
+		_, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: input.TableName})
+		exists := err == nil
+
 		// delete table if it exists
-		if _, err := c.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: input.TableName}); err == nil {
+		if exists && delExisting {
 			_, err := c.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: input.TableName})
 			require.NoError(t, err)
+
+			exists = false
 		}
 
-		_, err := c.CreateTable(ctx, input)
-		require.NoError(t, err)
+		if !exists {
+			_, err := c.CreateTable(ctx, input)
+			require.NoError(t, err)
+		}
 	}
 }
 

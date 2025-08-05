@@ -26,7 +26,8 @@ func TestOps(t *testing.T) {
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	assert.NoError(t, err)
 
-	dyntest.CreateTables(t, client, "./testdata/tables.json")
+	dyntest.CreateTables(t, client, "./testdata/tables.json", true)
+	dyntest.CreateTables(t, client, "./testdata/tables.json", false)
 
 	err = dynamo.Test(ctx, client, "TestThings", "TestHistory")
 	assert.NoError(t, err)
