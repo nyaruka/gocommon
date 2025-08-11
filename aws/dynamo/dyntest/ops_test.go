@@ -46,6 +46,9 @@ func TestOps(t *testing.T) {
 	dyntest.AssertCount(t, client, "TestThings", 2)
 	dyntest.AssertCount(t, client, "TestHistory", 0)
 
+	items := dyntest.ScanAll[ThingItem](t, client, "TestThings")
+	assert.ElementsMatch(t, []*ThingItem{thing1, thing2}, items)
+
 	dyntest.Truncate(t, client, "TestThings")
 
 	dyntest.AssertCount(t, client, "TestThings", 0)

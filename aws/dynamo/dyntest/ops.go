@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/nyaruka/gocommon/aws/dynamo"
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/stretchr/testify/require"
 )
@@ -48,6 +49,36 @@ func CreateTables(t *testing.T, c *dynamodb.Client, path string, delExisting boo
 			require.NoError(t, err)
 		}
 	}
+}
+
+// ScanAll scans all items in a table.
+func ScanAll[I any](t *testing.T, c *dynamodb.Client, table string) []*I {
+	t.Helper()
+	assertTesting(t, table)
+	ctx := t.Context()
+
+	var items []*I
+	var lastEvaluatedKey map[string]types.AttributeValue
+
+	for {
+		output, err := c.Scan(ctx, &dynamodb.ScanInput{TableName: aws.String(table), ExclusiveStartKey: lastEvaluatedKey})
+		require.NoError(t, err)
+
+		for _, it := range output.Items {
+			item := new(I)
+			err := dynamo.Unmarshal(it, &item)
+			require.NoError(t, err)
+
+			items = append(items, item)
+		}
+
+		if len(output.LastEvaluatedKey) == 0 {
+			break
+		}
+		lastEvaluatedKey = output.LastEvaluatedKey
+	}
+
+	return items
 }
 
 // Truncate deletes all items in the table
