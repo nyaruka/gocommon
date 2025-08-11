@@ -1,3 +1,8 @@
+v1.67.3 (2025-08-11)
+-------------------------
+ * Update deps including phonenumbers
+ * Add dyntest.ScanAll
+
 v1.67.2 (2025-08-05)
 -------------------------
  * Add flag to dyntest.CreateTables to determine if existing tables should be deleted
