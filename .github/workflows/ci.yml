@@ -6,15 +6,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.24.x]
+        go-version: [1.24.x, 1.25.x]
 
     services:
-      redis:
-        image: redis:6.2-alpine
+      valkey:
+        image: valkey/valkey:8.0-alpine
         ports:
           - 6379:6379
       postgres:
-        image: postgis/postgis:14-3.3-alpine
+        image: postgres:15-alpine
         env:
           POSTGRES_DB: gocommon_test
           POSTGRES_USER: gocommon_test
