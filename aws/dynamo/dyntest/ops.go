@@ -57,7 +57,7 @@ func ScanAll[I any](t *testing.T, c *dynamodb.Client, table string) []*I {
 	assertTesting(t, table)
 	ctx := t.Context()
 
-	var items []*I
+	items := make([]*I, 0, 10)
 	var lastEvaluatedKey map[string]types.AttributeValue
 
 	for {
