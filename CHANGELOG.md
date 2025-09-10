@@ -1,3 +1,8 @@
+v1.67.4 (2025-09-10)
+-------------------------
+ * Fix unmarshaling in dyntest.ScanAll
+ * Test against go 1.25 and newer versions of postgres and valkey
+
 v1.67.3 (2025-08-11)
 -------------------------
  * Update deps including phonenumbers
