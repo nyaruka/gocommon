@@ -66,7 +66,7 @@ func ScanAll[I any](t *testing.T, c *dynamodb.Client, table string) []*I {
 
 		for _, it := range output.Items {
 			item := new(I)
-			err := dynamo.Unmarshal(it, &item)
+			err := dynamo.Unmarshal(it, item)
 			require.NoError(t, err)
 
 			items = append(items, item)
