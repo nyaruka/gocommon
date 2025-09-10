@@ -1,3 +1,7 @@
+v1.67.5 (2025-09-10)
+-------------------------
+ * Tweak dyntest.ScanAll to always return non-nil slice
+
 v1.67.4 (2025-09-10)
 -------------------------
  * Fix unmarshaling in dyntest.ScanAll
