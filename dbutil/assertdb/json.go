@@ -19,17 +19,17 @@ type Assert struct {
 	Set     []any          `json:"set,omitempty"`
 }
 
-func (a *Assert) Run(t *testing.T, db *sqlx.DB) bool {
+func (a *Assert) Run(t *testing.T, db *sqlx.DB, msgAndArgs ...any) bool {
 	if a.Returns != nil {
-		return assertReturns(t, db, a.Query, a.Args, a.Returns, "returns assertion failed for '%q'", a.Query)
+		return assertReturns(t, db, a.Query, a.Args, a.Returns, msgAndArgs...)
 	} else if a.Columns != nil {
-		return assertColumns(t, db, a.Query, a.Args, a.Columns, "columns assertion failed for '%q'", a.Query)
+		return assertColumns(t, db, a.Query, a.Args, a.Columns, msgAndArgs...)
 	} else if a.Map != nil {
-		return assertMap(t, db, a.Query, a.Args, a.Map, "map assertion failed for '%q'", a.Query)
+		return assertMap(t, db, a.Query, a.Args, a.Map, msgAndArgs...)
 	} else if a.List != nil {
-		return assertList(t, db, a.Query, a.Args, a.List, "list assertion failed for '%q'", a.Query)
+		return assertList(t, db, a.Query, a.Args, a.List, msgAndArgs...)
 	} else if a.Set != nil {
-		return assertSet(t, db, a.Query, a.Args, a.Set, "set assertion failed for '%q'", a.Query)
+		return assertSet(t, db, a.Query, a.Args, a.Set, msgAndArgs...)
 	} else {
 		t.Errorf("no assertion specified for '%q'", a.Query)
 	}
