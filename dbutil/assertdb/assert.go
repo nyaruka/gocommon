@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +28,7 @@ func (q *TestQuery) Returns(expected any, msgAndArgs ...any) bool {
 	// get a variable of same type to hold actual result
 	actual := expected
 
-	err := q.db.Get(&actual, q.sql, q.args...)
+	err := q.db.GetContext(q.t.Context(), &actual, q.sql, q.args...)
 	assert.NoError(q.t, err, msgAndArgs...)
 
 	// not sure why but if you pass an int you get back an int64..
@@ -45,7 +46,22 @@ func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) bool {
 
 	actual := make(map[string]any, len(expected))
 
-	err := q.db.QueryRowx(q.sql, q.args...).MapScan(actual)
+	err := q.db.QueryRowxContext(q.t.Context(), q.sql, q.args...).MapScan(actual)
 	assert.NoError(q.t, err, msgAndArgs...)
+
+	return assert.Equal(q.t, expected, actual, msgAndArgs...)
+}
+
+// Map scans two column rows into a map and asserts that it matches the expected
+func (q *TestQuery) Map(expected map[string]any, msgAndArgs ...any) bool {
+	q.t.Helper()
+
+	rows, err := q.db.QueryContext(q.t.Context(), q.sql, q.args...)
+	assert.NoError(q.t, err, msgAndArgs...)
+
+	actual := make(map[string]any, len(expected))
+	err = dbutil.ScanAllMap(rows, actual)
+	assert.NoError(q.t, err, msgAndArgs...)
+
 	return assert.Equal(q.t, expected, actual, msgAndArgs...)
 }
