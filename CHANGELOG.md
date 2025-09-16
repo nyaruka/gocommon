@@ -1,3 +1,7 @@
+v1.67.6 (2025-09-16)
+-------------------------
+ * Add assertdb.TestQuery.Map
+
 v1.67.5 (2025-09-10)
 -------------------------
  * Tweak dyntest.ScanAll to always return non-nil slice
