@@ -1,6 +1,7 @@
 package assertdb
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -9,70 +10,56 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Query creates a new query on which one can assert things
-func Query(t *testing.T, db *sqlx.DB, sql string, args ...any) *TestQuery {
-	return &TestQuery{t, db, sql, args}
-}
-
-// TestQuery is a query that we can assert the result of
-type TestQuery struct {
-	t    *testing.T
-	db   *sqlx.DB
-	sql  string
-	args []any
-}
-
-// Returns asserts that the query returns a single value
-func (q *TestQuery) Returns(expected any, msgAndArgs ...any) bool {
-	q.t.Helper()
-
+func assertReturns(t *testing.T, db *sqlx.DB, query string, args []any, expected any, msgAndArgs ...any) bool {
 	// get a variable of same type to hold actual result
 	actual := expected
 
-	err := q.db.GetContext(q.t.Context(), &actual, q.sql, q.args...)
-	assert.NoError(q.t, err, msgAndArgs...)
+	err := db.GetContext(t.Context(), &actual, query, args...)
+	assert.NoError(t, err, msgAndArgs...)
 
-	return assert.Equal(q.t, simplifyValue(expected), actual, msgAndArgs...)
+	return assert.Equal(t, simplifyValue(expected), actual, msgAndArgs...)
 }
 
-// Columns asserts that the query returns the given column values
-func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) bool {
-	q.t.Helper()
-
+func assertColumns(t *testing.T, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
 	actual := make(map[string]any, len(expected))
 
-	err := q.db.QueryRowxContext(q.t.Context(), q.sql, q.args...).MapScan(actual)
-	assert.NoError(q.t, err, msgAndArgs...)
+	err := db.QueryRowxContext(t.Context(), query, args...).MapScan(actual)
+	assert.NoError(t, err, msgAndArgs...)
 
-	return assert.Equal(q.t, simplifyMap(expected), actual, msgAndArgs...)
+	return assert.Equal(t, simplifyMap(expected), actual, msgAndArgs...)
 }
 
-// Slice scans single column rows into a slice and asserts that it matches the expected
-func (q *TestQuery) Slice(expected []any, msgAndArgs ...any) bool {
-	q.t.Helper()
-
-	rows, err := q.db.QueryContext(q.t.Context(), q.sql, q.args...)
-	assert.NoError(q.t, err, msgAndArgs...)
-
-	actual := make([]any, 0, len(expected))
-	actual, err = dbutil.ScanAllSlice(rows, actual)
-	assert.NoError(q.t, err, msgAndArgs...)
-
-	return assert.Equal(q.t, simplifySlice(expected), actual, msgAndArgs...)
-}
-
-// Map scans two column rows into a map and asserts that it matches the expected
-func (q *TestQuery) Map(expected map[string]any, msgAndArgs ...any) bool {
-	q.t.Helper()
-
-	rows, err := q.db.QueryContext(q.t.Context(), q.sql, q.args...)
-	assert.NoError(q.t, err, msgAndArgs...)
+func assertMap(t *testing.T, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
+	rows, err := db.QueryContext(t.Context(), query, args...)
+	assert.NoError(t, err, msgAndArgs...)
 
 	actual := make(map[string]any, len(expected))
 	err = dbutil.ScanAllMap(rows, actual)
-	assert.NoError(q.t, err, msgAndArgs...)
+	assert.NoError(t, err, msgAndArgs...)
 
-	return assert.Equal(q.t, simplifyMap(expected), actual, msgAndArgs...)
+	return assert.Equal(t, simplifyMap(expected), actual, msgAndArgs...)
+}
+
+func assertList(t *testing.T, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
+	rows, err := db.QueryContext(t.Context(), query, args...)
+	assert.NoError(t, err, msgAndArgs...)
+
+	actual := make([]any, 0, len(expected))
+	actual, err = dbutil.ScanAllSlice(rows, actual)
+	assert.NoError(t, err, msgAndArgs...)
+
+	return assert.Equal(t, simplifySlice(expected), actual, msgAndArgs...)
+}
+
+func assertSet(t *testing.T, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
+	rows, err := db.QueryContext(t.Context(), query, args...)
+	assert.NoError(t, err, msgAndArgs...)
+
+	actual := make([]any, 0, len(expected))
+	actual, err = dbutil.ScanAllSlice(rows, actual)
+	assert.NoError(t, err, msgAndArgs...)
+
+	return assert.ElementsMatch(t, simplifySlice(expected), actual, msgAndArgs...)
 }
 
 func simplifyMap(m map[string]any) map[string]any {
@@ -92,6 +79,16 @@ func simplifySlice(s []any) []any {
 }
 
 func simplifyValue(v any) any {
+	switch typed := v.(type) {
+	case json.Number:
+		// try to convert to int first, then float
+		if i, err := typed.Int64(); err == nil {
+			return i
+		} else if f, err := typed.Float64(); err == nil {
+			return f
+		}
+	}
+
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
