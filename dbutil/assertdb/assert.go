@@ -32,12 +32,6 @@ func (q *TestQuery) Returns(expected any, msgAndArgs ...any) bool {
 	err := q.db.GetContext(q.t.Context(), &actual, q.sql, q.args...)
 	assert.NoError(q.t, err, msgAndArgs...)
 
-	// not sure why but if you pass an int you get back an int64..
-	switch expected.(type) {
-	case int:
-		actual = int(actual.(int64))
-	}
-
 	return assert.Equal(q.t, simplifyValue(expected), actual, msgAndArgs...)
 }
 
