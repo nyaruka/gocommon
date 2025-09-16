@@ -1,6 +1,7 @@
 package assertdb
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -37,7 +38,7 @@ func (q *TestQuery) Returns(expected any, msgAndArgs ...any) bool {
 		actual = int(actual.(int64))
 	}
 
-	return assert.Equal(q.t, expected, actual, msgAndArgs...)
+	return assert.Equal(q.t, simplifyValue(expected), actual, msgAndArgs...)
 }
 
 // Columns asserts that the query returns the given column values
@@ -49,7 +50,7 @@ func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) bool {
 	err := q.db.QueryRowxContext(q.t.Context(), q.sql, q.args...).MapScan(actual)
 	assert.NoError(q.t, err, msgAndArgs...)
 
-	return assert.Equal(q.t, expected, actual, msgAndArgs...)
+	return assert.Equal(q.t, simplifyMap(expected), actual, msgAndArgs...)
 }
 
 // Map scans two column rows into a map and asserts that it matches the expected
@@ -63,5 +64,31 @@ func (q *TestQuery) Map(expected map[string]any, msgAndArgs ...any) bool {
 	err = dbutil.ScanAllMap(rows, actual)
 	assert.NoError(q.t, err, msgAndArgs...)
 
-	return assert.Equal(q.t, expected, actual, msgAndArgs...)
+	return assert.Equal(q.t, simplifyMap(expected), actual, msgAndArgs...)
+}
+
+func simplifyMap(m map[string]any) map[string]any {
+	simplified := make(map[string]any, len(m))
+	for k, v := range m {
+		simplified[k] = simplifyValue(v)
+	}
+	return simplified
+}
+
+func simplifyValue(v any) any {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return rv.Uint()
+	case reflect.Float32, reflect.Float64:
+		return rv.Float()
+	case reflect.Bool:
+		return rv.Bool()
+	case reflect.String:
+		return rv.String()
+	default:
+		return v
+	}
 }
