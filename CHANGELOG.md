@@ -1,3 +1,7 @@
+v1.68.1 (2025-09-16)
+-------------------------
+ * Add msgAndArgs param to Assert.Run
+
 v1.68.0 (2025-09-16)
 -------------------------
  * Add assertdb.Assert for use in .json files
