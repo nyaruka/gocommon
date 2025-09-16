@@ -47,6 +47,20 @@ func (q *TestQuery) Columns(expected map[string]any, msgAndArgs ...any) bool {
 	return assert.Equal(q.t, simplifyMap(expected), actual, msgAndArgs...)
 }
 
+// Slice scans single column rows into a slice and asserts that it matches the expected
+func (q *TestQuery) Slice(expected []any, msgAndArgs ...any) bool {
+	q.t.Helper()
+
+	rows, err := q.db.QueryContext(q.t.Context(), q.sql, q.args...)
+	assert.NoError(q.t, err, msgAndArgs...)
+
+	actual := make([]any, 0, len(expected))
+	actual, err = dbutil.ScanAllSlice(rows, actual)
+	assert.NoError(q.t, err, msgAndArgs...)
+
+	return assert.Equal(q.t, simplifySlice(expected), actual, msgAndArgs...)
+}
+
 // Map scans two column rows into a map and asserts that it matches the expected
 func (q *TestQuery) Map(expected map[string]any, msgAndArgs ...any) bool {
 	q.t.Helper()
@@ -65,6 +79,14 @@ func simplifyMap(m map[string]any) map[string]any {
 	simplified := make(map[string]any, len(m))
 	for k, v := range m {
 		simplified[k] = simplifyValue(v)
+	}
+	return simplified
+}
+
+func simplifySlice(s []any) []any {
+	simplified := make([]any, len(s))
+	for i, v := range s {
+		simplified[i] = simplifyValue(v)
 	}
 	return simplified
 }
