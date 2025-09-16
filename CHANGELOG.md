@@ -1,3 +1,7 @@
+v1.67.7 (2025-09-16)
+-------------------------
+ * Tweak assertdb functions to simplify expected values to their underlying kinds
+
 v1.67.6 (2025-09-16)
 -------------------------
  * Add assertdb.TestQuery.Map
