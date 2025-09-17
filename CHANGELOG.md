@@ -1,3 +1,7 @@
+v1.68.2 (2025-09-17)
+-------------------------
+ * Add tests of tests and rename Assert.Run to Assert.Check
+
 v1.68.1 (2025-09-16)
 -------------------------
  * Add msgAndArgs param to Assert.Run
