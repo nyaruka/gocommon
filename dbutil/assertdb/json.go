@@ -3,9 +3,9 @@ package assertdb
 import (
 	"bytes"
 	"encoding/json"
-	"testing"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 )
 
 // Assert represents a single assertion that can marshaled and unmarshaled to/from JSON
@@ -19,7 +19,11 @@ type Assert struct {
 	Set     []any          `json:"set,omitempty"`
 }
 
-func (a *Assert) Run(t *testing.T, db *sqlx.DB, msgAndArgs ...any) bool {
+func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
 	if a.Returns != nil {
 		return assertReturns(t, db, a.Query, a.Args, a.Returns, msgAndArgs...)
 	} else if a.Columns != nil {

@@ -1,36 +1,48 @@
 package assertdb
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
-	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/stretchr/testify/assert"
 )
 
-func assertReturns(t *testing.T, db *sqlx.DB, query string, args []any, expected any, msgAndArgs ...any) bool {
+func assertReturns(t assert.TestingT, db *sqlx.DB, query string, args []any, expected any, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
 	// get a variable of same type to hold actual result
 	actual := expected
 
-	err := db.GetContext(t.Context(), &actual, query, args...)
+	err := db.GetContext(context.Background(), &actual, query, args...)
 	assert.NoError(t, err, msgAndArgs...)
 
 	return assert.Equal(t, simplifyValue(expected), actual, msgAndArgs...)
 }
 
-func assertColumns(t *testing.T, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
+func assertColumns(t assert.TestingT, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
 	actual := make(map[string]any, len(expected))
 
-	err := db.QueryRowxContext(t.Context(), query, args...).MapScan(actual)
+	err := db.QueryRowxContext(context.Background(), query, args...).MapScan(actual)
 	assert.NoError(t, err, msgAndArgs...)
 
 	return assert.Equal(t, simplifyMap(expected), actual, msgAndArgs...)
 }
 
-func assertMap(t *testing.T, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
-	rows, err := db.QueryContext(t.Context(), query, args...)
+func assertMap(t assert.TestingT, db *sqlx.DB, query string, args []any, expected map[string]any, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
+	rows, err := db.QueryContext(context.Background(), query, args...)
 	assert.NoError(t, err, msgAndArgs...)
 
 	actual := make(map[string]any, len(expected))
@@ -40,8 +52,12 @@ func assertMap(t *testing.T, db *sqlx.DB, query string, args []any, expected map
 	return assert.Equal(t, simplifyMap(expected), actual, msgAndArgs...)
 }
 
-func assertList(t *testing.T, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
-	rows, err := db.QueryContext(t.Context(), query, args...)
+func assertList(t assert.TestingT, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
+	rows, err := db.QueryContext(context.Background(), query, args...)
 	assert.NoError(t, err, msgAndArgs...)
 
 	actual := make([]any, 0, len(expected))
@@ -51,8 +67,12 @@ func assertList(t *testing.T, db *sqlx.DB, query string, args []any, expected []
 	return assert.Equal(t, simplifySlice(expected), actual, msgAndArgs...)
 }
 
-func assertSet(t *testing.T, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
-	rows, err := db.QueryContext(t.Context(), query, args...)
+func assertSet(t assert.TestingT, db *sqlx.DB, query string, args []any, expected []any, msgAndArgs ...any) bool {
+	if h, ok := t.(tHelper); ok {
+		h.Helper()
+	}
+
+	rows, err := db.QueryContext(context.Background(), query, args...)
 	assert.NoError(t, err, msgAndArgs...)
 
 	actual := make([]any, 0, len(expected))
@@ -104,4 +124,8 @@ func simplifyValue(v any) any {
 	default:
 		return v
 	}
+}
+
+type tHelper = interface {
+	Helper()
 }
