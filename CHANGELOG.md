@@ -1,3 +1,7 @@
+v1.68.3 (2025-09-17)
+-------------------------
+ * Use official minio container
+
 v1.68.2 (2025-09-17)
 -------------------------
  * Add tests of tests and rename Assert.Run to Assert.Check
