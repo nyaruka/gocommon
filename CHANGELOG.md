@@ -1,3 +1,7 @@
+v1.68.4 (2025-09-23)
+-------------------------
+ * Allow db asserts where returns=null
+
 v1.68.3 (2025-09-17)
 -------------------------
  * Use official minio container
