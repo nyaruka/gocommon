@@ -15,6 +15,20 @@
     },
     {
         "assert": {
+            "query": "SELECT NULL FROM foo",
+            "returns": null
+        },
+        "pass": true
+    },
+    {
+        "assert": {
+            "query": "SELECT 1 FROM foo",
+            "returns": null
+        },
+        "pass": false
+    },
+    {
+        "assert": {
             "query": "SELECT name, age, status FROM foo",
             "columns": {
                 "name": "Ann",

@@ -24,9 +24,7 @@ func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
 		h.Helper()
 	}
 
-	if a.Returns != nil {
-		return assertReturns(t, db, a.Query, a.Args, a.Returns, msgAndArgs...)
-	} else if a.Columns != nil {
+	if a.Columns != nil {
 		return assertColumns(t, db, a.Query, a.Args, a.Columns, msgAndArgs...)
 	} else if a.Map != nil {
 		return assertMap(t, db, a.Query, a.Args, a.Map, msgAndArgs...)
@@ -35,10 +33,8 @@ func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
 	} else if a.Set != nil {
 		return assertSet(t, db, a.Query, a.Args, a.Set, msgAndArgs...)
 	} else {
-		t.Errorf("no assertion specified for '%q'", a.Query)
+		return assertReturns(t, db, a.Query, a.Args, a.Returns, msgAndArgs...)
 	}
-
-	return true
 }
 
 func (a *Assert) UnmarshalJSON(data []byte) error {
