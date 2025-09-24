@@ -1,3 +1,7 @@
+v1.68.5 (2025-09-24)
+-------------------------
+ * Fix marshaling of assertdb.Assert when returns is nil
+
 v1.68.4 (2025-09-23)
 -------------------------
  * Allow db asserts where returns=null
