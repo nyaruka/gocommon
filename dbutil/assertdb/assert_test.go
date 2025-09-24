@@ -13,8 +13,8 @@ import (
 )
 
 type assertTest struct {
-	Assert *assertdb.Assert `json:"assert"`
-	Pass   bool             `json:"pass"`
+	Assert json.RawMessage `json:"assert"`
+	Pass   bool            `json:"pass"`
 }
 
 func TestAsserts(t *testing.T) {
@@ -37,14 +37,24 @@ func TestAsserts(t *testing.T) {
 	mt := &MockTestingT{}
 
 	for i, tc := range tcs {
+		a := &assertdb.Assert{}
+		err = json.Unmarshal(tc.Assert, a)
+		require.NoError(t, err, "%d: could not unmarshal assert: %s", i, err)
+
 		if tc.Pass {
-			assert.True(mt, tc.Assert.Check(mt, db), "%d: expected check to return true", i)
+			assert.True(mt, a.Check(mt, db), "%d: expected check to return true", i)
 			assert.Len(t, mt.errors, 0)
 		} else {
-			assert.False(mt, tc.Assert.Check(mt, db), "%d: expected check to return false", i)
+			assert.False(mt, a.Check(mt, db), "%d: expected check to return false", i)
 			assert.Len(t, mt.errors, 1)
 			mt.errors = nil
 		}
+
+		// re-marshal and check we get the same thing back
+		marshaled, err := json.Marshal(a)
+		require.NoError(t, err, "%d: could not marshal assert: %s", i, err)
+
+		assert.JSONEq(t, string(tc.Assert), string(marshaled), "%d: marshaled assert does not match original", i)
 	}
 
 	assertdb.Query(t, db, `SELECT COUNT(*) FROM foo`).Returns(4)

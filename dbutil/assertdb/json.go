@@ -37,6 +37,23 @@ func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
 	}
 }
 
+func (a *Assert) MarshalJSON() ([]byte, error) {
+	// no values means this is an assert on returns NULL which requires special handling so returns isn't omitted
+	if a.Returns == nil && a.Columns == nil && a.Map == nil && a.List == nil && a.Set == nil {
+		type assertNull struct {
+			Query   string `json:"query"`
+			Args    []any  `json:"args,omitempty"`
+			Returns any    `json:"returns"`
+		}
+
+		return json.Marshal(&assertNull{Query: a.Query, Args: a.Args, Returns: nil})
+	}
+
+	type Alias Assert
+	alias := (*Alias)(a)
+	return json.Marshal(alias)
+}
+
 func (a *Assert) UnmarshalJSON(data []byte) error {
 	type Alias Assert
 
@@ -44,8 +61,8 @@ func (a *Assert) UnmarshalJSON(data []byte) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 
-	aux := (*Alias)(a)
-	if err := decoder.Decode(aux); err != nil {
+	alias := (*Alias)(a)
+	if err := decoder.Decode(alias); err != nil {
 		return err
 	}
 
