@@ -1,3 +1,7 @@
+v1.68.6 (2025-09-26)
+-------------------------
+ * Rework assertdb.Assert and add Actual method to support snapshot updating
+
 v1.68.5 (2025-09-24)
 -------------------------
  * Fix marshaling of assertdb.Assert when returns is nil
