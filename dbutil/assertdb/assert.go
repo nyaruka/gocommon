@@ -17,6 +17,7 @@ import (
 
 // Assert represents a single assertion that can marshaled and unmarshaled to/from JSON
 type Assert struct {
+	Label   string         `json:"label,omitempty"`
 	Query   string         `json:"query"`
 	Args    []any          `json:"args,omitempty"`
 	Returns any            `json:"returns,omitempty"`
@@ -57,7 +58,7 @@ func (a *Assert) Actual(t *testing.T, db *sqlx.DB) *Assert {
 }
 
 func (a *Assert) actual(ctx context.Context, db *sqlx.DB) (*Assert, error) {
-	actual := &Assert{Query: a.Query, Args: a.Args}
+	actual := &Assert{Label: a.Label, Query: a.Query, Args: a.Args}
 
 	if a.Columns != nil {
 		val := make(map[string]any, 10)
@@ -121,12 +122,13 @@ func (a *Assert) MarshalJSON() ([]byte, error) {
 	// no values means this is an assert on returns NULL which requires special handling so returns isn't omitted
 	if a.Returns == nil && a.Columns == nil && a.Map == nil && a.List == nil && a.Set == nil {
 		type assertNull struct {
+			Label   string `json:"label,omitempty"`
 			Query   string `json:"query"`
 			Args    []any  `json:"args,omitempty"`
 			Returns any    `json:"returns"`
 		}
 
-		return json.Marshal(&assertNull{Query: a.Query, Args: a.Args, Returns: nil})
+		return json.Marshal(&assertNull{Label: a.Label, Query: a.Query, Args: a.Args, Returns: nil})
 	}
 
 	type Alias Assert

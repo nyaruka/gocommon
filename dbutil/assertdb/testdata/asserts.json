@@ -1,6 +1,7 @@
 [
     {
         "assert": {
+            "label": "passing returns with label",
             "query": "SELECT COUNT(*) FROM foo",
             "returns": 4
         },
@@ -8,11 +9,13 @@
     },
     {
         "assert": {
+            "label": "failing returns with label",
             "query": "SELECT COUNT(*) FROM foo",
             "returns": 5
         },
         "pass": false,
         "actual": {
+            "label": "failing returns with label",
             "query": "SELECT COUNT(*) FROM foo",
             "returns": 4
         }
