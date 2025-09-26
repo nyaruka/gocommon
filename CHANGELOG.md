@@ -1,3 +1,7 @@
+v1.68.8 (2025-09-26)
+-------------------------
+ * Fix assert marshaling with empty set, map etc
+
 v1.68.7 (2025-09-26)
 -------------------------
  * Allow DB assertions to have labels
