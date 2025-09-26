@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/nyaruka/gocommon/dbutil/assertdb"
+	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,7 @@ import (
 type assertTest struct {
 	Assert json.RawMessage `json:"assert"`
 	Pass   bool            `json:"pass"`
+	Actual json.RawMessage `json:"actual,omitempty"`
 }
 
 func TestAsserts(t *testing.T) {
@@ -44,10 +46,17 @@ func TestAsserts(t *testing.T) {
 		if tc.Pass {
 			assert.True(mt, a.Check(mt, db), "%d: expected check to return true", i)
 			assert.Len(t, mt.errors, 0)
+
+			actual := a.Actual(t, db)
+			assert.Equal(t, a, actual, "%d: actual does not match original", i)
+
 		} else {
 			assert.False(mt, a.Check(mt, db), "%d: expected check to return false", i)
 			assert.Len(t, mt.errors, 1)
 			mt.errors = nil
+
+			actual := a.Actual(t, db)
+			assert.JSONEq(t, string(tc.Actual), string(jsonx.MustMarshal(actual)), "%d: actual doesn't match", i)
 		}
 
 		// re-marshal and check we get the same thing back

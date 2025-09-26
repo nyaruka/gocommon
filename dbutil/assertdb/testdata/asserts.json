@@ -11,7 +11,11 @@
             "query": "SELECT COUNT(*) FROM foo",
             "returns": 5
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT COUNT(*) FROM foo",
+            "returns": 4
+        }
     },
     {
         "assert": {
@@ -25,7 +29,11 @@
             "query": "SELECT 1 FROM foo",
             "returns": null
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT 1 FROM foo",
+            "returns": 1
+        }
     },
     {
         "assert": {
@@ -47,7 +55,15 @@
                 "status": "A"
             }
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT name, age, status FROM foo",
+            "columns": {
+                "name": "Ann",
+                "age": 32,
+                "status": "A"
+            }
+        }
     },
     {
         "assert": {
@@ -58,7 +74,15 @@
                 "status": "A"
             }
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT name, age, status FROM foo",
+            "columns": {
+                "name": "Ann",
+                "age": 32,
+                "status": "A"
+            }
+        }
     },
     {
         "assert": {
@@ -78,7 +102,14 @@
                 "B": 2
             }
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT status, count(*) FROM foo GROUP BY 1",
+            "map": {
+                "A": 3,
+                "B": 1
+            }
+        }
     },
     {
         "assert": {
@@ -102,42 +133,69 @@
                 "Cat"
             ]
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT name FROM foo ORDER BY name",
+            "list": [
+                "Ann",
+                "Bob",
+                "Cat",
+                "Dan"
+            ]
+        }
     },
     {
         "assert": {
-            "query": "SELECT name FROM foo ORDER BY name",
+            "query": "SELECT name FROM foo ORDER BY name DESC",
             "set": [
-                "Cat",
-                "Dan",
                 "Ann",
-                "Bob"
+                "Bob",
+                "Cat",
+                "Dan"
             ]
         },
         "pass": true
     },
     {
         "assert": {
-            "query": "SELECT name FROM foo ORDER BY name",
+            "query": "SELECT name FROM foo ORDER BY name DESC",
             "set": [
+                "Ann",
                 "Cat",
-                "Dan",
-                "Ann"
+                "Dan"
             ]
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT name FROM foo ORDER BY name DESC",
+            "set": [
+                "Ann",
+                "Bob",
+                "Cat",
+                "Dan"
+            ]
+        }
     },
     {
         "assert": {
-            "query": "SELECT name FROM foo ORDER BY name",
+            "query": "SELECT name FROM foo ORDER BY name DESC",
             "set": [
-                "Cat",
-                "Dan",
                 "Ann",
                 "Bob",
+                "Cat",
+                "Dan",
                 "Eve"
             ]
         },
-        "pass": false
+        "pass": false,
+        "actual": {
+            "query": "SELECT name FROM foo ORDER BY name DESC",
+            "set": [
+                "Ann",
+                "Bob",
+                "Cat",
+                "Dan"
+            ]
+        }
     }
 ]
