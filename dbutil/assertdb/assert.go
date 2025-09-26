@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"sort"
+	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/nyaruka/gocommon/dbutil"
@@ -25,12 +26,12 @@ type Assert struct {
 	Set     []any          `json:"set,omitempty"`
 }
 
-func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
+func (a *Assert) Check(t TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
 	if h, ok := t.(tHelper); ok {
 		h.Helper()
 	}
 
-	actual, err := a.actual(context.TODO(), db)
+	actual, err := a.actual(t.Context(), db)
 	if !assert.NoError(t, err, msgAndArgs...) {
 		return false
 	}
@@ -48,8 +49,8 @@ func (a *Assert) Check(t assert.TestingT, db *sqlx.DB, msgAndArgs ...any) bool {
 	}
 }
 
-func (a *Assert) Actual(t require.TestingT, db *sqlx.DB) *Assert {
-	actual, err := a.actual(context.TODO(), db)
+func (a *Assert) Actual(t *testing.T, db *sqlx.DB) *Assert {
+	actual, err := a.actual(t.Context(), db)
 	require.NoError(t, err)
 
 	return actual
@@ -213,6 +214,12 @@ func normalizeValue(v any) any {
 	default:
 		return v
 	}
+}
+
+type TestingT interface {
+	assert.TestingT
+
+	Context() context.Context
 }
 
 type tHelper = interface {

@@ -2,17 +2,16 @@ package assertdb
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
 )
 
 // Query creates a new query on which one can assert things
-func Query(t assert.TestingT, db *sqlx.DB, sql string, args ...any) *TestQuery {
+func Query(t TestingT, db *sqlx.DB, sql string, args ...any) *TestQuery {
 	return &TestQuery{t, db, sql, args}
 }
 
 // TestQuery is a query that we can assert the result of
 type TestQuery struct {
-	t    assert.TestingT
+	t    TestingT
 	db   *sqlx.DB
 	sql  string
 	args []any

@@ -1,6 +1,7 @@
 package assertdb_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -36,7 +37,7 @@ func TestAsserts(t *testing.T) {
 	err = json.Unmarshal(d, &tcs)
 	assert.NoError(t, err)
 
-	mt := &MockTestingT{}
+	mt := &MockTestingT{t: t}
 
 	for i, tc := range tcs {
 		a := &assertdb.Assert{}
@@ -73,11 +74,16 @@ func TestAsserts(t *testing.T) {
 }
 
 type MockTestingT struct {
+	t      *testing.T
 	errors []string
 }
 
 func (m *MockTestingT) Errorf(format string, args ...any) {
 	m.errors = append(m.errors, fmt.Sprintf(format, args...))
+}
+
+func (m *MockTestingT) Context() (ctx context.Context) {
+	return m.t.Context()
 }
 
 // returns an open test database pool
