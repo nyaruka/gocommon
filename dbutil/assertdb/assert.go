@@ -20,11 +20,11 @@ type Assert struct {
 	Label   string         `json:"label,omitempty"`
 	Query   string         `json:"query"`
 	Args    []any          `json:"args,omitempty"`
-	Returns any            `json:"returns,omitempty"`
-	Columns map[string]any `json:"columns,omitempty"`
-	Map     map[string]any `json:"map,omitempty"`
-	List    []any          `json:"list,omitempty"`
-	Set     []any          `json:"set,omitempty"`
+	Returns any            `json:"returns,omitzero"`
+	Columns map[string]any `json:"columns,omitzero"`
+	Map     map[string]any `json:"map,omitzero"`
+	List    []any          `json:"list,omitzero"`
+	Set     []any          `json:"set,omitzero"`
 }
 
 func (a *Assert) Check(t TestingT, db *sqlx.DB, msgAndArgs ...any) bool {

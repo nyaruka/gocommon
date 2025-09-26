@@ -200,5 +200,31 @@
                 "Dan"
             ]
         }
+    },
+    {
+        "assert": {
+            "label": "passing with empty set",
+            "query": "SELECT name FROM foo WHERE id > 10000",
+            "set": []
+        },
+        "pass": true
+    },
+    {
+        "assert": {
+            "label": "failing with empty set",
+            "query": "SELECT name FROM foo",
+            "set": []
+        },
+        "pass": false,
+        "actual": {
+            "label": "failing with empty set",
+            "query": "SELECT name FROM foo",
+            "set": [
+                "Ann",
+                "Bob",
+                "Cat",
+                "Dan"
+            ]
+        }
     }
 ]
