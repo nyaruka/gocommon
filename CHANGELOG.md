@@ -1,3 +1,7 @@
+v1.68.7 (2025-09-26)
+-------------------------
+ * Allow DB assertions to have labels
+
 v1.68.6 (2025-09-26)
 -------------------------
  * Rework assertdb.Assert and add Actual method to support snapshot updating
