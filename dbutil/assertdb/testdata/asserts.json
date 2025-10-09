@@ -22,25 +22,25 @@
     },
     {
         "assert": {
-            "query": "SELECT NULL FROM foo",
+            "query": "SELECT NULL",
             "returns": null
         },
         "pass": true
     },
     {
         "assert": {
-            "query": "SELECT 1 FROM foo",
+            "query": "SELECT 1",
             "returns": null
         },
         "pass": false,
         "actual": {
-            "query": "SELECT 1 FROM foo",
+            "query": "SELECT 1",
             "returns": 1
         }
     },
     {
         "assert": {
-            "query": "SELECT name, age, status FROM foo",
+            "query": "SELECT name, age, status FROM foo ORDER BY id LIMIT 1",
             "columns": {
                 "name": "Ann",
                 "age": 32,
@@ -51,7 +51,7 @@
     },
     {
         "assert": {
-            "query": "SELECT name, age, status FROM foo",
+            "query": "SELECT name, age, status FROM foo ORDER BY id LIMIT 1",
             "columns": {
                 "name": "Ann",
                 "age": 34,
@@ -60,7 +60,7 @@
         },
         "pass": false,
         "actual": {
-            "query": "SELECT name, age, status FROM foo",
+            "query": "SELECT name, age, status FROM foo ORDER BY id LIMIT 1",
             "columns": {
                 "name": "Ann",
                 "age": 32,
@@ -70,7 +70,7 @@
     },
     {
         "assert": {
-            "query": "SELECT name, age, status FROM foo",
+            "query": "SELECT name, age, status FROM foo ORDER BY id LIMIT 1",
             "columns": {
                 "name": "Anne",
                 "age": 32,
@@ -79,7 +79,7 @@
         },
         "pass": false,
         "actual": {
-            "query": "SELECT name, age, status FROM foo",
+            "query": "SELECT name, age, status FROM foo ORDER BY id LIMIT 1",
             "columns": {
                 "name": "Ann",
                 "age": 32,

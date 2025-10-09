@@ -8,11 +8,11 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vinovest/sqlx"
 )
 
 // Assert represents a single assertion that can marshaled and unmarshaled to/from JSON

@@ -1,7 +1,7 @@
 package assertdb
 
 import (
-	"github.com/jmoiron/sqlx"
+	"github.com/vinovest/sqlx"
 )
 
 // Query creates a new query on which one can assert things
