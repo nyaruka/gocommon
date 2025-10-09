@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/nyaruka/gocommon/dbutil/assertdb"
 	"github.com/stretchr/testify/assert"
@@ -116,11 +116,11 @@ func TestBulkQuery(t *testing.T) {
 	// try with a struct that is invalid
 	foo4 := &foo{Name: "Jonny", Age: 34}
 	err = dbutil.BulkQuery(ctx, db, `INSERT INTO foo (name, age) VALUES(:name, :age)`, []any{foo4})
-	assert.EqualError(t, err, "error making bulk query: pq: value too long for type character varying(3)")
+	assert.EqualError(t, err, "error making bulk query: ERROR: value too long for type character varying(3) (SQLSTATE 22001)")
 	assert.Equal(t, 0, foo4.ID)
 }
 
 // returns an open test database pool
 func getTestDB() *sqlx.DB {
-	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
+	return sqlx.MustOpen("pgx", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
 }
