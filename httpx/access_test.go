@@ -8,6 +8,7 @@ import (
 
 	"github.com/nyaruka/gocommon/httpx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAccessConfig(t *testing.T) {
@@ -57,8 +58,10 @@ func TestAccessConfig(t *testing.T) {
 		{"https://[0:0:0:0:0:ffff:0a01:0000]:80", false}, // 10.1.0.0 mapped to IPv6
 	}
 	for _, tc := range tests {
-		request, _ := http.NewRequest("GET", tc.url, nil)
-		_, err := httpx.DoTrace(http.DefaultClient, request, nil, access, -1)
+		request, err := http.NewRequest("GET", tc.url, nil)
+		require.NoError(t, err)
+
+		_, err = httpx.DoTrace(http.DefaultClient, request, nil, access, -1)
 
 		if tc.allowed {
 			assert.NoError(t, err)
