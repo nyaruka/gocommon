@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/nyaruka/gocommon/dbutil/assertdb"
 	"github.com/stretchr/testify/assert"
+	"github.com/vinovest/sqlx"
 )
 
 func TestBulkSQL(t *testing.T) {
@@ -32,7 +32,7 @@ func TestBulkSQL(t *testing.T) {
 
 	// try with missing parentheses
 	_, _, err = dbutil.BulkSQL(db, `INSERT INTO foo (id, name) VALUES(:id, :name`, []any{contact{ID: 1, Name: "Bob"}})
-	assert.EqualError(t, err, "error extracting VALUES from sql: INSERT INTO foo (id, name) VALUES(?, ?")
+	assert.EqualError(t, err, "error converting bulk insert args: missing closing bracket in VALUES")
 
 	sql := `INSERT INTO foo (id, name) VALUES(:id, :name)`
 

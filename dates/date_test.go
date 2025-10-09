@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/stretchr/testify/assert"
+	"github.com/vinovest/sqlx"
 )
 
 func TestDate(t *testing.T) {
