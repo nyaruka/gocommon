@@ -1,3 +1,7 @@
+v1.69.0 (2025-10-09)
+-------------------------
+ * Switch to vinovest/sqlx fork of jmoiron/sqlx
+
 v1.68.8 (2025-09-26)
 -------------------------
  * Fix assert marshaling with empty set, map etc
