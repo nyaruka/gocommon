@@ -5,9 +5,9 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/stretchr/testify/assert"
+	"github.com/vinovest/sqlx"
 )
 
 func TestDate(t *testing.T) {
