@@ -55,7 +55,7 @@ func TestAccessConfig(t *testing.T) {
 		{"https://10.1.0.0", false},
 		{"https://10.0.1.0", false},
 		{"https://10.0.0.1", false},
-		{"https://[0:0:0:0:0:ffff:0a01:0000]:80", false}, // 10.1.0.0 mapped to IPv6
+		{"https://[::ffff:10.1.0.0]:80", false}, // 10.1.0.0 mapped to IPv6
 	}
 	for _, tc := range tests {
 		request, err := http.NewRequest("GET", tc.url, nil)
