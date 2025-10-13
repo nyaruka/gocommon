@@ -1,3 +1,8 @@
+v1.70.0 (2025-10-13)
+-------------------------
+ * Add dbutil.StringArray
+ * Switch from lib/pq to jackc/pgx/stdlib
+
 v1.69.0 (2025-10-09)
 -------------------------
  * Switch to vinovest/sqlx fork of jmoiron/sqlx
