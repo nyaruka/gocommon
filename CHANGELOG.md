@@ -1,3 +1,7 @@
+v1.71.0 (2025-10-13)
+-------------------------
+ * Revert pgx switch until there's an easier way to force UTC time
+
 v1.70.1 (2025-10-13)
 -------------------------
  * Remove dbutil.StringArray as we'll keep using lib/pq array types for now
