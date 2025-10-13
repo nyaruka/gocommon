@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/stretchr/testify/assert"
 	"github.com/vinovest/sqlx"
@@ -128,5 +128,5 @@ func TestDateDBSerialization(t *testing.T) {
 
 // returns an open test database pool
 func getTestDB() *sqlx.DB {
-	return sqlx.MustOpen("pgx", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
+	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
 }

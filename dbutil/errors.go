@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 )
 
 // IsUniqueViolation returns true if the given error is a violation of unique constraint
 func IsUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505" // unique_violation
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code.Name() == "unique_violation"
 	}
 	return false
 }

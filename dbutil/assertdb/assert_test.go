@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dbutil/assertdb"
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/stretchr/testify/assert"
@@ -89,5 +89,5 @@ func (m *MockTestingT) Context() (ctx context.Context) {
 
 // returns an open test database pool
 func getTestDB() *sqlx.DB {
-	return sqlx.MustOpen("pgx", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
+	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
 }
