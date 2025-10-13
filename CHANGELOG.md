@@ -1,3 +1,7 @@
+v1.70.1 (2025-10-13)
+-------------------------
+ * Remove dbutil.StringArray as we'll keep using lib/pq array types for now
+
 v1.70.0 (2025-10-13)
 -------------------------
  * Add dbutil.StringArray
