@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/nyaruka/gocommon/dbutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsUniqueViolation(t *testing.T) {
-	var err error = &pgconn.PgError{Code: "23505"}
+	var err error = &pq.Error{Code: pq.ErrorCode("23505")}
 
 	assert.True(t, dbutil.IsUniqueViolation(err))
 	assert.True(t, dbutil.IsUniqueViolation(fmt.Errorf("wrapped: %w", err)))
@@ -25,21 +25,17 @@ func TestQueryError(t *testing.T) {
 	assert.Equal(t, `error selecting foo 234`, fmt.Sprintf("%s", qerr))
 
 	// can also wrap an existing error
-	var err error = &pgconn.PgError{
-		Severity: "ERROR",
-		Code:     "22025",
-		Message:  "unsupported Unicode escape sequence",
-	}
+	var err error = &pq.Error{Code: pq.ErrorCode("22025"), Message: "unsupported Unicode escape sequence"}
 
 	qerr = dbutil.QueryErrorWrapf(err, "SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
 	assert.Error(t, qerr)
-	assert.Equal(t, `error selecting foo 234: ERROR: unsupported Unicode escape sequence (SQLSTATE 22025)`, qerr.Error())
-	assert.Equal(t, `error selecting foo 234: ERROR: unsupported Unicode escape sequence (SQLSTATE 22025)`, fmt.Sprintf("%s", qerr))
+	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, qerr.Error())
+	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, fmt.Sprintf("%s", qerr))
 
 	// can unwrap to the original error
-	var pgerr *pgconn.PgError
-	assert.True(t, errors.As(qerr, &pgerr))
-	assert.Equal(t, err, pgerr)
+	var pqerr *pq.Error
+	assert.True(t, errors.As(qerr, &pqerr))
+	assert.Equal(t, err, pqerr)
 
 	// can unwrap a wrapped error to find the first query error
 	wrapped := fmt.Errorf("error doing that: %w", fmt.Errorf("error doing this: %w", qerr))
