@@ -23,7 +23,6 @@ const (
 )
 
 func init() {
-	register(Discord)
 	register(Email)
 	register(External)
 	register(Facebook)
@@ -60,12 +59,6 @@ type Scheme struct {
 	Normalize func(string) string
 	Validate  func(string) bool
 	Format    func(string) string
-}
-
-var Discord = &Scheme{
-	Prefix:   "discord",
-	Name:     "Discord",
-	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
 }
 
 var Email = &Scheme{

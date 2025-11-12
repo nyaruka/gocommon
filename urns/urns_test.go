@@ -32,7 +32,6 @@ func TestURNProperties(t *testing.T) {
 		{"facebook:ref:12345?foo=bar&foo=zap", "ref:12345", "", "foo=bar&foo=zap", map[string][]string{"foo": {"bar", "zap"}}},
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foobar", "foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
-		{"discord:732326982863421591", "732326982863421591", "", "", map[string][]string{}},
 		{"webchat:123456789012345678901234", "123456789012345678901234", "", "", map[string][]string{}},
 	}
 	for _, tc := range testCases {
@@ -65,7 +64,6 @@ func TestNewFromParts(t *testing.T) {
 		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
 		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
-		{urns.Discord, "732326982863421591", nil, "", "discord:732326982863421591", "discord:732326982863421591", false},
 		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
 
