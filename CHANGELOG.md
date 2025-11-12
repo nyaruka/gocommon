@@ -1,3 +1,8 @@
+v1.72.0 (2025-11-12)
+-------------------------
+ * Bump go and update deps
+ * Remove never used Discord URN scheme
+
 v1.71.0 (2025-10-13)
 -------------------------
  * Revert pgx switch until there's an easier way to force UTC time
