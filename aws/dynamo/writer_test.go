@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
 	"github.com/nyaruka/gocommon/aws/dynamo/dyntest"
 	"github.com/stretchr/testify/assert"
@@ -23,24 +22,16 @@ func TestWriter(t *testing.T) {
 
 	defer spool.Delete()
 
-	keyFn := func(item map[string]types.AttributeValue) string {
-		pk := item["PK"].(*types.AttributeValueMemberS).Value
-		sk := item["SK"].(*types.AttributeValueMemberS).Value
-		return pk + "|" + sk
-	}
-
-	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool, keyFn)
+	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool)
 	writer.Start()
 
 	for i := range 10 {
-		rem, err := writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
-		assert.NoError(t, err)
+		rem := writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
 		assert.NotZero(t, rem)
 	}
 
 	// add duplicate of last item to test deduping
-	_, err = writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item9"}, Name: "Item 9 v2", Count: 9})
-	assert.NoError(t, err)
+	_ = writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item9"}, OrgID: 1, Data: map[string]any{"Name": "Item 9 v2", "Count": 9}})
 
 	// allow time for writes to process
 	time.Sleep(200 * time.Millisecond)
@@ -53,12 +44,12 @@ func TestWriter(t *testing.T) {
 	dyntest.AssertCount(t, client, "TestWriter", 10)
 
 	// check that last version of item9 was written
-	item, err := dynamo.GetItem[ThingKey, ThingItem](t.Context(), client, "TestWriter", ThingKey{PK: "test", SK: "item9"})
+	item, err := dynamo.GetItem(t.Context(), client, "TestWriter", dynamo.Key{PK: "test", SK: "item9"})
 	assert.NoError(t, err)
-	assert.Equal(t, "Item 9 v2", item.Name)
+	assert.Equal(t, "Item 9 v2", item.Data["Name"])
 
 	for i := range 5 {
-		writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
+		writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
 	}
 
 	writer.Flush()
@@ -71,7 +62,7 @@ func TestWriter(t *testing.T) {
 	dyntest.Drop(t, client, "TestWriter")
 
 	for i := range 5 {
-		writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
+		writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
 	}
 
 	// Allow time for writes to fail
