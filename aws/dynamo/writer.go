@@ -20,6 +20,7 @@ type Writer struct {
 	table   string
 	batcher *syncx.Batcher[map[string]types.AttributeValue]
 	spool   *Spool
+	keyFn   func(map[string]types.AttributeValue) string
 
 	wg sync.WaitGroup
 
@@ -28,11 +29,12 @@ type Writer struct {
 }
 
 // NewWriter creates a new writer.
-func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
+func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool, keyFn func(map[string]types.AttributeValue) string) *Writer {
 	w := &Writer{
 		client: client,
 		table:  table,
 		spool:  spool,
+		keyFn:  keyFn,
 	}
 	w.batcher = syncx.NewBatcher(w.flush, 25, maxAge, bufferSize)
 
@@ -79,6 +81,10 @@ func (w *Writer) Stats() (int64, int64) {
 func (w *Writer) flush(batch []map[string]types.AttributeValue) {
 	ctx := context.TODO()
 
+	if w.keyFn != nil {
+		batch = dedupe(batch, w.keyFn)
+	}
+
 	unprocessed, err := batchPutItem(ctx, w.client, w.table, batch)
 	if err != nil {
 		slog.Error("error writing batch to dynamo", "count", len(batch), "error", err)
@@ -96,4 +102,33 @@ func (w *Writer) flush(batch []map[string]types.AttributeValue) {
 
 		w.numSpooled.Add(int64(len(unprocessed)))
 	}
+}
+
+func dedupe(batch []map[string]types.AttributeValue, keyFn func(map[string]types.AttributeValue) string) []map[string]types.AttributeValue {
+	if len(batch) <= 1 { // duplicates not possible
+		return batch
+	}
+
+	seen := make(map[string]bool, len(batch))
+	out := make([]map[string]types.AttributeValue, 0, len(batch))
+
+	// iterate from end to start so we prefer the latest item for a given key
+	for i := len(batch) - 1; i >= 0; i-- {
+		item := batch[i]
+		key := keyFn(item)
+
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = true
+		out = append(out, item)
+	}
+
+	// out is in reverse order (latest first); restore original ordering of the kept items
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+
+	return out
 }
