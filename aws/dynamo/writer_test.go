@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
 	"github.com/nyaruka/gocommon/aws/dynamo/dyntest"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,13 @@ func TestWriter(t *testing.T) {
 
 	defer spool.Delete()
 
-	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool)
+	keyFn := func(item map[string]types.AttributeValue) string {
+		pk := item["PK"].(*types.AttributeValueMemberS).Value
+		sk := item["SK"].(*types.AttributeValueMemberS).Value
+		return pk + "|" + sk
+	}
+
+	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool, keyFn)
 	writer.Start()
 
 	for i := range 10 {
@@ -31,15 +38,24 @@ func TestWriter(t *testing.T) {
 		assert.NotZero(t, rem)
 	}
 
-	// Allow time for writes to process
+	// add duplicate of last item to test deduping
+	_, err = writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item9"}, Name: "Item 9 v2", Count: 9})
+	assert.NoError(t, err)
+
+	// allow time for writes to process
 	time.Sleep(200 * time.Millisecond)
 
 	numWritten, numSpooled := writer.Stats()
 	assert.Equal(t, int64(10), numWritten)
 	assert.Equal(t, int64(0), numSpooled)
 
-	// Verify all items were actually written
+	// verify all items were actually written
 	dyntest.AssertCount(t, client, "TestWriter", 10)
+
+	// check that last version of item9 was written
+	item, err := dynamo.GetItem[ThingKey, ThingItem](t.Context(), client, "TestWriter", ThingKey{PK: "test", SK: "item9"})
+	assert.NoError(t, err)
+	assert.Equal(t, "Item 9 v2", item.Name)
 
 	for i := range 5 {
 		writer.Queue(&ThingItem{ThingKey: ThingKey{PK: "test", SK: "item" + fmt.Sprint(i)}, Name: "Item " + fmt.Sprint(i), Count: i})
