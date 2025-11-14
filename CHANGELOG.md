@@ -1,3 +1,7 @@
+v1.73.0 (2025-11-14)
+-------------------------
+ * Higher level DynamoDB support code
+
 v1.72.1 (2025-11-13)
 -------------------------
  * Add support for de-duping to Dynamo writer
