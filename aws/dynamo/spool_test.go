@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
 	"github.com/nyaruka/gocommon/aws/dynamo/dyntest"
@@ -24,9 +25,9 @@ func TestSpool(t *testing.T) {
 
 	createTestTable(t, client, "TestSpool")
 
-	item1, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Thing 1", Count: 123})
-	item2, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Thing 2", Count: 234})
-	item3, _ := dynamo.Marshal(&ThingItem{ThingKey: ThingKey{PK: "P33", SK: "SAA"}, Name: "Thing 3", Count: 345})
+	item1, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1", "count": 123}})
+	item2, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2", "count": 234}})
+	item3, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P33", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 3", "count": 345}})
 
 	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second)
 
@@ -56,9 +57,9 @@ func TestSpool(t *testing.T) {
 
 	assert.Equal(t, 0, spool.Size())
 
-	obj, err := dynamo.GetItem[ThingKey, ThingItem](ctx, client, "TestSpool", ThingKey{PK: "P11", SK: "SAA"})
+	obj, err := dynamo.GetItem(ctx, client, "TestSpool", dynamo.Key{PK: "P11", SK: "SAA"})
 	assert.NoError(t, err)
-	assert.Equal(t, "Thing 1", obj.Name)
+	assert.Equal(t, "Thing 1", obj.Data["name"])
 
 	spool.Stop()
 }

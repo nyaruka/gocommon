@@ -4,23 +4,29 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/syncx"
 )
+
+type writable struct {
+	key   Key
+	attrs map[string]types.AttributeValue
+}
 
 // Writer provides buffered writes to a DynamoDB table using a batcher. If writes fail, they are added to the given
 // spool for later processing.
 type Writer struct {
 	client  *dynamodb.Client
 	table   string
-	batcher *syncx.Batcher[map[string]types.AttributeValue]
+	batcher *syncx.Batcher[*writable]
 	spool   *Spool
-	keyFn   func(map[string]types.AttributeValue) string
 
 	wg sync.WaitGroup
 
@@ -29,12 +35,11 @@ type Writer struct {
 }
 
 // NewWriter creates a new writer.
-func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool, keyFn func(map[string]types.AttributeValue) string) *Writer {
+func NewWriter(client *dynamodb.Client, table string, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
 	w := &Writer{
 		client: client,
 		table:  table,
 		spool:  spool,
-		keyFn:  keyFn,
 	}
 	w.batcher = syncx.NewBatcher(w.flush, 25, maxAge, bufferSize)
 
@@ -48,13 +53,18 @@ func (w *Writer) Start() {
 
 // Queue queues an item for writing and will block if the buffer is full.
 // Returns the remaining free capacity (batch + buffer).
-func (w *Writer) Queue(item any) (int, error) {
-	marshaled, err := Marshal(item)
+func (w *Writer) Queue(i ItemMarshaler) (int, error) {
+	item, err := i.MarshalDynamo()
 	if err != nil {
 		return 0, fmt.Errorf("error marshaling item: %w", err)
 	}
 
-	return w.batcher.Queue(marshaled), nil
+	attrs, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		return 0, fmt.Errorf("error marshaling attribute values: %w", err)
+	}
+
+	return w.batcher.Queue(&writable{item.Key, attrs}), nil
 }
 
 // Stop stops the writer and flushes any remaining items
@@ -78,22 +88,20 @@ func (w *Writer) Stats() (int64, int64) {
 	return w.numWritten.Load(), w.numSpooled.Load()
 }
 
-func (w *Writer) flush(batch []map[string]types.AttributeValue) {
+func (w *Writer) flush(batch []*writable) {
 	ctx := context.TODO()
 
-	if w.keyFn != nil {
-		batch = dedupe(batch, w.keyFn)
-	}
+	items := w.dedupe(batch)
 
-	unprocessed, err := batchPutItem(ctx, w.client, w.table, batch)
+	unprocessed, err := batchPutItem(ctx, w.client, w.table, items)
 	if err != nil {
 		slog.Error("error writing batch to dynamo", "count", len(batch), "error", err)
 		if unprocessed == nil {
-			unprocessed = batch
+			unprocessed = items
 		}
 	}
 
-	w.numWritten.Add(int64(len(batch) - len(unprocessed)))
+	w.numWritten.Add(int64(len(items) - len(unprocessed)))
 
 	if len(unprocessed) > 0 {
 		if err := w.spool.Add(w.table, unprocessed); err != nil {
@@ -104,31 +112,25 @@ func (w *Writer) flush(batch []map[string]types.AttributeValue) {
 	}
 }
 
-func dedupe(batch []map[string]types.AttributeValue, keyFn func(map[string]types.AttributeValue) string) []map[string]types.AttributeValue {
-	if len(batch) <= 1 { // duplicates not possible
-		return batch
-	}
-
+func (w *Writer) dedupe(batch []*writable) []map[string]types.AttributeValue {
 	seen := make(map[string]bool, len(batch))
 	out := make([]map[string]types.AttributeValue, 0, len(batch))
 
 	// iterate from end to start so we prefer the latest item for a given key
 	for i := len(batch) - 1; i >= 0; i-- {
 		item := batch[i]
-		key := keyFn(item)
+		key := item.key.String()
 
 		if _, ok := seen[key]; ok {
 			continue
 		}
 
 		seen[key] = true
-		out = append(out, item)
+		out = append(out, item.attrs)
 	}
 
-	// out is in reverse order (latest first); restore original ordering of the kept items
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
-	}
+	// restore original ordering of the kept items
+	slices.Reverse(out)
 
 	return out
 }

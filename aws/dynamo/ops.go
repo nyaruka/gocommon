@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 // GetItem retrieves an item from the table
-func GetItem[K, I any](ctx context.Context, c *dynamodb.Client, table string, key K) (*I, error) {
-	attrs, err := Marshal(key)
+func GetItem(ctx context.Context, c *dynamodb.Client, table string, key Key) (*Item, error) {
+	attrs, err := attributevalue.MarshalMap(key)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling key for get: %w", err)
 	}
@@ -28,8 +29,8 @@ func GetItem[K, I any](ctx context.Context, c *dynamodb.Client, table string, ke
 		return nil, nil // item not found
 	}
 
-	item := new(I)
-	if err := Unmarshal(resp.Item, item); err != nil {
+	item := &Item{}
+	if err := attributevalue.UnmarshalMap(resp.Item, item); err != nil {
 		return nil, err
 	}
 
@@ -37,8 +38,8 @@ func GetItem[K, I any](ctx context.Context, c *dynamodb.Client, table string, ke
 }
 
 // PutItem puts an item into the table
-func PutItem[I any](ctx context.Context, c *dynamodb.Client, table string, item *I) error {
-	attrs, err := Marshal(item)
+func PutItem(ctx context.Context, c *dynamodb.Client, table string, item *Item) error {
+	attrs, err := attributevalue.MarshalMap(item)
 	if err != nil {
 		return fmt.Errorf("error marshaling item for put: %w", err)
 	}
@@ -55,17 +56,31 @@ func PutItem[I any](ctx context.Context, c *dynamodb.Client, table string, item 
 }
 
 // BatchPutItem puts multiple items into the table (max 25 items)
-func BatchPutItem[I any](ctx context.Context, c *dynamodb.Client, table string, items []*I) ([]map[string]types.AttributeValue, error) {
+func BatchPutItem(ctx context.Context, c *dynamodb.Client, table string, items []*Item) ([]*Item, error) {
 	marshaled := make([]map[string]types.AttributeValue, len(items))
 	for i, item := range items {
 		var err error
-		marshaled[i], err = Marshal(item)
+		marshaled[i], err = attributevalue.MarshalMap(item)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling item for batch put: %w", err)
 		}
 	}
 
-	return batchPutItem(ctx, c, table, marshaled)
+	unprocessedRaw, err := batchPutItem(ctx, c, table, marshaled)
+	if err != nil {
+		return nil, err
+	}
+
+	unprocessed := make([]*Item, len(unprocessedRaw))
+	for i, itemAttrs := range unprocessedRaw {
+		item := &Item{}
+		if err := attributevalue.UnmarshalMap(itemAttrs, item); err != nil {
+			return nil, fmt.Errorf("error unmarshaling unprocessed item from batch put: %w", err)
+		}
+		unprocessed[i] = item
+	}
+
+	return unprocessed, nil
 }
 
 // puts multiple items into the table (max 25 items)

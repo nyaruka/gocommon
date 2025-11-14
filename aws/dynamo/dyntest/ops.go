@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nyaruka/gocommon/aws/dynamo"
@@ -52,12 +53,12 @@ func CreateTables(t *testing.T, c *dynamodb.Client, path string, delExisting boo
 }
 
 // ScanAll scans all items in a table.
-func ScanAll[I any](t *testing.T, c *dynamodb.Client, table string) []*I {
+func ScanAll(t *testing.T, c *dynamodb.Client, table string) []*dynamo.Item {
 	t.Helper()
 	assertTesting(t, table)
 	ctx := t.Context()
 
-	items := make([]*I, 0, 10)
+	items := make([]*dynamo.Item, 0, 10)
 	var lastEvaluatedKey map[string]types.AttributeValue
 
 	for {
@@ -65,8 +66,8 @@ func ScanAll[I any](t *testing.T, c *dynamodb.Client, table string) []*I {
 		require.NoError(t, err)
 
 		for _, it := range output.Items {
-			item := new(I)
-			err := dynamo.Unmarshal(it, item)
+			item := new(dynamo.Item)
+			err := attributevalue.UnmarshalMap(it, item)
 			require.NoError(t, err)
 
 			items = append(items, item)

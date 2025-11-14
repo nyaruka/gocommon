@@ -56,8 +56,8 @@ func TestPutAndGet(t *testing.T) {
 	err = dynamo.Test(ctx, client, "TestThings")
 	assert.NoError(t, err)
 
-	thing1 := &ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Thing 1", Count: 42}
-	thing2 := &ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Thing 2", Count: 235}
+	thing1 := &dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}}
+	thing2 := &dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2"}}
 
 	err = dynamo.PutItem(ctx, client, "TestThings", thing1)
 	assert.NoError(t, err)
@@ -66,24 +66,24 @@ func TestPutAndGet(t *testing.T) {
 
 	dyntest.AssertCount(t, client, "TestThings", 2)
 
-	obj, err := dynamo.GetItem[ThingKey, ThingItem](ctx, client, "TestThings", ThingKey{PK: "P11", SK: "SAA"})
+	obj, err := dynamo.GetItem(ctx, client, "TestThings", dynamo.Key{PK: "P11", SK: "SAA"})
 	assert.NoError(t, err)
-	assert.Equal(t, "Thing 1", obj.Name)
+	assert.Equal(t, map[string]any{"name": "Thing 1"}, obj.Data)
 
 	// try to get a non-existent item
-	obj, err = dynamo.GetItem[ThingKey, ThingItem](ctx, client, "TestThings", ThingKey{PK: "P77", SK: "SAA"})
+	obj, err = dynamo.GetItem(ctx, client, "TestThings", dynamo.Key{PK: "P77", SK: "SAA"})
 	assert.NoError(t, err)
 	assert.Nil(t, obj)
 
-	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestThings", []*ThingItem{})
+	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestThings", []*dynamo.Item{})
 	assert.NoError(t, err)
-	assert.Nil(t, unprocessed)
+	assert.Equal(t, []*dynamo.Item{}, unprocessed)
 
-	unprocessed, err = dynamo.BatchPutItem(ctx, client, "TestThings", []*ThingItem{
-		{ThingKey: ThingKey{PK: "BATCH1", SK: "S1"}, Name: "Batch Item 1", Count: 10},
-		{ThingKey: ThingKey{PK: "BATCH2", SK: "S2"}, Name: "Batch Item 2", Count: 20},
-		{ThingKey: ThingKey{PK: "BATCH3", SK: "S3"}, Name: "Batch Item 3", Count: 30},
-		{ThingKey: ThingKey{PK: "BATCH4", SK: "S4"}, Name: "Batch Item 4", Count: 40},
+	unprocessed, err = dynamo.BatchPutItem(ctx, client, "TestThings", []*dynamo.Item{
+		{Key: dynamo.Key{PK: "BATCH1", SK: "S1"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 1"}},
+		{Key: dynamo.Key{PK: "BATCH2", SK: "S2"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 2"}},
+		{Key: dynamo.Key{PK: "BATCH3", SK: "S3"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 3"}},
+		{Key: dynamo.Key{PK: "BATCH4", SK: "S4"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 4"}},
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, unprocessed)

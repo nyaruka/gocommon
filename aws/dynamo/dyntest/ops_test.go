@@ -8,18 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type ThingKey struct {
-	PK string `dynamodbav:"PK"`
-	SK string `dynamodbav:"SK"`
-}
-
-type ThingItem struct {
-	ThingKey
-
-	Name  string `dynamodbav:"Name"`
-	Count int    `dynamodbav:"Count"`
-}
-
 func TestOps(t *testing.T) {
 	ctx := t.Context()
 
@@ -35,8 +23,8 @@ func TestOps(t *testing.T) {
 	dyntest.AssertCount(t, client, "TestThings", 0)
 	dyntest.AssertCount(t, client, "TestHistory", 0)
 
-	thing1 := &ThingItem{ThingKey: ThingKey{PK: "P11", SK: "SAA"}, Name: "Thing 1", Count: 42}
-	thing2 := &ThingItem{ThingKey: ThingKey{PK: "P22", SK: "SBB"}, Name: "Thing 2", Count: 235}
+	thing1 := &dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}}
+	thing2 := &dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2"}}
 
 	err = dynamo.PutItem(ctx, client, "TestThings", thing1)
 	assert.NoError(t, err)
@@ -46,8 +34,8 @@ func TestOps(t *testing.T) {
 	dyntest.AssertCount(t, client, "TestThings", 2)
 	dyntest.AssertCount(t, client, "TestHistory", 0)
 
-	items := dyntest.ScanAll[ThingItem](t, client, "TestThings")
-	assert.ElementsMatch(t, []*ThingItem{thing1, thing2}, items)
+	items := dyntest.ScanAll(t, client, "TestThings")
+	assert.ElementsMatch(t, []*dynamo.Item{thing1, thing2}, items)
 
 	dyntest.Truncate(t, client, "TestThings")
 
