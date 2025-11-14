@@ -2,7 +2,9 @@ package dynamo
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,12 +15,17 @@ import (
 	"github.com/nyaruka/gocommon/syncx"
 )
 
+type writable struct {
+	key   Key
+	attrs map[string]types.AttributeValue
+}
+
 // Writer provides buffered writes to a DynamoDB table using a batcher. If writes fail, they are added to the given
 // spool for later processing.
 type Writer struct {
 	client  *dynamodb.Client
 	table   string
-	batcher *syncx.Batcher[*Item]
+	batcher *syncx.Batcher[*writable]
 	spool   *Spool
 
 	wg sync.WaitGroup
@@ -46,8 +53,18 @@ func (w *Writer) Start() {
 
 // Queue queues an item for writing and will block if the buffer is full.
 // Returns the remaining free capacity (batch + buffer).
-func (w *Writer) Queue(item *Item) int {
-	return w.batcher.Queue(item)
+func (w *Writer) Queue(i ItemMarshaler) (int, error) {
+	item, err := i.MarshalDynamo()
+	if err != nil {
+		return 0, fmt.Errorf("error marshaling item: %w", err)
+	}
+
+	attrs, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		return 0, fmt.Errorf("error marshaling attribute values: %w", err)
+	}
+
+	return w.batcher.Queue(&writable{item.Key, attrs}), nil
 }
 
 // Stop stops the writer and flushes any remaining items
@@ -71,35 +88,23 @@ func (w *Writer) Stats() (int64, int64) {
 	return w.numWritten.Load(), w.numSpooled.Load()
 }
 
-func (w *Writer) flush(batch []*Item) {
+func (w *Writer) flush(batch []*writable) {
 	ctx := context.TODO()
 
-	if len(batch) > 1 {
-		batch = dedupe(batch)
-	}
+	items := w.dedupe(batch)
 
-	unprocessed, err := BatchPutItem(ctx, w.client, w.table, batch)
+	unprocessed, err := batchPutItem(ctx, w.client, w.table, items)
 	if err != nil {
 		slog.Error("error writing batch to dynamo", "count", len(batch), "error", err)
 		if unprocessed == nil {
-			unprocessed = batch
+			unprocessed = items
 		}
 	}
 
-	w.numWritten.Add(int64(len(batch) - len(unprocessed)))
+	w.numWritten.Add(int64(len(items) - len(unprocessed)))
 
 	if len(unprocessed) > 0 {
-		marshaled := make([]map[string]types.AttributeValue, 0, len(unprocessed))
-		for _, item := range unprocessed {
-			m, err := attributevalue.MarshalMap(item)
-			if err != nil {
-				slog.Error("error marshaling unprocessed item for spooling", "error", err)
-				continue
-			}
-			marshaled = append(marshaled, m)
-		}
-
-		if err := w.spool.Add(w.table, marshaled); err != nil {
+		if err := w.spool.Add(w.table, unprocessed); err != nil {
 			slog.Error("error writing unprocessed items to spool", "count", len(unprocessed), "error", err)
 		}
 
@@ -107,27 +112,25 @@ func (w *Writer) flush(batch []*Item) {
 	}
 }
 
-func dedupe(batch []*Item) []*Item {
+func (w *Writer) dedupe(batch []*writable) []map[string]types.AttributeValue {
 	seen := make(map[string]bool, len(batch))
-	out := make([]*Item, 0, len(batch))
+	out := make([]map[string]types.AttributeValue, 0, len(batch))
 
 	// iterate from end to start so we prefer the latest item for a given key
 	for i := len(batch) - 1; i >= 0; i-- {
 		item := batch[i]
-		key := item.Key.String()
+		key := item.key.String()
 
 		if _, ok := seen[key]; ok {
 			continue
 		}
 
 		seen[key] = true
-		out = append(out, item)
+		out = append(out, item.attrs)
 	}
 
-	// out is in reverse order (latest first); restore original ordering of the kept items
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
-	}
+	// restore original ordering of the kept items
+	slices.Reverse(out)
 
 	return out
 }

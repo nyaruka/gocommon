@@ -11,6 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type Thing struct {
+	ID   int
+	Name string
+}
+
+func (t *Thing) MarshalDynamo() (*dynamo.Item, error) {
+	return &dynamo.Item{
+		Key:   dynamo.Key{PK: "test", SK: fmt.Sprintf("item%d", t.ID)},
+		OrgID: 1,
+		Data:  map[string]any{"Name": t.Name},
+	}, nil
+}
+
 func TestWriter(t *testing.T) {
 	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:6000")
 	require.NoError(t, err)
@@ -26,12 +39,14 @@ func TestWriter(t *testing.T) {
 	writer.Start()
 
 	for i := range 10 {
-		rem := writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
+		rem, err := writer.Queue(&Thing{ID: i, Name: fmt.Sprintf("Item %d", i)})
+		assert.NoError(t, err)
 		assert.NotZero(t, rem)
 	}
 
 	// add duplicate of last item to test deduping
-	_ = writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item9"}, OrgID: 1, Data: map[string]any{"Name": "Item 9 v2", "Count": 9}})
+	_, err = writer.Queue(&Thing{ID: 9, Name: "Item 9 v2"})
+	assert.NoError(t, err)
 
 	// allow time for writes to process
 	time.Sleep(200 * time.Millisecond)
@@ -49,7 +64,7 @@ func TestWriter(t *testing.T) {
 	assert.Equal(t, "Item 9 v2", item.Data["Name"])
 
 	for i := range 5 {
-		writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
+		writer.Queue(&Thing{ID: i + 10, Name: fmt.Sprintf("Item %d", i+10)})
 	}
 
 	writer.Flush()
@@ -62,7 +77,7 @@ func TestWriter(t *testing.T) {
 	dyntest.Drop(t, client, "TestWriter")
 
 	for i := range 5 {
-		writer.Queue(&dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item" + fmt.Sprint(i)}, OrgID: 1, Data: map[string]any{"Name": "Item " + fmt.Sprint(i), "Count": i}})
+		writer.Queue(&Thing{ID: i + 15, Name: fmt.Sprintf("Item %d", i+15)})
 	}
 
 	// Allow time for writes to fail

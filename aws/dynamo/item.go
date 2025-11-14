@@ -97,3 +97,7 @@ func UnmarshalJSONGZ(d []byte, v any) error {
 
 	return nil
 }
+
+type ItemMarshaler interface {
+	MarshalDynamo() (*Item, error)
+}
