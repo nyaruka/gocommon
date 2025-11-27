@@ -16,6 +16,7 @@ var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
 var phoneRegex = regexp.MustCompile(`^((\+[0-9]{7,15})|([a-z0-9]{1,64}))$`) // E164 or short code or sender ID
 var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
 var webchatRegex = regexp.MustCompile(`^[a-zA-Z0-9]{24}(:[^\s@]+@[^\s@]+)?$`)
+var whatsappRegex = regexp.MustCompile(`^[a-zA-Z0-9.]{1,256}$`)
 
 const (
 	// FacebookRefPrefix is prefix used for facebook referral URNs
@@ -196,5 +197,5 @@ var WeChat = &Scheme{
 var WhatsApp = &Scheme{
 	Prefix:   "whatsapp",
 	Name:     "WhatsApp",
-	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
+	Validate: func(path string) bool { return whatsappRegex.MatchString(path) },
 }
