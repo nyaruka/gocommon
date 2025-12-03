@@ -21,17 +21,17 @@ type Service struct {
 }
 
 // NewService creates a new S3 service with the given credentials and configuration
-func NewService(accessKey, secretKey, region, endpoint string, minio bool) (*Service, error) {
+func NewService(accessKey, secretKey, region, endpoint string, pathStyle bool) (*Service, error) {
 	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
 	if err != nil {
 		return nil, err
 	}
 
 	var urler ObjectURLer
-	if minio {
-		urler = MinioURLer(endpoint)
+	if pathStyle {
+		urler = PathStyleURLer(endpoint)
 	} else {
-		urler = AWSURLer(region)
+		urler = VirtualHostURLer(region)
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
@@ -39,7 +39,7 @@ func NewService(accessKey, secretKey, region, endpoint string, minio bool) (*Ser
 			o.BaseEndpoint = aws.String(endpoint)
 		}
 
-		o.UsePathStyle = minio // urls as endpoint/bucket/key instead of bucket.endpoint/key
+		o.UsePathStyle = pathStyle // urls as endpoint/bucket/key instead of bucket.endpoint/key
 	})
 
 	return &Service{Client: client, urler: urler}, nil

@@ -14,7 +14,7 @@ import (
 func TestService(t *testing.T) {
 	ctx := context.Background()
 
-	svc, err := s3x.NewService("root", "tembatemba", "us-east-1", "http://localhost:9000", true)
+	svc, err := s3x.NewService("root", "tembatemba", "us-east-1", "http://localhost:4566", true)
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
@@ -28,7 +28,7 @@ func TestService(t *testing.T) {
 
 	url, err := svc.PutObject(ctx, "gocommon-tests", "1/hello world.txt", "text/plain", []byte("hello world"), types.ObjectCannedACLPublicRead)
 	assert.NoError(t, err)
-	assert.Equal(t, "http://localhost:9000/gocommon-tests/1/hello+world.txt", url)
+	assert.Equal(t, "http://localhost:4566/gocommon-tests/1/hello+world.txt", url)
 
 	contentType, body, err := svc.GetObject(ctx, "gocommon-tests", "1/hello world.txt")
 	assert.NoError(t, err)
@@ -56,9 +56,9 @@ func TestService(t *testing.T) {
 	err = svc.BatchPut(ctx, uploads, 3)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "http://localhost:9000/gocommon-tests/foo/thing1", uploads[0].URL)
+	assert.Equal(t, "http://localhost:4566/gocommon-tests/foo/thing1", uploads[0].URL)
 	assert.Nil(t, uploads[0].Error)
-	assert.Equal(t, "http://localhost:9000/gocommon-tests/foo/thing2", uploads[1].URL)
+	assert.Equal(t, "http://localhost:4566/gocommon-tests/foo/thing2", uploads[1].URL)
 	assert.Nil(t, uploads[1].Error)
 
 	// test emptying a bucket
