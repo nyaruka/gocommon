@@ -1,3 +1,7 @@
+v1.74.0 (2025-12-03)
+-------------------------
+ * Switch to localstack
+
 v1.73.0 (2025-11-14)
 -------------------------
  * Higher level DynamoDB support code
