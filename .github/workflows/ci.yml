@@ -4,9 +4,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [1.25.x]
+    container:
+      image: golang:1.25-trixie
 
     services:
       valkey:
@@ -32,14 +31,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install Linux packages
-        run: sudo apt install -y --no-install-recommends pandoc
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
 
       - name: Run tests
         run: go test -p=1 -coverprofile=coverage.text -covermode=atomic ./...
