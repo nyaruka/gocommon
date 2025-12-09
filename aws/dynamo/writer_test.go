@@ -25,7 +25,7 @@ func (t *Thing) MarshalDynamo() (*dynamo.Item, error) {
 }
 
 func TestWriter(t *testing.T) {
-	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:4566")
+	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localstack:4566")
 	require.NoError(t, err)
 
 	createTestTable(t, client, "TestWriter")

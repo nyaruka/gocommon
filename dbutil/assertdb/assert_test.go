@@ -89,5 +89,5 @@ func (m *MockTestingT) Context() (ctx context.Context) {
 
 // returns an open test database pool
 func getTestDB() *sqlx.DB {
-	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@localhost/gocommon_test?sslmode=disable&Timezone=UTC")
+	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@postgres/gocommon_test?sslmode=disable&Timezone=UTC")
 }
