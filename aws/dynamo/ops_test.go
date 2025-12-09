@@ -43,7 +43,7 @@ func createTestTable(t *testing.T, client *dynamodb.Client, name string) {
 func TestPutAndGet(t *testing.T) {
 	ctx := t.Context()
 
-	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:4566")
+	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localstack:4566")
 	assert.NoError(t, err)
 
 	defer dyntest.Drop(t, client, "TestThings")

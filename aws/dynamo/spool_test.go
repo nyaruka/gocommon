@@ -18,7 +18,7 @@ func TestSpool(t *testing.T) {
 
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
 
-	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localhost:4566")
+	client, err := dynamo.NewClient("root", "tembatemba", "us-east-1", "http://localstack:4566")
 	assert.NoError(t, err)
 
 	defer dyntest.Drop(t, client, "TestSpool")

@@ -22,6 +22,13 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      localstack:
+        image: localstack/localstack:latest
+        env:
+          SERVICES: s3,dynamodb,cloudwatch
+        ports:
+          - 4566:4566
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,13 +40,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Start LocalStack
-        uses: LocalStack/setup-localstack@v0.2.4
-        with:
-          image-tag: 'latest'
-          configuration: |
-            SERVICES=s3,dynamodb,cloudwatch
 
       - name: Run tests
         run: go test -p=1 -coverprofile=coverage.text -covermode=atomic ./...
