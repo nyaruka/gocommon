@@ -30,6 +30,7 @@ type Item struct {
 	TTL    *time.Time     `dynamodbav:"TTL,unixtime,omitempty"`
 	Data   map[string]any `dynamodbav:"Data,omitempty"`
 	DataGZ []byte         `dynamodbav:"DataGZ,omitempty"`
+	Src    string         `dynamodbav:"Src,omitempty"`
 }
 
 func (i *Item) GetData() (map[string]any, error) {
@@ -62,6 +63,7 @@ func (i *Item) MarshalJSON() ([]byte, error) {
 		TTL    *time.Time     `json:"TTL,omitempty"`
 		Data   map[string]any `json:"Data"`
 		DataGZ string         `json:"DataGZ,omitempty"`
+		Src    string         `json:"Src,omitempty"`
 	}{
 		PK:     i.PK,
 		SK:     i.SK,
@@ -69,6 +71,7 @@ func (i *Item) MarshalJSON() ([]byte, error) {
 		TTL:    ttl,
 		Data:   i.Data,
 		DataGZ: base64.StdEncoding.EncodeToString(i.DataGZ),
+		Src:    i.Src,
 	})
 }
 
