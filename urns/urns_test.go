@@ -33,6 +33,8 @@ func TestURNProperties(t *testing.T) {
 		{"tel:+250788383383", "0788 383 383", "", "", map[string][]string{}},
 		{"twitter:85114?foo=bar#foobar", "foobar", "foobar", "foo=bar", map[string][]string{"foo": {"bar"}}},
 		{"webchat:123456789012345678901234", "123456789012345678901234", "", "", map[string][]string{}},
+		{"whatsapp:123456789012345678901234", "123456789012345678901234", "", "", map[string][]string{}},
+		{"whatsapp:user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", "user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", "", "", map[string][]string{}},
 	}
 	for _, tc := range testCases {
 		assert.Equal(t, string(tc.urn), tc.urn.String())
@@ -64,6 +66,7 @@ func TestNewFromParts(t *testing.T) {
 		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
 		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
+		{urns.WhatsApp, "user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", nil, "", "whatsapp:user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", "whatsapp:user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", false},
 		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
 
@@ -224,7 +227,8 @@ func TestValidate(t *testing.T) {
 
 		// whatsapp needs to be integers
 		{"whatsapp:12354", ""},
-		{"whatsapp:abcde", "invalid path component"},
+		{"whatsapp:abcde", ""},
+		{"whatsapp:user.9373795779eb6441c8adb2eaee5b848e7dd174ddd302d7db62142f4722d574b6", ""},
 		{"whatsapp:+12067799294", "invalid path component"},
 
 		// freschat has to be two uuids separated by a colon
