@@ -1,3 +1,7 @@
+v1.75.1 (2026-02-17)
+-------------------------
+ * Add Client() method to Writer structs in both dynamo and osearch packages
+
 v1.75.0 (2026-02-17)
 -------------------------
  * Add writer and spool for OpenSearch
