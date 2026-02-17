@@ -21,6 +21,15 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      opensearch:
+        image: opensearchproject/opensearch:2
+        ports:
+          - 9201:9200
+        env:
+          discovery.type: single-node
+          plugins.security.disabled: true
+          OPENSEARCH_INITIAL_ADMIN_PASSWORD: T3mbaT3mbareh54vdhsv!
+          logger.level: INFO
       localstack:
         image: localstack/localstack:latest
         env:
