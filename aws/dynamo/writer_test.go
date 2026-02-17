@@ -36,6 +36,10 @@ func TestWriter(t *testing.T) {
 	defer spool.Delete()
 
 	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool)
+
+	assert.Equal(t, client, writer.Client())
+	assert.Equal(t, "TestWriter", writer.Table())
+
 	writer.Start()
 
 	for i := range 10 {

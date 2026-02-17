@@ -25,6 +25,10 @@ func TestWriter(t *testing.T) {
 	defer spool.Delete()
 
 	writer := osearch.NewWriter(client, "test-writer", osearch.ActionIndex, 25, 100*time.Millisecond, 10, spool)
+
+	assert.Equal(t, client, writer.Client())
+	assert.Equal(t, "test-writer", writer.Index())
+
 	writer.Start()
 
 	for i := range 10 {

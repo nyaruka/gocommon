@@ -61,6 +61,11 @@ func (w *Writer) Flush() {
 	w.batcher.Flush()
 }
 
+// Client returns the OpenSearch client this writer is using.
+func (w *Writer) Client() *opensearchapi.Client {
+	return w.client
+}
+
 // Index returns the index name this writer is writing to.
 func (w *Writer) Index() string {
 	return w.index

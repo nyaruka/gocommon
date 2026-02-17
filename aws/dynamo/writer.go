@@ -78,6 +78,11 @@ func (w *Writer) Flush() {
 	w.batcher.Flush()
 }
 
+// Client returns the DynamoDB client this writer is using.
+func (w *Writer) Client() *dynamodb.Client {
+	return w.client
+}
+
 // Table returns the table name this writer is writing to.
 func (w *Writer) Table() string {
 	return w.table
