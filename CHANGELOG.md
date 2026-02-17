@@ -1,3 +1,9 @@
+v1.75.0 (2026-02-17)
+-------------------------
+ * Add writer and spool for OpenSearch
+ * Add Src to DynamoDB item format
+ * Add devcontainer configuration
+
 v1.74.0 (2025-12-03)
 -------------------------
  * Switch to localstack
