@@ -15,8 +15,8 @@
 
 .DS_Store
 
+.devcontainer
+.claude/
+CLAUDE.md
 deploy
 fabfile.*
-
-CLAUDE.md
-.devcontainer/
