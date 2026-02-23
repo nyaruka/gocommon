@@ -1,3 +1,7 @@
+v1.75.2 (2026-02-23)
+-------------------------
+ * Refresh dynamo and osearch spool sizes when flushing
+
 v1.75.1 (2026-02-17)
 -------------------------
  * Add Client() method to Writer structs in both dynamo and osearch packages
