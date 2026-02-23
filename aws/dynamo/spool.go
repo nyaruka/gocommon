@@ -152,9 +152,18 @@ func (s *Spool) flush() error {
 		if err := os.Remove(file.path); err != nil {
 			return fmt.Errorf("error removing spool file %s: %w", file.path, err)
 		}
-
-		s.size.Add(-int64(file.count))
 	}
+
+	// refresh size from disk to pick up any manual file changes
+	files, err = s.enumerateFiles()
+	if err != nil {
+		return fmt.Errorf("error enumerating files after flush: %w", err)
+	}
+	total := 0
+	for _, file := range files {
+		total += file.count
+	}
+	s.size.Store(int64(total))
 
 	return nil
 }
