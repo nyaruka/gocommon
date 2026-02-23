@@ -1,3 +1,7 @@
+v1.75.3 (2026-02-23)
+-------------------------
+ * Add BatchGetItem helper for DynamoDB
+
 v1.75.2 (2026-02-23)
 -------------------------
  * Refresh dynamo and osearch spool sizes when flushing
