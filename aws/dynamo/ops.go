@@ -55,6 +55,72 @@ func PutItem(ctx context.Context, c *dynamodb.Client, table string, item *Item) 
 	return nil
 }
 
+// BatchGetItem retrieves multiple items from the table by key (max 100 keys)
+func BatchGetItem(ctx context.Context, c *dynamodb.Client, table string, keys []Key) ([]*Item, []Key, error) {
+	marshaledKeys := make([]map[string]types.AttributeValue, len(keys))
+	for i, key := range keys {
+		var err error
+		marshaledKeys[i], err = attributevalue.MarshalMap(key)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error marshaling key for batch get: %w", err)
+		}
+	}
+
+	itemsRaw, unprocessedRaw, err := batchGetItem(ctx, c, table, marshaledKeys)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var items []*Item
+	for _, itemAttrs := range itemsRaw {
+		item := &Item{}
+		if err := attributevalue.UnmarshalMap(itemAttrs, item); err != nil {
+			return nil, nil, fmt.Errorf("error unmarshaling item from batch get: %w", err)
+		}
+		items = append(items, item)
+	}
+
+	var unprocessed []Key
+	for _, keyAttrs := range unprocessedRaw {
+		key := Key{}
+		if err := attributevalue.UnmarshalMap(keyAttrs, &key); err != nil {
+			return nil, nil, fmt.Errorf("error unmarshaling unprocessed key from batch get: %w", err)
+		}
+		unprocessed = append(unprocessed, key)
+	}
+
+	return items, unprocessed, nil
+}
+
+// retrieves multiple items from the table by key (max 100 keys)
+func batchGetItem(ctx context.Context, c *dynamodb.Client, table string, keys []map[string]types.AttributeValue) ([]map[string]types.AttributeValue, []map[string]types.AttributeValue, error) {
+	if len(keys) == 0 {
+		return nil, nil, nil
+	}
+
+	keysAndAttrs := types.KeysAndAttributes{
+		Keys: keys,
+	}
+
+	resp, err := c.BatchGetItem(ctx, &dynamodb.BatchGetItemInput{
+		RequestItems: map[string]types.KeysAndAttributes{
+			table: keysAndAttrs,
+		},
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("error batch getting items from table %s: %w", table, err)
+	}
+
+	items := resp.Responses[table]
+
+	var unprocessed []map[string]types.AttributeValue
+	if unprocessedKeys, exists := resp.UnprocessedKeys[table]; exists {
+		unprocessed = unprocessedKeys.Keys
+	}
+
+	return items, unprocessed, nil
+}
+
 // BatchPutItem puts multiple items into the table (max 25 items)
 func BatchPutItem(ctx context.Context, c *dynamodb.Client, table string, items []*Item) ([]*Item, error) {
 	marshaled := make([]map[string]types.AttributeValue, len(items))
