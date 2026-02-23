@@ -17,3 +17,6 @@
 
 deploy
 fabfile.*
+
+CLAUDE.md
+.devcontainer/
