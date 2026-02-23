@@ -89,4 +89,30 @@ func TestPutAndGet(t *testing.T) {
 	assert.Empty(t, unprocessed)
 
 	dyntest.AssertCount(t, client, "TestThings", 6)
+
+	// batch get with empty keys
+	items, unprocessedKeys, err := dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{})
+	assert.NoError(t, err)
+	assert.Nil(t, items)
+	assert.Nil(t, unprocessedKeys)
+
+	// batch get existing items
+	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{
+		{PK: "BATCH1", SK: "S1"},
+		{PK: "BATCH3", SK: "S3"},
+	})
+	assert.NoError(t, err)
+	assert.Len(t, items, 2)
+	assert.Empty(t, unprocessedKeys)
+
+	// batch get with mix of existing and non-existing keys
+	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{
+		{PK: "P11", SK: "SAA"},
+		{PK: "NOTEXIST", SK: "NOPE"},
+	})
+	assert.NoError(t, err)
+	assert.Len(t, items, 1)
+	assert.Equal(t, "P11", items[0].PK)
+	assert.Equal(t, map[string]any{"name": "Thing 1"}, items[0].Data)
+	assert.Empty(t, unprocessedKeys)
 }
