@@ -1,3 +1,7 @@
+v1.75.4 (2026-02-24)
+-------------------------
+ * Update os_search writer to support changing index names and remove support for time series data
+
 v1.75.3 (2026-02-23)
 -------------------------
  * Add BatchGetItem helper for DynamoDB
