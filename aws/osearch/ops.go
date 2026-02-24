@@ -9,47 +9,29 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
 
-// Action is the bulk action type for OpenSearch documents.
-type Action string
-
-const (
-	// ActionIndex is the bulk action for indexing documents. If a document with the same ID already exists, it will be
-	// replaced. Use this for regular search indexes.
-	ActionIndex Action = "index"
-
-	// ActionCreate is the bulk action for creating documents. If a document with the same ID already exists, the
-	// operation will fail. Use this for time-series indexes where documents are always new.
-	ActionCreate Action = "create"
-)
-
-// BulkIndex sends a batch of JSON documents to OpenSearch using the index action.
-func BulkIndex(ctx context.Context, client *opensearchapi.Client, index string, items [][]byte) (int, [][]byte, error) {
-	return bulk(ctx, client, index, ActionIndex, items)
+// Document is a document to be indexed in OpenSearch along with its target index.
+type Document struct {
+	Index string
+	Body  []byte
 }
 
-// BulkCreate sends a batch of JSON documents to OpenSearch using the create action.
-func BulkCreate(ctx context.Context, client *opensearchapi.Client, index string, items [][]byte) (int, [][]byte, error) {
-	return bulk(ctx, client, index, ActionCreate, items)
-}
-
-func bulk(ctx context.Context, client *opensearchapi.Client, index string, action Action, items [][]byte) (int, [][]byte, error) {
+// BulkIndex sends a batch of documents to OpenSearch using the index action.
+func BulkIndex(ctx context.Context, client *opensearchapi.Client, items []*Document) (int, []*Document, error) {
 	if len(items) == 0 {
 		return 0, nil, nil
 	}
 
-	actionLine := []byte(`{"` + string(action) + `":{}}`)
-
 	var buf bytes.Buffer
 	for _, item := range items {
-		buf.Write(actionLine)
+		fmt.Fprintf(&buf, `{"index":{"_index":%q}}`, item.Index)
 		buf.WriteByte('\n')
-		buf.Write(item)
+		buf.Write(item.Body)
 		buf.WriteByte('\n')
 	}
 
-	resp, err := client.Bulk(ctx, opensearchapi.BulkReq{Index: index, Body: &buf})
+	resp, err := client.Bulk(ctx, opensearchapi.BulkReq{Body: &buf})
 	if err != nil {
-		return 0, nil, fmt.Errorf("error sending bulk request to opensearch index %s: %w", index, err)
+		return 0, nil, fmt.Errorf("error sending bulk request to opensearch: %w", err)
 	}
 
 	if !resp.Errors {
@@ -57,7 +39,7 @@ func bulk(ctx context.Context, client *opensearchapi.Client, index string, actio
 	}
 
 	numWritten := 0
-	var retryable [][]byte
+	var retryable []*Document
 
 	for i, itemMap := range resp.Items {
 		for _, item := range itemMap {
@@ -71,7 +53,7 @@ func bulk(ctx context.Context, client *opensearchapi.Client, index string, actio
 					errType = item.Error.Type
 					errReason = item.Error.Reason
 				}
-				slog.Error("permanent opensearch bulk index failure", "index", index, "status", item.Status, "error_type", errType, "error_reason", errReason)
+				slog.Error("permanent opensearch bulk index failure", "index", items[i].Index, "status", item.Status, "error_type", errType, "error_reason", errReason)
 			}
 		}
 	}
