@@ -24,15 +24,14 @@ func TestWriter(t *testing.T) {
 
 	defer spool.Delete()
 
-	writer := osearch.NewWriter(client, "test-writer", osearch.ActionIndex, 25, 100*time.Millisecond, 10, spool)
+	writer := osearch.NewWriter(client, 25, 100*time.Millisecond, 10, spool)
 
 	assert.Equal(t, client, writer.Client())
-	assert.Equal(t, "test-writer", writer.Index())
 
 	writer.Start()
 
 	for i := range 10 {
-		rem := writer.Queue([]byte(fmt.Sprintf(`{"value": %d}`, i)))
+		rem := writer.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i))})
 		assert.NotZero(t, rem)
 	}
 
@@ -48,7 +47,7 @@ func TestWriter(t *testing.T) {
 	assertCount(t, client, "test-writer", 10)
 
 	for i := range 5 {
-		writer.Queue([]byte(fmt.Sprintf(`{"value": %d}`, i+10)))
+		writer.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+10))})
 	}
 
 	writer.Flush()
@@ -63,11 +62,11 @@ func TestWriter(t *testing.T) {
 	badClient, err := osearch.NewClient("", "", "", "http://localhost:19999")
 	require.NoError(t, err)
 
-	badWriter := osearch.NewWriter(badClient, "test-writer", osearch.ActionIndex, 25, 100*time.Millisecond, 10, spool)
+	badWriter := osearch.NewWriter(badClient, 25, 100*time.Millisecond, 10, spool)
 	badWriter.Start()
 
 	for i := range 5 {
-		badWriter.Queue([]byte(fmt.Sprintf(`{"value": %d}`, i+15)))
+		badWriter.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+15))})
 	}
 
 	// allow time for writes to fail

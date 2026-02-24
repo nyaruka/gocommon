@@ -18,13 +18,12 @@ import (
 )
 
 type spooledFile struct {
-	path   string
-	count  int
-	action Action
-	index  string
+	path  string
+	count int
+	index string
 }
 
-var spooledFileRegex = regexp.MustCompile(`^[^@]+#(\d+)@(\w+)@(.+)\.jsonl$`) // <uuid>#<count>@<action>@<index>.jsonl
+var spooledFileRegex = regexp.MustCompile(`^[^@]+#(\d+)@(.+)\.jsonl$`) // <uuid>#<count>@<index>.jsonl
 
 // Spool writes OpenSearch documents to local files and periodically retries indexing them.
 type Spool struct {
@@ -96,8 +95,22 @@ func (s *Spool) Stop() {
 	s.wg.Wait()
 }
 
-func (s *Spool) Add(index string, action Action, items [][]byte) error {
-	path := fmt.Sprintf("%s/%s#%d@%s@%s.jsonl", s.directory, uuids.NewV7(), len(items), action, index)
+// Add writes documents to spool files, grouping by index. Each index gets its own spool file.
+func (s *Spool) Add(docs []*Document) error {
+	byIndex := make(map[string][][]byte)
+	for _, doc := range docs {
+		byIndex[doc.Index] = append(byIndex[doc.Index], doc.Body)
+	}
+	for index, items := range byIndex {
+		if err := s.writeFile(index, items); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Spool) writeFile(index string, items [][]byte) error {
+	path := fmt.Sprintf("%s/%s#%d@%s.jsonl", s.directory, uuids.NewV7(), len(items), index)
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("error creating spool file %s: %w", path, err)
@@ -132,15 +145,19 @@ func (s *Spool) flush() error {
 			return fmt.Errorf("error loading spool file %s: %w", file.path, err)
 		}
 
-		_, unprocessed, err := bulk(ctx, s.client, file.index, file.action, items)
+		docs := make([]*Document, len(items))
+		for i, item := range items {
+			docs[i] = &Document{Index: file.index, Body: item}
+		}
+
+		_, unprocessed, err := BulkIndex(ctx, s.client, docs)
 		if err != nil {
 			slog.Error("error flushing spooled opensearch batch", "error", err, "file", file.path)
 			continue
 		}
 
 		if len(unprocessed) > 0 {
-			// write unprocessed items back to a new spool file
-			if err := s.Add(file.index, file.action, unprocessed); err != nil {
+			if err := s.Add(unprocessed); err != nil {
 				return fmt.Errorf("error writing unprocessed items back to spool file %s: %w", file.path, err)
 			}
 		}
@@ -192,10 +209,10 @@ func (s *Spool) enumerateFiles() ([]spooledFile, error) {
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			matches := spooledFileRegex.FindStringSubmatch(entry.Name())
-			if len(matches) == 4 {
+			if len(matches) == 3 {
 				path := fmt.Sprintf("%s/%s", s.directory, entry.Name())
 				count, _ := strconv.Atoi(matches[1])
-				files = append(files, spooledFile{path: path, count: count, action: Action(matches[2]), index: matches[3]})
+				files = append(files, spooledFile{path: path, count: count, index: matches[2]})
 			}
 		}
 	}
