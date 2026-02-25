@@ -25,10 +25,10 @@ func TestBulkIndex(t *testing.T) {
 
 	// index some documents
 	numWritten, retryable, err = osearch.BulkIndex(ctx, client, []*osearch.Document{
-		{Index: "test-bulk", Body: []byte(`{"name": "Item 1", "count": 100}`)},
-		{Index: "test-bulk", Body: []byte(`{"name": "Item 2", "count": 200}`)},
-		{Index: "test-bulk", Body: []byte(`{"name": "Item 3", "count": 300}`)},
-		{Index: "test-bulk", Body: []byte(`{"name": "Item 4", "count": 400}`)},
+		{Index: "test-bulk", ID: "1", Routing: "org1", Body: []byte(`{"name": "Item 1", "count": 100}`)},
+		{Index: "test-bulk", ID: "2", Routing: "org1", Body: []byte(`{"name": "Item 2", "count": 200}`)},
+		{Index: "test-bulk", ID: "3", Routing: "org1", Body: []byte(`{"name": "Item 3", "count": 300}`)},
+		{Index: "test-bulk", ID: "4", Routing: "org1", Body: []byte(`{"name": "Item 4", "count": 400}`)},
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 4, numWritten)

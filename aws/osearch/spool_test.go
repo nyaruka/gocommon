@@ -28,19 +28,19 @@ func TestSpool(t *testing.T) {
 	require.NoError(t, err)
 
 	err = spool.Add([]*osearch.Document{
-		{Index: "test-spool", Body: []byte(`{"name": "Thing 1", "count": 123}`)},
-		{Index: "test-spool", Body: []byte(`{"name": "Thing 2", "count": 234}`)},
+		{Index: "test-spool", ID: "1", Routing: "test", Body: []byte(`{"name": "Thing 1", "count": 123}`)},
+		{Index: "test-spool", ID: "2", Routing: "test", Body: []byte(`{"name": "Thing 2", "count": 234}`)},
 	})
 	require.NoError(t, err)
 
 	err = spool.Add([]*osearch.Document{
-		{Index: "test-spool", Body: []byte(`{"name": "Thing 3", "count": 345}`)},
+		{Index: "test-spool", ID: "3", Routing: "test", Body: []byte(`{"name": "Thing 3", "count": 345}`)},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
-	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b#2@test-spool.jsonl")
-	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1@test-spool.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1.jsonl")
 
 	spool.Stop()
 
