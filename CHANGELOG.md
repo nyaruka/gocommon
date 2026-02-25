@@ -1,3 +1,7 @@
+v1.75.5 (2026-02-25)
+-------------------------
+ * Change osearch.Document to include ID and routing
+
 v1.75.4 (2026-02-24)
 -------------------------
  * Update os_search writer to support changing index names and remove support for time series data
