@@ -31,7 +31,7 @@ func TestWriter(t *testing.T) {
 	writer.Start()
 
 	for i := range 10 {
-		rem := writer.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i))})
+		rem := writer.Queue(&osearch.Document{Index: "test-writer", ID: fmt.Sprintf("%d", i), Routing: "test", Body: []byte(fmt.Sprintf(`{"value": %d}`, i))})
 		assert.NotZero(t, rem)
 	}
 
@@ -47,7 +47,7 @@ func TestWriter(t *testing.T) {
 	assertCount(t, client, "test-writer", 10)
 
 	for i := range 5 {
-		writer.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+10))})
+		writer.Queue(&osearch.Document{Index: "test-writer", ID: fmt.Sprintf("%d", i+10), Routing: "test", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+10))})
 	}
 
 	writer.Flush()
@@ -66,7 +66,7 @@ func TestWriter(t *testing.T) {
 	badWriter.Start()
 
 	for i := range 5 {
-		badWriter.Queue(&osearch.Document{Index: "test-writer", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+15))})
+		badWriter.Queue(&osearch.Document{Index: "test-writer", ID: fmt.Sprintf("%d", i+15), Routing: "test", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+15))})
 	}
 
 	// allow time for writes to fail

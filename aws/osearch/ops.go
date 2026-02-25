@@ -9,10 +9,12 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
 
-// Document is a document to be indexed in OpenSearch along with its target index.
+// Document is a document to be indexed in OpenSearch.
 type Document struct {
-	Index string
-	Body  []byte
+	Index   string
+	ID      string
+	Routing string
+	Body    []byte
 }
 
 // BulkIndex sends a batch of documents to OpenSearch using the index action.
@@ -23,7 +25,7 @@ func BulkIndex(ctx context.Context, client *opensearchapi.Client, items []*Docum
 
 	var buf bytes.Buffer
 	for _, item := range items {
-		fmt.Fprintf(&buf, `{"index":{"_index":%q}}`, item.Index)
+		fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q}}`, item.Index, item.ID, item.Routing)
 		buf.WriteByte('\n')
 		buf.Write(item.Body)
 		buf.WriteByte('\n')

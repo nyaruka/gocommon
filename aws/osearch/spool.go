@@ -2,8 +2,8 @@ package osearch
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,10 +20,17 @@ import (
 type spooledFile struct {
 	path  string
 	count int
-	index string
 }
 
-var spooledFileRegex = regexp.MustCompile(`^[^@]+#(\d+)@(.+)\.jsonl$`) // <uuid>#<count>@<index>.jsonl
+var spooledFileRegex = regexp.MustCompile(`^[^#]+#(\d+)\.jsonl$`) // <uuid>#<count>.jsonl
+
+// spooledDoc is the format of a document as written to a spool file.
+type spooledDoc struct {
+	Index   string          `json:"index"`
+	ID      string          `json:"id"`
+	Routing string          `json:"routing"`
+	Body    json.RawMessage `json:"body"`
+}
 
 // Spool writes OpenSearch documents to local files and periodically retries indexing them.
 type Spool struct {
@@ -95,36 +102,20 @@ func (s *Spool) Stop() {
 	s.wg.Wait()
 }
 
-// Add writes documents to spool files, grouping by index. Each index gets its own spool file.
+// Add writes documents to a spool file.
 func (s *Spool) Add(docs []*Document) error {
-	byIndex := make(map[string][][]byte)
-	for _, doc := range docs {
-		byIndex[doc.Index] = append(byIndex[doc.Index], doc.Body)
-	}
-	for index, items := range byIndex {
-		if err := s.writeFile(index, items); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Spool) writeFile(index string, items [][]byte) error {
-	path := fmt.Sprintf("%s/%s#%d@%s.jsonl", s.directory, uuids.NewV7(), len(items), index)
+	path := fmt.Sprintf("%s/%s#%d.jsonl", s.directory, uuids.NewV7(), len(docs))
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("error creating spool file %s: %w", path, err)
 	}
 	defer f.Close()
 
-	for _, item := range items {
-		if _, err := f.Write(item); err != nil {
+	enc := json.NewEncoder(f)
+	for _, doc := range docs {
+		if err := enc.Encode(spooledDoc{Index: doc.Index, ID: doc.ID, Routing: doc.Routing, Body: doc.Body}); err != nil {
 			return fmt.Errorf("error writing item to spool file %s: %w", path, err)
 		}
-		if _, err := f.Write([]byte("\n")); err != nil {
-			return fmt.Errorf("error writing item to spool file %s: %w", path, err)
-		}
-
 		s.size.Add(1)
 	}
 
@@ -140,14 +131,9 @@ func (s *Spool) flush() error {
 	}
 
 	for _, file := range files {
-		items, err := s.readFile(file.path)
+		docs, err := s.readFile(file.path)
 		if err != nil {
 			return fmt.Errorf("error loading spool file %s: %w", file.path, err)
-		}
-
-		docs := make([]*Document, len(items))
-		for i, item := range items {
-			docs[i] = &Document{Index: file.index, Body: item}
 		}
 
 		_, unprocessed, err := BulkIndex(ctx, s.client, docs)
@@ -181,22 +167,26 @@ func (s *Spool) flush() error {
 	return nil
 }
 
-func (s *Spool) readFile(path string) ([][]byte, error) {
+func (s *Spool) readFile(path string) ([]*Document, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("error opening spool file %s: %w", path, err)
 	}
 	defer f.Close()
 
-	items := make([][]byte, 0)
+	var docs []*Document
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024) // 1MB max line size
 	for scanner.Scan() {
-		items = append(items, bytes.Clone(scanner.Bytes()))
+		var sd spooledDoc
+		if err := json.Unmarshal(scanner.Bytes(), &sd); err != nil {
+			return nil, fmt.Errorf("error unmarshalling spool line in %s: %w", path, err)
+		}
+		docs = append(docs, &Document{Index: sd.Index, ID: sd.ID, Routing: sd.Routing, Body: sd.Body})
 	}
 
-	return items, nil
+	return docs, nil
 }
 
 func (s *Spool) enumerateFiles() ([]spooledFile, error) {
@@ -209,10 +199,10 @@ func (s *Spool) enumerateFiles() ([]spooledFile, error) {
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			matches := spooledFileRegex.FindStringSubmatch(entry.Name())
-			if len(matches) == 3 {
+			if len(matches) == 2 {
 				path := fmt.Sprintf("%s/%s", s.directory, entry.Name())
 				count, _ := strconv.Atoi(matches[1])
-				files = append(files, spooledFile{path: path, count: count, index: matches[2]})
+				files = append(files, spooledFile{path: path, count: count})
 			}
 		}
 	}
