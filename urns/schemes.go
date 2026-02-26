@@ -198,9 +198,9 @@ var WhatsApp = &Scheme{
 	Prefix: "whatsapp",
 	Name:   "WhatsApp",
 	Normalize: func(path string) string {
-		// for BSUIDs, normalize country code to uppercase while preserving the rest
-		if strings.Index(path, ".") == 2 {
-			return strings.ToUpper(path[:2]) + path[2:]
+		// for BSUIDs (CC.ID format), normalize country code to uppercase while preserving the rest
+		if cc, id, isBSUID := strings.Cut(path, "."); isBSUID && len(cc) == 2 {
+			return strings.ToUpper(cc) + "." + id
 		}
 		return path
 	},
