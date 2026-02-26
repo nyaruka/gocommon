@@ -64,6 +64,8 @@ func TestNewFromParts(t *testing.T) {
 		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
 		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
+		{urns.WhatsApp, "US.A1B2C3", nil, "", "whatsapp:US.A1B2C3", "whatsapp:US.A1B2C3", false},
+		{urns.WhatsApp, "br.a1B2C3", nil, "", "whatsapp:BR.a1B2C3", "whatsapp:BR.a1B2C3", false},
 		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
 
@@ -116,6 +118,10 @@ func TestNormalize(t *testing.T) {
 
 		// external ids are case sensitive
 		{"ext: eXterNAL123 ", "ext:eXterNAL123"},
+
+		// whatsapp BSUID country code normalized to uppercase
+		{"whatsapp:br.A1B2C3", "whatsapp:BR.A1B2C3"},
+		{"whatsapp:12345", "whatsapp:12345"},
 	}
 
 	for _, tc := range testCases {
@@ -222,8 +228,15 @@ func TestValidate(t *testing.T) {
 		{"viber:asdf!12354", "invalid path component"},
 		{"viber:xy5/5y6O81+/kbWHpLhBoA==", ""},
 
-		// whatsapp needs to be integers
+		// whatsapp accepts numeric IDs or BSUIDs
 		{"whatsapp:12354", ""},
+		{"whatsapp:US.A1B2C3", ""},
+		{"whatsapp:br.a1B2C3", ""},
+		{"whatsapp:US", "invalid path component"},
+		{"whatsapp:U.A1B2", "invalid path component"},
+		{"whatsapp:USA.A1B2", "invalid path component"},
+		{"whatsapp:US.", "invalid path component"},
+		{"whatsapp:US.A1-B2", "invalid path component"},
 		{"whatsapp:abcde", "invalid path component"},
 		{"whatsapp:+12067799294", "invalid path component"},
 
