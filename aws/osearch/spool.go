@@ -24,14 +24,6 @@ type spooledFile struct {
 
 var spooledFileRegex = regexp.MustCompile(`^[^#]+#(\d+)\.jsonl$`) // <uuid>#<count>.jsonl
 
-// spooledDoc is the format of a document as written to a spool file.
-type spooledDoc struct {
-	Index   string          `json:"index"`
-	ID      string          `json:"id"`
-	Routing string          `json:"routing"`
-	Body    json.RawMessage `json:"body"`
-}
-
 // Spool writes OpenSearch documents to local files and periodically retries indexing them.
 type Spool struct {
 	client        *opensearchapi.Client
@@ -113,7 +105,7 @@ func (s *Spool) Add(docs []*Document) error {
 
 	enc := json.NewEncoder(f)
 	for _, doc := range docs {
-		if err := enc.Encode(spooledDoc{Index: doc.Index, ID: doc.ID, Routing: doc.Routing, Body: doc.Body}); err != nil {
+		if err := enc.Encode(doc); err != nil {
 			return fmt.Errorf("error writing item to spool file %s: %w", path, err)
 		}
 		s.size.Add(1)
@@ -179,11 +171,15 @@ func (s *Spool) readFile(path string) ([]*Document, error) {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024) // 1MB max line size
 	for scanner.Scan() {
-		var sd spooledDoc
-		if err := json.Unmarshal(scanner.Bytes(), &sd); err != nil {
+		var doc Document
+		if err := json.Unmarshal(scanner.Bytes(), &doc); err != nil {
 			return nil, fmt.Errorf("error unmarshalling spool line in %s: %w", path, err)
 		}
-		docs = append(docs, &Document{Index: sd.Index, ID: sd.ID, Routing: sd.Routing, Body: sd.Body})
+		docs = append(docs, &doc)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading spool file %s: %w", path, err)
 	}
 
 	return docs, nil

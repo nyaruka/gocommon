@@ -3,6 +3,7 @@ package osearch
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -11,10 +12,11 @@ import (
 
 // Document is a document to be indexed in OpenSearch.
 type Document struct {
-	Index   string
-	ID      string
-	Routing string
-	Body    []byte
+	Index   string          `json:"index"`
+	ID      string          `json:"id"`
+	Routing string          `json:"routing"`
+	Version int64           `json:"version,omitempty"` // optional, if > 0 uses external versioning
+	Body    json.RawMessage `json:"body"`
 }
 
 // BulkIndex sends a batch of documents to OpenSearch using the index action.
@@ -25,7 +27,11 @@ func BulkIndex(ctx context.Context, client *opensearchapi.Client, items []*Docum
 
 	var buf bytes.Buffer
 	for _, item := range items {
-		fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q}}`, item.Index, item.ID, item.Routing)
+		if item.Version > 0 {
+			fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q,"version":%d,"version_type":"external"}}`, item.Index, item.ID, item.Routing, item.Version)
+		} else {
+			fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q}}`, item.Index, item.ID, item.Routing)
+		}
 		buf.WriteByte('\n')
 		buf.Write(item.Body)
 		buf.WriteByte('\n')
@@ -49,6 +55,8 @@ func BulkIndex(ctx context.Context, client *opensearchapi.Client, items []*Docum
 				numWritten++
 			} else if item.Status == 429 || item.Status >= 500 {
 				retryable = append(retryable, items[i])
+			} else if item.Status == 409 {
+				slog.Debug("opensearch version conflict (ignored)", "index", items[i].Index, "id", items[i].ID, "version", items[i].Version)
 			} else {
 				errType, errReason := "", ""
 				if item.Error != nil {

@@ -37,6 +37,35 @@ func TestBulkIndex(t *testing.T) {
 	refreshIndex(t, client, "test-bulk")
 	assertCount(t, client, "test-bulk", 4)
 
+	// index with external versioning
+	numWritten, retryable, err = osearch.BulkIndex(ctx, client, []*osearch.Document{
+		{Index: "test-bulk", ID: "10", Routing: "org1", Version: 5, Body: []byte(`{"name": "Versioned 1", "count": 1000}`)},
+		{Index: "test-bulk", ID: "11", Routing: "org1", Version: 3, Body: []byte(`{"name": "Versioned 2", "count": 1100}`)},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, numWritten)
+	assert.Empty(t, retryable)
+
+	refreshIndex(t, client, "test-bulk")
+	assertCount(t, client, "test-bulk", 6)
+
+	// re-index with same or older version should get 409 conflicts (ignored)
+	numWritten, retryable, err = osearch.BulkIndex(ctx, client, []*osearch.Document{
+		{Index: "test-bulk", ID: "10", Routing: "org1", Version: 3, Body: []byte(`{"name": "Versioned 1 old", "count": 999}`)},  // older version
+		{Index: "test-bulk", ID: "11", Routing: "org1", Version: 3, Body: []byte(`{"name": "Versioned 2 same", "count": 999}`)}, // same version
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, numWritten)
+	assert.Empty(t, retryable) // 409s are not retryable
+
+	// re-index with newer version should succeed
+	numWritten, retryable, err = osearch.BulkIndex(ctx, client, []*osearch.Document{
+		{Index: "test-bulk", ID: "10", Routing: "org1", Version: 10, Body: []byte(`{"name": "Versioned 1 new", "count": 2000}`)},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, numWritten)
+	assert.Empty(t, retryable)
+
 	// test with nil batch
 	numWritten, retryable, err = osearch.BulkIndex(ctx, client, nil)
 	assert.NoError(t, err)
