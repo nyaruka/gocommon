@@ -1,3 +1,7 @@
+v1.75.6 (2026-03-03)
+-------------------------
+ * Add version support to osearch.Document
+
 v1.75.5 (2026-02-25)
 -------------------------
  * Change osearch.Document to include ID and routing
