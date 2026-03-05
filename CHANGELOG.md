@@ -1,3 +1,7 @@
+v1.75.7 (2026-03-05)
+-------------------------
+ * Add WhatsApp BSUID support to URN validation
+
 v1.75.6 (2026-03-03)
 -------------------------
  * Add version support to osearch.Document
