@@ -66,6 +66,19 @@ func TestBulkIndex(t *testing.T) {
 	assert.Equal(t, 1, numWritten)
 	assert.Empty(t, retryable)
 
+	// permanent failures (e.g. strict mapping violation) are also returned as unprocessed so they can be spooled
+	createTestIndexStrict(t, client, "test-strict")
+	defer deleteTestIndex(t, client, "test-strict")
+
+	numWritten, retryable, err = osearch.BulkIndex(ctx, client, []*osearch.Document{
+		{Index: "test-strict", ID: "1", Routing: "org1", Body: []byte(`{"name": "Item 1"}`)},               // ok
+		{Index: "test-strict", ID: "2", Routing: "org1", Body: []byte(`{"name": "Item 2", "extra": true}`)}, // strict mapping violation
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, numWritten)
+	assert.Len(t, retryable, 1)
+	assert.Equal(t, "2", retryable[0].ID)
+
 	// test with nil batch
 	numWritten, retryable, err = osearch.BulkIndex(ctx, client, nil)
 	assert.NoError(t, err)

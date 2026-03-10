@@ -47,26 +47,29 @@ func BulkIndex(ctx context.Context, client *opensearchapi.Client, items []*Docum
 	}
 
 	numWritten := 0
-	var retryable []*Document
+	var unprocessed []*Document
 
 	for i, itemMap := range resp.Items {
 		for _, item := range itemMap {
 			if item.Status >= 200 && item.Status < 300 {
 				numWritten++
-			} else if item.Status == 429 || item.Status >= 500 {
-				retryable = append(retryable, items[i])
 			} else if item.Status == 409 {
 				slog.Debug("opensearch version conflict (ignored)", "index", items[i].Index, "id", items[i].ID, "version", items[i].Version)
 			} else {
-				errType, errReason := "", ""
-				if item.Error != nil {
-					errType = item.Error.Type
-					errReason = item.Error.Reason
+				if item.Status == 429 || item.Status >= 500 {
+					slog.Error("retryable opensearch bulk index failure", "index", items[i].Index, "status", item.Status)
+				} else {
+					errType, errReason := "", ""
+					if item.Error != nil {
+						errType = item.Error.Type
+						errReason = item.Error.Reason
+					}
+					slog.Error("permanent opensearch bulk index failure", "index", items[i].Index, "status", item.Status, "error_type", errType, "error_reason", errReason)
 				}
-				slog.Error("permanent opensearch bulk index failure", "index", items[i].Index, "status", item.Status, "error_type", errType, "error_reason", errReason)
+				unprocessed = append(unprocessed, items[i])
 			}
 		}
 	}
 
-	return numWritten, retryable, nil
+	return numWritten, unprocessed, nil
 }
