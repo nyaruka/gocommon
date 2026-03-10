@@ -1,3 +1,7 @@
+v1.75.8 (2026-03-10)
+-------------------------
+ * Spool all failed opensearch writes, not just retryable ones
+
 v1.75.7 (2026-03-05)
 -------------------------
  * Add WhatsApp BSUID support to URN validation
