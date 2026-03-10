@@ -2,6 +2,7 @@ package osearch_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +88,16 @@ func createTestIndex(t *testing.T, client *opensearchapi.Client, name string) {
 
 	_, err := client.Indices.Create(t.Context(), opensearchapi.IndicesCreateReq{
 		Index: name,
+	})
+	require.NoError(t, err)
+}
+
+func createTestIndexStrict(t *testing.T, client *opensearchapi.Client, name string) {
+	t.Helper()
+
+	_, err := client.Indices.Create(t.Context(), opensearchapi.IndicesCreateReq{
+		Index: name,
+		Body:  strings.NewReader(`{"mappings": {"dynamic": "strict", "properties": {"name": {"type": "text"}}}}`),
 	})
 	require.NoError(t, err)
 }
