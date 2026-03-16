@@ -43,9 +43,15 @@ func BulkIndex(ctx context.Context, client *elasticsearch.Client, items []*Docum
 	}
 	defer resp.Body.Close()
 
+	// if we got a non-2xx response, the entire request failed (e.g. 413 Request Entity Too Large)
+	// and the response body won't contain per-item results
+	if resp.IsError() {
+		return 0, items, fmt.Errorf("elasticsearch bulk request failed with status %d", resp.StatusCode)
+	}
+
 	var result bulkResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, nil, fmt.Errorf("error decoding elasticsearch bulk response: %w", err)
+		return 0, items, fmt.Errorf("error decoding elasticsearch bulk response: %w", err)
 	}
 
 	if !result.Errors {
