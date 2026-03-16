@@ -20,11 +20,11 @@ func TestMain(m *testing.M) {
 		url = defaultElasticURL
 	}
 
-	// check if Elasticsearch is reachable
+	// verify Elasticsearch is reachable
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("elastic: skipping tests, Elasticsearch not reachable at", url)
-		os.Exit(0)
+		fmt.Println("elastic: Elasticsearch not reachable at", url)
+		os.Exit(1)
 	}
 	resp.Body.Close()
 
