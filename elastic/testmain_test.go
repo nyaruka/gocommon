@@ -1,8 +1,6 @@
 package elastic_test
 
 import (
-	"fmt"
-	"net/http"
 	"os"
 	"testing"
 
@@ -10,28 +8,15 @@ import (
 	"github.com/nyaruka/gocommon/elastic"
 )
 
-const defaultElasticURL = "http://elastic:9200"
+const elasticURL = "http://elastic:9200"
 
 var testClient *elasticsearch.Client
 
 func TestMain(m *testing.M) {
-	url := os.Getenv("ELASTICSEARCH_URL")
-	if url == "" {
-		url = defaultElasticURL
-	}
-
-	// verify Elasticsearch is reachable
-	resp, err := http.Get(url)
+	var err error
+	testClient, err = elastic.NewClient(elasticURL)
 	if err != nil {
-		fmt.Println("elastic: Elasticsearch not reachable at", url)
-		os.Exit(1)
-	}
-	resp.Body.Close()
-
-	testClient, err = elastic.NewClient(url)
-	if err != nil {
-		fmt.Println("elastic: error creating client:", err)
-		os.Exit(1)
+		panic(err)
 	}
 
 	os.Exit(m.Run())
