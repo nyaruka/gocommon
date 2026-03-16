@@ -14,17 +14,14 @@ import (
 func TestSpool(t *testing.T) {
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
 
-	client, err := elastic.NewClient("http://elastic:9200")
-	require.NoError(t, err)
+	createTestIndex(t, testClient, "test-spool")
+	defer deleteTestIndex(t, testClient, "test-spool")
 
-	createTestIndex(t, client, "test-spool")
-	defer deleteTestIndex(t, client, "test-spool")
-
-	spool := elastic.NewSpool(client, "./_test_spool", 30*time.Second)
+	spool := elastic.NewSpool(testClient, "./_test_spool", 30*time.Second)
 
 	defer spool.Delete()
 
-	err = spool.Start()
+	err := spool.Start()
 	require.NoError(t, err)
 
 	err = spool.Add([]*elastic.Document{
@@ -45,7 +42,7 @@ func TestSpool(t *testing.T) {
 	spool.Stop()
 
 	// start new spool to verify it can read existing spool files
-	spool = elastic.NewSpool(client, "./_test_spool", 100*time.Millisecond)
+	spool = elastic.NewSpool(testClient, "./_test_spool", 100*time.Millisecond)
 	err = spool.Start()
 	require.NoError(t, err)
 
@@ -57,8 +54,8 @@ func TestSpool(t *testing.T) {
 	assert.Equal(t, 0, spool.Size())
 
 	// refresh and verify all items were indexed
-	refreshIndex(t, client, "test-spool")
-	assertCount(t, client, "test-spool", 3)
+	refreshIndex(t, testClient, "test-spool")
+	assertCount(t, testClient, "test-spool", 3)
 
 	spool.Stop()
 }

@@ -14,21 +14,18 @@ import (
 )
 
 func TestWriter(t *testing.T) {
-	client, err := elastic.NewClient("http://elastic:9200")
-	require.NoError(t, err)
+	createTestIndex(t, testClient, "test-writer")
+	defer deleteTestIndex(t, testClient, "test-writer")
 
-	createTestIndex(t, client, "test-writer")
-	defer deleteTestIndex(t, client, "test-writer")
-
-	spool := elastic.NewSpool(client, "./_test_spool", 30*time.Second)
-	err = spool.Start()
+	spool := elastic.NewSpool(testClient, "./_test_spool", 30*time.Second)
+	err := spool.Start()
 	require.NoError(t, err)
 
 	defer spool.Delete()
 
-	writer := elastic.NewWriter(client, 25, 100*time.Millisecond, 10, spool)
+	writer := elastic.NewWriter(testClient, 25, 100*time.Millisecond, 10, spool)
 
-	assert.Equal(t, client, writer.Client())
+	assert.Equal(t, testClient, writer.Client())
 
 	writer.Start()
 
@@ -45,8 +42,8 @@ func TestWriter(t *testing.T) {
 	assert.Equal(t, int64(0), numSpooled)
 
 	// refresh and verify count
-	refreshIndex(t, client, "test-writer")
-	assertCount(t, client, "test-writer", 10)
+	refreshIndex(t, testClient, "test-writer")
+	assertCount(t, testClient, "test-writer", 10)
 
 	for i := range 5 {
 		writer.Queue(&elastic.Document{Index: "test-writer", ID: fmt.Sprintf("%d", i+10), Routing: "test", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+10))})
