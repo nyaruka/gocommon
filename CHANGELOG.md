@@ -1,3 +1,8 @@
+v1.76.0 (2026-03-17)
+-------------------------
+ * Update dependencies including phonenumbers
+ * Add Elasticsearch writer and spool support to elastic package
+
 v1.75.8 (2026-03-10)
 -------------------------
  * Spool all failed opensearch writes, not just retryable ones
