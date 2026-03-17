@@ -1,3 +1,7 @@
+v1.76.2 (2026-03-17)
+-------------------------
+ * Allow passing usernae/password to elastic client
+
 v1.76.1 (2026-03-17)
 -------------------------
  * Use elasticsearch TypedClient for typed bulk API and structured responses
