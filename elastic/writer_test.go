@@ -57,7 +57,7 @@ func TestWriter(t *testing.T) {
 	writer.Stop()
 
 	// simulate transport failure by creating a writer pointed at an unreachable endpoint
-	badClient, err := elastic.NewClient("http://localhost:19999")
+	badClient, err := elastic.NewClient("http://localhost:19999", "", "")
 	require.NoError(t, err)
 
 	badWriter := elastic.NewWriter(badClient, 25, 100*time.Millisecond, 10, spool)

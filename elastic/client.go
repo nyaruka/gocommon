@@ -8,9 +8,11 @@ import (
 )
 
 // NewClient creates a new Elasticsearch client.
-func NewClient(url string) (*elasticsearch.TypedClient, error) {
+func NewClient(url, username, password string) (*elasticsearch.TypedClient, error) {
 	return elasticsearch.NewTypedClient(elasticsearch.Config{
 		Addresses: []string{url},
+		Username:  username,
+		Password:  password,
 	})
 }
 

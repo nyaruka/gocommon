@@ -14,7 +14,7 @@ var testClient *elasticsearch.TypedClient
 
 func TestMain(m *testing.M) {
 	var err error
-	testClient, err = elastic.NewClient(elasticURL)
+	testClient, err = elastic.NewClient(elasticURL, "", "")
 	if err != nil {
 		panic(err)
 	}
