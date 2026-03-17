@@ -14,7 +14,7 @@ import (
 // Writer provides buffered writes to Elasticsearch using a batcher. If writes fail, they are added to the given
 // spool for later processing.
 type Writer struct {
-	client  *elasticsearch.Client
+	client  *elasticsearch.TypedClient
 	batcher *syncx.Batcher[*Document]
 	spool   *Spool
 
@@ -25,7 +25,7 @@ type Writer struct {
 }
 
 // NewWriter creates a new writer.
-func NewWriter(client *elasticsearch.Client, maxItems int, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
+func NewWriter(client *elasticsearch.TypedClient, maxItems int, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
 	w := &Writer{
 		client: client,
 		spool:  spool,
@@ -58,7 +58,7 @@ func (w *Writer) Flush() {
 }
 
 // Client returns the Elasticsearch client this writer is using.
-func (w *Writer) Client() *elasticsearch.Client {
+func (w *Writer) Client() *elasticsearch.TypedClient {
 	return w.client
 }
 

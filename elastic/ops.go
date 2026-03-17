@@ -1,13 +1,15 @@
 package elastic
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/versiontype"
 )
 
 // Document is a document to be indexed in Elasticsearch.
@@ -20,48 +22,46 @@ type Document struct {
 }
 
 // BulkIndex sends a batch of documents to Elasticsearch using the index action.
-func BulkIndex(ctx context.Context, client *elasticsearch.Client, items []*Document) (int, []*Document, error) {
+func BulkIndex(ctx context.Context, client *elasticsearch.TypedClient, items []*Document) (int, []*Document, error) {
 	if len(items) == 0 {
 		return 0, nil, nil
 	}
 
-	var buf bytes.Buffer
+	req := client.Bulk()
 	for _, item := range items {
-		if item.Version > 0 {
-			fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q,"version":%d,"version_type":"external"}}`, item.Index, item.ID, item.Routing, item.Version)
-		} else {
-			fmt.Fprintf(&buf, `{"index":{"_index":%q,"_id":%q,"routing":%q}}`, item.Index, item.ID, item.Routing)
+		op := types.IndexOperation{
+			Index_:  &item.Index,
+			Id_:     &item.ID,
+			Routing: &item.Routing,
 		}
-		buf.WriteByte('\n')
-		buf.Write(item.Body)
-		buf.WriteByte('\n')
+		if item.Version > 0 {
+			op.Version = &item.Version
+			vt := versiontype.External
+			op.VersionType = &vt
+		}
+		if err := req.IndexOp(op, item.Body); err != nil {
+			return 0, items, fmt.Errorf("error building bulk index operation: %w", err)
+		}
 	}
 
-	resp, err := client.Bulk(&buf, client.Bulk.WithContext(ctx))
+	resp, err := req.Do(ctx)
 	if err != nil {
+		// if the entire request failed (e.g. 413 Request Entity Too Large), all items are unprocessed
+		var esErr *types.ElasticsearchError
+		if errors.As(err, &esErr) {
+			return 0, items, fmt.Errorf("elasticsearch bulk request failed with status %d: %w", esErr.Status, err)
+		}
 		return 0, nil, fmt.Errorf("error sending bulk request to elasticsearch: %w", err)
 	}
-	defer resp.Body.Close()
 
-	// if we got a non-2xx response, the entire request failed (e.g. 413 Request Entity Too Large)
-	// and the response body won't contain per-item results
-	if resp.IsError() {
-		return 0, items, fmt.Errorf("elasticsearch bulk request failed with status %d", resp.StatusCode)
-	}
-
-	var result bulkResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, items, fmt.Errorf("error decoding elasticsearch bulk response: %w", err)
-	}
-
-	if !result.Errors {
+	if !resp.Errors {
 		return len(items), nil, nil
 	}
 
 	numWritten := 0
 	var unprocessed []*Document
 
-	for i, itemMap := range result.Items {
+	for i, itemMap := range resp.Items {
 		for _, item := range itemMap {
 			if item.Status >= 200 && item.Status < 300 {
 				numWritten++
@@ -74,7 +74,9 @@ func BulkIndex(ctx context.Context, client *elasticsearch.Client, items []*Docum
 					errType, errReason := "", ""
 					if item.Error != nil {
 						errType = item.Error.Type
-						errReason = item.Error.Reason
+						if item.Error.Reason != nil {
+							errReason = *item.Error.Reason
+						}
 					}
 					slog.Error("permanent elasticsearch bulk index failure", "index", items[i].Index, "status", item.Status, "error_type", errType, "error_reason", errReason)
 				}
@@ -84,19 +86,4 @@ func BulkIndex(ctx context.Context, client *elasticsearch.Client, items []*Docum
 	}
 
 	return numWritten, unprocessed, nil
-}
-
-type bulkResponse struct {
-	Errors bool                     `json:"errors"`
-	Items  []map[string]bulkAction  `json:"items"`
-}
-
-type bulkAction struct {
-	Status int        `json:"status"`
-	Error  *bulkError `json:"error,omitempty"`
-}
-
-type bulkError struct {
-	Type   string `json:"type"`
-	Reason string `json:"reason"`
 }

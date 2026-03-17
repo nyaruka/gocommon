@@ -26,7 +26,7 @@ var spooledFileRegex = regexp.MustCompile(`^[^#]+#(\d+)\.jsonl$`) // <uuid>#<cou
 
 // Spool writes Elasticsearch documents to local files and periodically retries indexing them.
 type Spool struct {
-	client        *elasticsearch.Client
+	client        *elasticsearch.TypedClient
 	directory     string
 	size          atomic.Int64
 	flushInterval time.Duration
@@ -36,7 +36,7 @@ type Spool struct {
 	wg     sync.WaitGroup
 }
 
-func NewSpool(client *elasticsearch.Client, directory string, flushInterval time.Duration) *Spool {
+func NewSpool(client *elasticsearch.TypedClient, directory string, flushInterval time.Duration) *Spool {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Spool{

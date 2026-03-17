@@ -10,7 +10,7 @@ import (
 
 const elasticURL = "http://elastic:9200"
 
-var testClient *elasticsearch.Client
+var testClient *elasticsearch.TypedClient
 
 func TestMain(m *testing.M) {
 	var err error

@@ -1,7 +1,6 @@
 package elastic_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -81,54 +80,38 @@ func TestWriter(t *testing.T) {
 	spool.Stop()
 }
 
-func createTestIndex(t *testing.T, client *elasticsearch.Client, name string) {
+func createTestIndex(t *testing.T, client *elasticsearch.TypedClient, name string) {
 	t.Helper()
 
-	resp, err := client.Indices.Create(name, client.Indices.Create.WithContext(t.Context()))
+	_, err := client.Indices.Create(name).Do(t.Context())
 	require.NoError(t, err)
-	resp.Body.Close()
-	require.False(t, resp.IsError(), "failed to create index %s: %s", name, resp.String())
 }
 
-func createTestIndexStrict(t *testing.T, client *elasticsearch.Client, name string) {
+func createTestIndexStrict(t *testing.T, client *elasticsearch.TypedClient, name string) {
 	t.Helper()
 
-	resp, err := client.Indices.Create(name,
-		client.Indices.Create.WithContext(t.Context()),
-		client.Indices.Create.WithBody(strings.NewReader(`{"mappings": {"dynamic": "strict", "properties": {"name": {"type": "text"}}}}`)),
-	)
+	_, err := client.Indices.Create(name).Raw(strings.NewReader(`{"mappings": {"dynamic": "strict", "properties": {"name": {"type": "text"}}}}`)).Do(t.Context())
 	require.NoError(t, err)
-	resp.Body.Close()
-	require.False(t, resp.IsError(), "failed to create strict index %s: %s", name, resp.String())
 }
 
-func deleteTestIndex(t *testing.T, client *elasticsearch.Client, name string) {
+func deleteTestIndex(t *testing.T, client *elasticsearch.TypedClient, name string) {
 	t.Helper()
 
-	resp, err := client.Indices.Delete([]string{name}, client.Indices.Delete.WithContext(t.Context()))
+	_, err := client.Indices.Delete(name).Do(t.Context())
 	require.NoError(t, err)
-	resp.Body.Close()
 }
 
-func refreshIndex(t *testing.T, client *elasticsearch.Client, name string) {
+func refreshIndex(t *testing.T, client *elasticsearch.TypedClient, name string) {
 	t.Helper()
 
-	resp, err := client.Indices.Refresh(client.Indices.Refresh.WithIndex(name), client.Indices.Refresh.WithContext(t.Context()))
+	_, err := client.Indices.Refresh().Index(name).Do(t.Context())
 	require.NoError(t, err)
-	resp.Body.Close()
 }
 
-func assertCount(t *testing.T, client *elasticsearch.Client, name string, expected int) {
+func assertCount(t *testing.T, client *elasticsearch.TypedClient, name string, expected int) {
 	t.Helper()
 
-	resp, err := client.Count(client.Count.WithIndex(name), client.Count.WithContext(t.Context()))
+	resp, err := client.Count().Index(name).Do(t.Context())
 	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	var result struct {
-		Count int `json:"count"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	require.NoError(t, err)
-	assert.Equal(t, expected, result.Count)
+	assert.Equal(t, int64(expected), resp.Count)
 }
