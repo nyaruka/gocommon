@@ -1,3 +1,7 @@
+v1.76.1 (2026-03-17)
+-------------------------
+ * Use elasticsearch TypedClient for typed bulk API and structured responses
+
 v1.76.0 (2026-03-17)
 -------------------------
  * Update dependencies including phonenumbers
