@@ -29,8 +29,8 @@ func TestQueryError(t *testing.T) {
 
 	qerr = dbutil.QueryErrorWrapf(err, "SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
 	assert.Error(t, qerr)
-	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, qerr.Error())
-	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence`, fmt.Sprintf("%s", qerr))
+	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence (22025)`, qerr.Error())
+	assert.Equal(t, `error selecting foo 234: pq: unsupported Unicode escape sequence (22025)`, fmt.Sprintf("%s", qerr))
 
 	// can unwrap to the original error
 	var pqerr *pq.Error
