@@ -30,6 +30,14 @@ jobs:
           plugins.security.disabled: true
           OPENSEARCH_INITIAL_ADMIN_PASSWORD: T3mbaT3mbareh54vdhsv!
           logger.level: INFO
+      elastic:
+        image: elasticsearch:8.18.0
+        ports:
+          - 9200:9200
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: false
+          logger.level: WARN
       localstack:
         image: localstack/localstack:latest
         env:
