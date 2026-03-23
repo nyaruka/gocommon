@@ -1,3 +1,7 @@
+v1.76.3 (2026-03-23)
+-------------------------
+ * Add uuids.V7Time util to extract timestamp from v7 UUIDs
+
 v1.76.2 (2026-03-17)
 -------------------------
  * Allow passing usernae/password to elastic client
