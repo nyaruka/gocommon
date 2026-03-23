@@ -34,6 +34,31 @@ func TestNewV7(t *testing.T) {
 	}
 }
 
+func TestV7Time(t *testing.T) {
+	// test with a known v7 UUID from the seeded generator (2024-08-01 17:29:30 UTC)
+	tm, err := uuids.V7Time("01910efd-5890-71e2-bd38-d266ec8d3716")
+	assert.NoError(t, err)
+	assert.Equal(t, time.Date(2024, 8, 1, 17, 29, 30, 0, time.UTC), tm.Truncate(time.Second))
+
+	// test with a freshly generated v7 UUID
+	before := time.Now()
+	u := uuids.NewV7()
+	after := time.Now()
+
+	tm, err = uuids.V7Time(u)
+	assert.NoError(t, err)
+	assert.False(t, tm.Before(before.Truncate(time.Millisecond)))
+	assert.False(t, tm.After(after.Truncate(time.Millisecond).Add(time.Millisecond)))
+
+	// test with a v4 UUID
+	_, err = uuids.V7Time("d2f852ec-7b4e-457f-ae7f-f8b243c49ff5")
+	assert.EqualError(t, err, "not a v7 UUID: d2f852ec-7b4e-457f-ae7f-f8b243c49ff5")
+
+	// test with invalid string
+	_, err = uuids.V7Time("not-a-uuid")
+	assert.EqualError(t, err, "invalid UUID: not-a-uuid")
+}
+
 func TestSeededGenerator(t *testing.T) {
 	defer uuids.SetGenerator(uuids.DefaultGenerator)
 
