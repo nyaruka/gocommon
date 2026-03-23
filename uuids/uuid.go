@@ -1,7 +1,11 @@
 package uuids
 
 import (
+	"encoding/hex"
+	"fmt"
 	"math/rand"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nyaruka/gocommon/dates"
@@ -84,6 +88,23 @@ func (g *seededGenerator) NextV7() UUID {
 	u[7] = byte(s)
 
 	return must(u, nil)
+}
+
+// V7Time extracts the timestamp from a v7 UUID. Returns an error if the UUID is invalid or not v7.
+func V7Time(u UUID) (time.Time, error) {
+	s := strings.ReplaceAll(string(u), "-", "")
+	b, err := hex.DecodeString(s)
+	if err != nil || len(b) != 16 {
+		return time.Time{}, fmt.Errorf("invalid UUID: %s", u)
+	}
+
+	if b[6]>>4 != 7 {
+		return time.Time{}, fmt.Errorf("not a v7 UUID: %s", u)
+	}
+
+	ms := int64(b[0])<<40 | int64(b[1])<<32 | int64(b[2])<<24 | int64(b[3])<<16 | int64(b[4])<<8 | int64(b[5])
+
+	return time.UnixMilli(ms).UTC(), nil
 }
 
 func must(u uuid.UUID, err error) UUID {
