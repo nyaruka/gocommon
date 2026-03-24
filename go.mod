@@ -22,7 +22,6 @@ require (
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v3 v3.0.0
 	github.com/nyaruka/phonenumbers v1.6.12
-	github.com/opensearch-project/opensearch-go/v4 v4.6.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vinovest/sqlx v1.7.2
