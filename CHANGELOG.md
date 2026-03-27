@@ -1,3 +1,7 @@
+v1.78.0 (2026-03-27)
+-------------------------
+ * Add BSUID for WhatsApp BSUID
+
 v1.77.0 (2026-03-24)
 -------------------------
  * Remove OpenSearch (osearch) package
