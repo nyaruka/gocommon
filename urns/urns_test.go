@@ -64,7 +64,7 @@ func TestNewFromParts(t *testing.T) {
 		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
 		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
-		{urns.WhatsApp, "US.ABC123DEF", nil, "", "whatsapp:US.ABC123DEF", "whatsapp:US.ABC123DEF", false},
+		{urns.BSUID, "US.ABC123DEF", nil, "", "bsuid:US.ABC123DEF", "bsuid:US.ABC123DEF", false},
 		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
 
@@ -118,9 +118,10 @@ func TestNormalize(t *testing.T) {
 		// external ids are case sensitive
 		{"ext: eXterNAL123 ", "ext:eXterNAL123"},
 
-		// whatsapp BSUIDs have country code uppercased
-		{"whatsapp:br.ABC123", "whatsapp:BR.ABC123"},
-		{"whatsapp:BR.ABC123", "whatsapp:BR.ABC123"},
+		// bsuid URNs BSUIDs have country code uppercased
+		{"bsuid:br.ABC123", "bsuid:BR.ABC123"},
+		{"bsuid:BR.ABC123", "bsuid:BR.ABC123"},
+		{"bsuid:12345", "bsuid:12345"},
 		{"whatsapp:12345", "whatsapp:12345"},
 	}
 
@@ -228,16 +229,24 @@ func TestValidate(t *testing.T) {
 		{"viber:asdf!12354", "invalid path component"},
 		{"viber:xy5/5y6O81+/kbWHpLhBoA==", ""},
 
-		// whatsapp needs to be integers or BSUIDs (CC.alphanumeric)
+		//whatsapp paths must be digits only
 		{"whatsapp:12354", ""},
-		{"whatsapp:BR.1A2B3C4D5E6F7G8H9I0J", ""},
-		{"whatsapp:US.abc123DEF456", ""},
 		{"whatsapp:abcde", "invalid path component"},
 		{"whatsapp:+12067799294", "invalid path component"},
 		{"whatsapp:B.123", "invalid path component"},
 		{"whatsapp:BRA.123", "invalid path component"},
 		{"whatsapp:BR.", "invalid path component"},
 		{"whatsapp:br.ABC123", "invalid path component"},
+
+		// bsuid paths must be BSUIDs in the form CC.alphanumeric
+		{"bsuid:BR.1A2B3C4D5E6F7G8H9I0J", ""},
+		{"bsuid:US.abc123DEF456", ""},
+		{"bsuid:abcde", "invalid path component"},
+		{"bsuid:+12067799294", "invalid path component"},
+		{"bsuid:B.123", "invalid path component"},
+		{"bsuid:BRA.123", "invalid path component"},
+		{"bsuid:BR.", "invalid path component"},
+		{"bsuid:br.ABC123", "invalid path component"},
 
 		// freschat has to be two uuids separated by a colon
 		{"freshchat:6a2f41a3-c54c-fce8-32d2-0324e1c32e22/6a2f41a3-c54c-fce8-32d2-0324e1c32e22", ""},

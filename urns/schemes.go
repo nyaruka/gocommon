@@ -43,6 +43,7 @@ func init() {
 	register(WebChat)
 	register(WeChat)
 	register(WhatsApp)
+	register(BSUID)
 }
 
 var schemeByPrefix = map[string]*Scheme{}
@@ -195,8 +196,14 @@ var WeChat = &Scheme{
 }
 
 var WhatsApp = &Scheme{
-	Prefix: "whatsapp",
-	Name:   "WhatsApp",
+	Prefix:   "whatsapp",
+	Name:     "WhatsApp",
+	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
+}
+
+var BSUID = &Scheme{
+	Prefix: "bsuid",
+	Name:   "WhatsApp BSUID",
 	Normalize: func(path string) string {
 		// BSUIDs have format CC.ALPHANUMERIC - uppercase the country code
 		if dot := strings.IndexByte(path, '.'); dot == 2 {
@@ -205,6 +212,6 @@ var WhatsApp = &Scheme{
 		return path
 	},
 	Validate: func(path string) bool {
-		return allDigitsRegex.MatchString(path) || whatsAppBSUIDRegex.MatchString(path)
+		return whatsAppBSUIDRegex.MatchString(path)
 	},
 }
