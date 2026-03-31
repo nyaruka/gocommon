@@ -1,3 +1,8 @@
+v1.78.1 (2026-03-31)
+-------------------------
+ * Update phonenumbers
+ * Bump valkey from 8.0 to 8.1 in CI
+
 v1.78.0 (2026-03-27)
 -------------------------
  * Add BSUID for WhatsApp BSUID
