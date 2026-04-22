@@ -95,6 +95,7 @@ func Bulk(ctx context.Context, client *elasticsearch.TypedClient, items []*Docum
 				slog.Debug("elasticsearch version conflict (ignored)", "index", items[i].Index, "id", items[i].ID, "version", items[i].Version)
 			} else if item.Status == 404 && items[i].Action == ActionDelete {
 				slog.Debug("elasticsearch delete of missing document (ignored)", "index", items[i].Index, "id", items[i].ID)
+				numWritten++
 			} else {
 				if item.Status == 429 || item.Status >= 500 {
 					slog.Error("retryable elasticsearch bulk failure", "index", items[i].Index, "action", items[i].Action, "status", item.Status)
