@@ -128,7 +128,7 @@ func (s *Spool) flush() error {
 			return fmt.Errorf("error loading spool file %s: %w", file.path, err)
 		}
 
-		_, unprocessed, err := BulkIndex(ctx, s.client, docs)
+		_, unprocessed, err := Bulk(ctx, s.client, docs)
 		if err != nil {
 			slog.Error("error flushing spooled elasticsearch batch", "error", err, "file", file.path)
 			continue
