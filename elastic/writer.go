@@ -70,7 +70,7 @@ func (w *Writer) Stats() (int64, int64) {
 func (w *Writer) flush(batch []*Document) {
 	ctx := context.TODO()
 
-	numWritten, unprocessed, err := BulkIndex(ctx, w.client, batch)
+	numWritten, unprocessed, err := Bulk(ctx, w.client, batch)
 	if err != nil {
 		slog.Error("error writing batch to elasticsearch", "count", len(batch), "error", err)
 		if unprocessed == nil {
