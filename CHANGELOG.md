@@ -1,3 +1,7 @@
+v1.79.0 (2026-04-22)
+-------------------------
+ * Support delete actions in elastic writer
+
 v1.78.1 (2026-03-31)
 -------------------------
  * Update phonenumbers
