@@ -1,3 +1,7 @@
+v1.80.0 (2026-04-28)
+-------------------------
+ * Update go-elasticsearch to v9
+
 v1.79.0 (2026-04-22)
 -------------------------
  * Support delete actions in elastic writer
