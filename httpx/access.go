@@ -56,8 +56,11 @@ func (c *AccessConfig) Allow(request *http.Request) (bool, error) {
 			// Only check IPv4 hosts against IPv4 nets and IPv6 hosts against IPv6 nets.
 			// Without this, an IPv6 net that projects into IPv4 space (e.g. ::ffff:0:0/96)
 			// would match every IPv4 host, because IPNet.Contains strips the ::ffff: prefix
-			// internally and compares as IPv4.
-			netIsV4 := len(disallowed.IP) == net.IPv4len
+			// internally and compares as IPv4. Use mask size for family detection because
+			// the net's IP can be stored in 16-byte form even for IPv4 (e.g. when built via
+			// net.IPv4 without To4), but the mask reliably reflects the intended family.
+			_, maskBits := disallowed.Mask.Size()
+			netIsV4 := maskBits == 32
 			if isV4 != netIsV4 {
 				continue
 			}
