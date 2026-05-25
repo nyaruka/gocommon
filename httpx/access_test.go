@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _, ipv4MappedIPv6Net, _ = net.ParseCIDR("::ffff:0:0/96")
+
 func TestAccessConfig(t *testing.T) {
 	defer httpx.SetRequestor(httpx.DefaultRequestor)
 
@@ -22,6 +24,10 @@ func TestAccessConfig(t *testing.T) {
 		},
 		[]*net.IPNet{
 			{IP: net.IPv4(10, 0, 0, 0).To4(), Mask: net.CIDRMask(8, 32)},
+			// IPv4 net with IP left in 16-byte form (net.IPv4 returns 16-byte) — must still
+			// be treated as IPv4 so 192.168.x.x hosts are denied.
+			{IP: net.IPv4(192, 168, 0, 0), Mask: net.CIDRMask(16, 32)},
+			ipv4MappedIPv6Net,
 		},
 	)
 
@@ -30,6 +36,9 @@ func TestAccessConfig(t *testing.T) {
 			httpx.NewMockResponse(200, nil, nil),
 		},
 		"https://11.0.0.0": {
+			httpx.NewMockResponse(200, nil, nil),
+		},
+		"https://8.8.8.8": {
 			httpx.NewMockResponse(200, nil, nil),
 		},
 	}))
@@ -41,6 +50,8 @@ func TestAccessConfig(t *testing.T) {
 		// allowed
 		{"https://nyaruka.com", true},
 		{"https://11.0.0.0", true},
+		// a plain IPv4 host must not match an IPv6 disallowed net like ::ffff:0:0/96
+		{"https://8.8.8.8", true},
 
 		// denied by IP match
 		{"https://localhost/path", false},
@@ -55,9 +66,10 @@ func TestAccessConfig(t *testing.T) {
 		{"https://10.1.0.0", false},
 		{"https://10.0.1.0", false},
 		{"https://10.0.0.1", false},
-
-		// TODO re-enable once https://github.com/golang/go/issues/75815 is fixed
-		//{"https://[0:0:0:0:0:ffff:0a01:0000]:80", false}, // 10.1.0.0 mapped to IPv6
+		// IPv4 net constructed with a 16-byte IP must still match IPv4 hosts
+		{"https://192.168.1.1", false},
+		// IPv4-mapped IPv6 must not bypass an IPv4 disallowed net
+		{"https://[0:0:0:0:0:ffff:0a01:0000]:80", false}, // 10.1.0.0 mapped to IPv6
 	}
 	for _, tc := range tests {
 		request, err := http.NewRequest("GET", tc.url, nil)
