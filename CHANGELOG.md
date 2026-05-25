@@ -1,3 +1,7 @@
+v1.80.1 (2026-05-25)
+-------------------------
+ * Fix AccessConfig matching IPv4 hosts against IPv6 nets
+
 v1.80.0 (2026-04-28)
 -------------------------
  * Update go-elasticsearch to v9
