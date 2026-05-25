@@ -40,13 +40,28 @@ func (c *AccessConfig) Allow(request *http.Request) (bool, error) {
 
 	// if any of the host's addresses appear in the disallowed list, deny the request
 	for _, addr := range addrs {
+		// Normalize IPv4-in-IPv6 to 4-byte form so an IPv4-mapped IPv6 address can't bypass
+		// an IPv4 rule by being expressed as ::ffff:x.x.x.x.
+		ip := addr.IP
+		isV4 := ip.To4() != nil
+		if isV4 {
+			ip = ip.To4()
+		}
 		for _, disallowed := range c.DisallowedIPs {
-			if addr.IP.Equal(disallowed) {
+			if ip.Equal(disallowed) {
 				return false, nil
 			}
 		}
 		for _, disallowed := range c.DisallowedNets {
-			if disallowed.Contains(addr.IP) {
+			// Only check IPv4 hosts against IPv4 nets and IPv6 hosts against IPv6 nets.
+			// Without this, an IPv6 net that projects into IPv4 space (e.g. ::ffff:0:0/96)
+			// would match every IPv4 host, because IPNet.Contains strips the ::ffff: prefix
+			// internally and compares as IPv4.
+			netIsV4 := len(disallowed.IP) == net.IPv4len
+			if isV4 != netIsV4 {
+				continue
+			}
+			if disallowed.Contains(ip) {
 				return false, nil
 			}
 		}
