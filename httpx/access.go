@@ -106,6 +106,10 @@ func WithAccess(inner http.RoundTripper, access *AccessConfig) http.RoundTripper
 
 func (t *accessTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	if err := t.access.check(request); err != nil {
+		// the http.RoundTripper contract requires the request body to be closed even on error paths
+		if request.Body != nil {
+			request.Body.Close()
+		}
 		return nil, err
 	}
 	return t.inner.RoundTrip(request)

@@ -1,6 +1,7 @@
 package httpx_test
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"testing"
@@ -85,6 +86,14 @@ func TestAccessConfig(t *testing.T) {
 	}
 }
 
+// recordingBody is an io.ReadCloser which records whether it has been closed
+type recordingBody struct {
+	closed bool
+}
+
+func (b *recordingBody) Read(p []byte) (int, error) { return 0, io.EOF }
+func (b *recordingBody) Close() error               { b.closed = true; return nil }
+
 func TestAccessTransport(t *testing.T) {
 	access := httpx.NewAccessConfig(
 		30*time.Second,
@@ -97,7 +106,8 @@ func TestAccessTransport(t *testing.T) {
 		"https://8.8.8.8": {httpx.NewMockResponse(200, nil, nil)},
 	})
 	transport := httpx.WithAccess(inner, access)
-	req, _ := http.NewRequest("GET", "https://8.8.8.8", nil)
+	req, err := http.NewRequest("GET", "https://8.8.8.8", nil)
+	require.NoError(t, err)
 	resp, err := transport.RoundTrip(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -106,28 +116,55 @@ func TestAccessTransport(t *testing.T) {
 	// disallowed request returns ErrAccessConfig and never reaches the inner transport
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
 	transport = httpx.WithAccess(inner, access)
-	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
+	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
+	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
 	assert.Equal(t, httpx.ErrAccessConfig, err)
 	assert.Nil(t, resp)
 	assert.Empty(t, inner.Requests())
 
-	// an error from Allow (here a DNS failure) is propagated as-is, not converted to ErrAccessConfig
+	// a denied request with a non-nil body must have that body closed (http.RoundTripper contract)
+	body := &recordingBody{}
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
 	transport = httpx.WithAccess(inner, access)
-	req, _ = http.NewRequest("GET", "https://nonexistent.invalid", nil)
+	req, err = http.NewRequest("POST", "https://127.0.0.1", body)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.Equal(t, httpx.ErrAccessConfig, err)
+	assert.Nil(t, resp)
+	assert.True(t, body.closed, "request body should be closed on the deny path")
+	assert.Empty(t, inner.Requests())
+
+	// an error from Allow (here a resolver timeout) is propagated as-is, not converted to ErrAccessConfig.
+	// A 1ns resolve timeout forces a deterministic error without depending on real DNS resolution.
+	timeoutAccess := httpx.NewAccessConfig(time.Nanosecond, []net.IP{net.ParseIP("127.0.0.1")}, nil)
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	transport = httpx.WithAccess(inner, timeoutAccess)
+	req, err = http.NewRequest("GET", "https://example.com", nil)
+	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
 	assert.Error(t, err)
 	assert.NotEqual(t, httpx.ErrAccessConfig, err)
 	assert.Nil(t, resp)
 	assert.Empty(t, inner.Requests())
 
+	// a nil inner transport falls back to http.DefaultTransport and the result is usable (here the request
+	// is denied before it would reach DefaultTransport, so no real network call is made)
+	transport = httpx.WithAccess(nil, access)
+	assert.NotNil(t, transport)
+	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.Equal(t, httpx.ErrAccessConfig, err)
+	assert.Nil(t, resp)
+
 	// a nil access config is a pass-through, even for an otherwise-denied host
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://127.0.0.1": {httpx.NewMockResponse(200, nil, nil)},
 	})
 	transport = httpx.WithAccess(inner, nil)
-	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
+	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
+	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
