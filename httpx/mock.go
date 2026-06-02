@@ -45,24 +45,9 @@ func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Re
 func (r *MockRequestor) RoundTrip(request *http.Request) (*http.Response, error) {
 	r.requests = append(r.requests, request)
 
-	url := request.URL.String()
-
-	// find the most specific match against this URL
-	match := stringsx.GlobSelect(url, slices.Collect(maps.Keys(r.mocks))...)
-	mockedResponses := r.mocks[match]
-
-	if len(mockedResponses) == 0 {
-		panic(fmt.Sprintf("missing mock for URL %s", url))
-	}
-
-	// pop the next mocked response for this URL
-	mocked := mockedResponses[0]
-	remaining := mockedResponses[1:]
-
-	if len(remaining) > 0 {
-		r.mocks[match] = remaining
-	} else {
-		delete(r.mocks, match)
+	mocked := takeMock(r.mocks, request)
+	if mocked == nil {
+		panic(fmt.Sprintf("missing mock for URL %s", request.URL.String()))
 	}
 
 	if mocked.Status == 0 {
@@ -79,12 +64,7 @@ func (r *MockRequestor) Requests() []*http.Request {
 
 // HasUnused returns true if there are unused mocks leftover
 func (r *MockRequestor) HasUnused() bool {
-	for _, mocks := range r.mocks {
-		if len(mocks) > 0 {
-			return true
-		}
-	}
-	return false
+	return hasUnusedMocks(r.mocks)
 }
 
 // Clone returns a clone of this requestor
@@ -105,6 +85,115 @@ func (r *MockRequestor) UnmarshalJSON(data []byte) error {
 }
 
 var _ Requestor = (*MockRequestor)(nil)
+
+// takeMock pops the next mocked response matching the request's URL, mutating mocks. Returns nil if none match.
+func takeMock(mocks map[string][]*MockResponse, request *http.Request) *MockResponse {
+	url := request.URL.String()
+
+	// find the most specific match against this URL
+	match := stringsx.GlobSelect(url, slices.Collect(maps.Keys(mocks))...)
+	mockedResponses := mocks[match]
+	if len(mockedResponses) == 0 {
+		return nil
+	}
+
+	// pop the next mocked response for this URL
+	mocked := mockedResponses[0]
+	remaining := mockedResponses[1:]
+	if len(remaining) > 0 {
+		mocks[match] = remaining
+	} else {
+		delete(mocks, match)
+	}
+
+	return mocked
+}
+
+// hasUnusedMocks returns whether any unused mocked responses remain
+func hasUnusedMocks(mocks map[string][]*MockResponse) bool {
+	for _, ms := range mocks {
+		if len(ms) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// MockTransport is an http.RoundTripper which answers requests from a set of mocked responses, delegating to an
+// inner transport for requests it doesn't handle. It's intended to be the composable replacement for MockRequestor.
+type MockTransport struct {
+	inner       http.RoundTripper
+	mocks       map[string][]*MockResponse
+	requests    []*http.Request
+	ignoreLocal bool
+	passthrough bool
+}
+
+// MockOption configures a MockTransport created with WithMocking.
+type MockOption func(*MockTransport)
+
+// MockPassthrough makes a mocking transport delegate a request with no matching mock to the inner transport
+// instead of panicking (the default).
+func MockPassthrough() MockOption {
+	return func(t *MockTransport) { t.passthrough = true }
+}
+
+// MockIgnoreLocal makes a mocking transport delegate requests to localhost to the inner transport rather than
+// trying to mock them.
+func MockIgnoreLocal() MockOption {
+	return func(t *MockTransport) { t.ignoreLocal = true }
+}
+
+// WithMocking wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
+// mock instead of being sent. If inner is nil then http.DefaultTransport is used. By default a request with no
+// matching mock panics, mirroring MockRequestor; pass MockPassthrough to instead delegate such requests to the
+// inner transport. The mocks map is copied, so the caller's map is never consumed and can be safely reused.
+func WithMocking(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MockTransport {
+	if inner == nil {
+		inner = http.DefaultTransport
+	}
+	t := &MockTransport{inner: inner, mocks: maps.Clone(mocks)}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
+}
+
+func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	// delegate local requests to the inner transport when ignoring local
+	if t.ignoreLocal && isLocalRequest(request) {
+		return t.inner.RoundTrip(request)
+	}
+
+	mocked := takeMock(t.mocks, request)
+	if mocked == nil {
+		// no matching mock - either pass through to the inner transport or panic to catch the unexpected request
+		if t.passthrough {
+			return t.inner.RoundTrip(request)
+		}
+		panic(fmt.Sprintf("missing mock for URL %s", request.URL.String()))
+	}
+
+	t.requests = append(t.requests, request)
+
+	if mocked.Status == 0 {
+		return nil, errors.New("unable to connect to server")
+	}
+
+	return mocked.Make(request), nil
+}
+
+// Requests returns the requests that were answered from mocks
+func (t *MockTransport) Requests() []*http.Request {
+	return t.requests
+}
+
+// HasUnused returns true if there are unused mocks leftover
+func (t *MockTransport) HasUnused() bool {
+	return hasUnusedMocks(t.mocks)
+}
+
+var _ http.RoundTripper = (*MockTransport)(nil)
 
 type MockResponse struct {
 	Status       int
