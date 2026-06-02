@@ -25,7 +25,6 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vinovest/sqlx v1.7.2
-	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.35.0
 )

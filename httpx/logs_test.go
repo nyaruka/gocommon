@@ -1,6 +1,7 @@
 package httpx_test
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/nyaruka/gocommon/stringsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestLogs(t *testing.T) {

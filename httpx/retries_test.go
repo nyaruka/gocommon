@@ -1,6 +1,7 @@
 package httpx_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/nyaruka/gocommon/httpx"
 	"github.com/nyaruka/gocommon/random"
-	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

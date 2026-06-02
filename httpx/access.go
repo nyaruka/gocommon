@@ -1,13 +1,12 @@
 package httpx
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // AccessConfig configures what can be accessed
