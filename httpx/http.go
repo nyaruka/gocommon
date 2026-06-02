@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -155,6 +157,94 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 
 	return trace, nil
 }
+
+// TracingTransport is an http.RoundTripper which captures a Trace of each request and response, delegating to an
+// inner transport. The response body is buffered so that it remains readable by the caller. It is safe for
+// concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
+type TracingTransport struct {
+	inner        http.RoundTripper
+	maxBodyBytes int
+	mutex        sync.Mutex
+	traces       []*Trace
+}
+
+// WithTracing wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
+// Traces(). The response body is buffered so it remains readable by the caller; at most maxBodyBytes of it are
+// captured into the trace (a value <= 0 captures the entire body). If inner is nil then http.DefaultTransport is used.
+func WithTracing(inner http.RoundTripper, maxBodyBytes int) *TracingTransport {
+	if inner == nil {
+		inner = http.DefaultTransport
+	}
+	return &TracingTransport{inner: inner, maxBodyBytes: maxBodyBytes}
+}
+
+func (t *TracingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	requestTrace, err := httputil.DumpRequestOut(request, true)
+	if err != nil {
+		// the http.RoundTripper contract requires the request body to be closed even on error paths
+		if request.Body != nil {
+			request.Body.Close()
+		}
+		return nil, err
+	}
+
+	trace := &Trace{
+		Request:      request,
+		RequestTrace: requestTrace,
+		StartTime:    dates.Now(),
+	}
+	t.mutex.Lock()
+	t.traces = append(t.traces, trace)
+	t.mutex.Unlock()
+	defer func() { trace.EndTime = dates.Now() }()
+
+	response, err := t.inner.RoundTrip(request)
+	trace.Response = response
+	if err != nil {
+		// the inner transport failed to obtain a response
+		return nil, err
+	}
+
+	// dump the response trace without the body, which we capture separately; ignore any dump error as we still
+	// have a usable response to hand back to the caller
+	trace.ResponseTrace, _ = httputil.DumpResponse(response, false)
+
+	// read the full body so we can both capture it and hand a readable copy back to the caller
+	body, readErr := io.ReadAll(response.Body)
+	response.Body.Close()
+
+	// capture up to maxBodyBytes of the body into the trace, cloning when truncating so we don't pin the full
+	// body's backing array
+	if t.maxBodyBytes > 0 && len(body) > t.maxBodyBytes {
+		trace.ResponseBody = bytes.Clone(body[:t.maxBodyBytes])
+	} else {
+		trace.ResponseBody = body
+	}
+
+	// restore a readable body for the caller; if reading it failed, replay the partial bytes and the error so the
+	// caller sees exactly what it would have without tracing
+	if readErr != nil {
+		response.Body = io.NopCloser(io.MultiReader(bytes.NewReader(body), errReader{readErr}))
+	} else {
+		response.Body = io.NopCloser(bytes.NewReader(body))
+	}
+
+	return response, nil
+}
+
+// Traces returns a snapshot of the traces captured so far
+func (t *TracingTransport) Traces() []*Trace {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	return slices.Clone(t.traces)
+}
+
+var _ http.RoundTripper = (*TracingTransport)(nil)
+
+// errReader is an io.Reader that always returns its error, used to replay a body read failure to the caller
+type errReader struct{ err error }
+
+func (r errReader) Read([]byte) (int, error) { return 0, r.err }
 
 // NewRequest is a convenience method to create a request with the given context and headers
 func NewRequest(ctx context.Context, method string, url string, body io.Reader, headers map[string]string) (*http.Request, error) {

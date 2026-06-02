@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -123,6 +125,134 @@ func TestDoTrace(t *testing.T) {
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: \x80\x81\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, 6, len(trace.ResponseBody))
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: �\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
+}
+
+func TestTracingTransport(t *testing.T) {
+	ctx := context.Background()
+
+	defer dates.SetNowFunc(time.Now)
+	dates.SetNowFunc(dates.NewSequentialNow(time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), time.Second))
+
+	server := newTestHTTPServer(52026)
+	defer server.Close()
+
+	tt := httpx.WithTracing(http.DefaultTransport, -1)
+
+	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err := tt.RoundTrip(request)
+	require.NoError(t, err)
+
+	// the caller can still read the full response body
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, `{ "ok": "true" }`, string(body))
+
+	// and a complete trace was captured
+	require.Len(t, tt.Traces(), 1)
+	trace := tt.Traces()[0]
+	assert.Equal(t, "GET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52026\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
+	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
+	assert.Equal(t, `{ "ok": "true" }`, string(trace.ResponseBody))
+	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), trace.StartTime)
+	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 31, 123456789, time.UTC), trace.EndTime)
+	assert.Equal(t, 0, trace.Retries)
+
+	// a second request accumulates another trace
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	io.ReadAll(resp.Body)
+	assert.Len(t, tt.Traces(), 2)
+
+	// maxBodyBytes truncates the captured body, but the caller still reads the full body
+	tt = httpx.WithTracing(http.DefaultTransport, 4)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, `{ "ok": "true" }`, string(body))               // full body still readable
+	assert.Equal(t, `{ "o`, string(tt.Traces()[0].ResponseBody))    // captured body truncated to 4 bytes
+
+	// maxBodyBytes of 0 captures the entire body
+	tt = httpx.WithTracing(http.DefaultTransport, 0)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, `{ "ok": "true" }`, string(body))
+	assert.Equal(t, `{ "ok": "true" }`, string(tt.Traces()[0].ResponseBody))
+
+	// the inner transport still sees the request body after DumpRequestOut has consumed and restored it
+	capturer := &bodyCapturingTransport{}
+	tt = httpx.WithTracing(capturer, -1)
+	request, err = httpx.NewRequest(ctx, "POST", "https://temba.io", bytes.NewReader([]byte("hello body")), nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	assert.Equal(t, "hello body", string(capturer.body))
+
+	// an error from the inner transport is captured in the trace and returned
+	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.MockConnectionError},
+	})
+	tt = httpx.WithTracing(inner, -1)
+	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	assert.EqualError(t, err, "unable to connect to server")
+	assert.Nil(t, resp)
+	require.Len(t, tt.Traces(), 1)
+	assert.NotNil(t, tt.Traces()[0].RequestTrace)
+	assert.Nil(t, tt.Traces()[0].Response)
+	assert.Nil(t, tt.Traces()[0].ResponseBody)
+
+	// a nil inner transport falls back to http.DefaultTransport
+	tt = httpx.WithTracing(nil, -1)
+	assert.NotNil(t, tt)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+// bodyCapturingTransport is a test http.RoundTripper that records the request body it received
+type bodyCapturingTransport struct{ body []byte }
+
+func (c *bodyCapturingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.body, _ = io.ReadAll(r.Body)
+	r.Body.Close()
+	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(bytes.NewReader([]byte("ok")))}, nil
+}
+
+func TestTracingTransportConcurrent(t *testing.T) {
+	server := newTestHTTPServer(52027)
+	defer server.Close()
+
+	tt := httpx.WithTracing(http.DefaultTransport, -1)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			request, _ := http.NewRequest("GET", server.URL+"?cmd=success", nil)
+			resp, err := tt.RoundTrip(request)
+			if assert.NoError(t, err) {
+				io.ReadAll(resp.Body)
+				resp.Body.Close()
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Len(t, tt.Traces(), 20)
 }
 
 func TestMaxBodyBytes(t *testing.T) {
