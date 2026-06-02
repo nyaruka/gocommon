@@ -85,6 +85,55 @@ func TestAccessConfig(t *testing.T) {
 	}
 }
 
+func TestAccessTransport(t *testing.T) {
+	access := httpx.NewAccessConfig(
+		30*time.Second,
+		[]net.IP{net.ParseIP("127.0.0.1")},
+		nil,
+	)
+
+	// allowed request delegates to the inner transport
+	inner := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://8.8.8.8": {httpx.NewMockResponse(200, nil, nil)},
+	})
+	transport := httpx.NewAccessTransport(inner, access)
+	req, _ := http.NewRequest("GET", "https://8.8.8.8", nil)
+	resp, err := transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, inner.Requests(), 1)
+
+	// disallowed request returns ErrAccessConfig and never reaches the inner transport
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	transport = httpx.NewAccessTransport(inner, access)
+	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
+	resp, err = transport.RoundTrip(req)
+	assert.Equal(t, httpx.ErrAccessConfig, err)
+	assert.Nil(t, resp)
+	assert.Empty(t, inner.Requests())
+
+	// an error from Allow (here a DNS failure) is propagated as-is, not converted to ErrAccessConfig
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	transport = httpx.NewAccessTransport(inner, access)
+	req, _ = http.NewRequest("GET", "https://nonexistent.invalid", nil)
+	resp, err = transport.RoundTrip(req)
+	assert.Error(t, err)
+	assert.NotEqual(t, httpx.ErrAccessConfig, err)
+	assert.Nil(t, resp)
+	assert.Empty(t, inner.Requests())
+
+	// a nil access config is a pass-through, even for an otherwise-denied host
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://127.0.0.1": {httpx.NewMockResponse(200, nil, nil)},
+	})
+	transport = httpx.NewAccessTransport(inner, nil)
+	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, inner.Requests(), 1)
+}
+
 func TestParseNetworkList(t *testing.T) {
 	privateNetwork1 := &net.IPNet{IP: net.IPv4(10, 0, 0, 0).To4(), Mask: net.CIDRMask(8, 32)}
 	privateNetwork2 := &net.IPNet{IP: net.IPv4(172, 16, 0, 0).To4(), Mask: net.CIDRMask(12, 32)}

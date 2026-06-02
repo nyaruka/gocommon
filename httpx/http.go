@@ -30,14 +30,8 @@ func Do(client *http.Client, request *http.Request, retries *RetryConfig, access
 }
 
 func do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, int, error) {
-	if access != nil {
-		allowed, err := access.Allow(request)
-		if err != nil {
-			return nil, 0, err
-		}
-		if !allowed {
-			return nil, 0, ErrAccessConfig
-		}
+	if err := access.check(request); err != nil {
+		return nil, 0, err
 	}
 
 	var response *http.Response

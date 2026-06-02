@@ -72,6 +72,45 @@ func (c *AccessConfig) Allow(request *http.Request) (bool, error) {
 	return true, nil
 }
 
+// check applies the access config to the request, returning ErrAccessConfig if the request is denied, or the
+// underlying error if the access check itself fails. A nil config permits everything.
+func (c *AccessConfig) check(request *http.Request) error {
+	if c == nil {
+		return nil
+	}
+	allowed, err := c.Allow(request)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrAccessConfig
+	}
+	return nil
+}
+
+// accessTransport is an http.RoundTripper which enforces an AccessConfig before delegating to an inner transport.
+type accessTransport struct {
+	inner  http.RoundTripper
+	access *AccessConfig
+}
+
+// NewAccessTransport creates an http.RoundTripper which enforces the given access config before delegating to the
+// inner transport. A nil access config makes it a pass-through, so it's always safe to wrap. If inner is nil then
+// http.DefaultTransport is used.
+func NewAccessTransport(inner http.RoundTripper, access *AccessConfig) http.RoundTripper {
+	if inner == nil {
+		inner = http.DefaultTransport
+	}
+	return &accessTransport{inner: inner, access: access}
+}
+
+func (t *accessTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if err := t.access.check(request); err != nil {
+		return nil, err
+	}
+	return t.inner.RoundTrip(request)
+}
+
 // ParseNetworks parses a list of IPs and IP networks (written in CIDR notation)
 func ParseNetworks(addrs ...string) ([]net.IP, []*net.IPNet, error) {
 	ips := make([]net.IP, 0, len(addrs))
