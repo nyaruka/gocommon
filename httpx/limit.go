@@ -46,8 +46,9 @@ func (t *bodyLimitTransport) RoundTrip(request *http.Request) (*http.Response, e
 var _ http.RoundTripper = (*bodyLimitTransport)(nil)
 
 // limitedBody wraps a response body so that reading more than left bytes from it fails with ErrResponseSize. It
-// permits reading one byte beyond the limit so a body of exactly the limit is allowed while a larger one is reliably
-// detected, mirroring the semantics of DoTrace's maxBodyBytes.
+// permits reading one byte beyond the limit so that a body of exactly the limit is allowed while a larger one is
+// reliably detected; the read that crosses the limit returns the within-limit bytes alongside ErrResponseSize and
+// drops only the probe byte, following the io.Reader convention of reporting consumed bytes together with the error.
 type limitedBody struct {
 	inner io.ReadCloser
 	left  int64
@@ -65,7 +66,9 @@ func (b *limitedBody) Read(p []byte) (int, error) {
 	n, err := b.inner.Read(p)
 	b.left -= int64(n)
 	if b.left < 0 {
-		return 0, ErrResponseSize
+		// we read exactly one byte past the limit (n == old left + 1), so return the within-limit bytes and surface
+		// the size error, dropping only that probe byte
+		return n - 1, ErrResponseSize
 	}
 	return n, err
 }
