@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -176,6 +177,26 @@ func TestTracingTransport(t *testing.T) {
 	assert.Equal(t, `{ "ok": "true" }`, string(body))               // full body still readable
 	assert.Equal(t, `{ "o`, string(tt.Traces()[0].ResponseBody))    // captured body truncated to 4 bytes
 
+	// maxBodyBytes of 0 captures the entire body
+	tt = httpx.WithTracing(http.DefaultTransport, 0)
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, `{ "ok": "true" }`, string(body))
+	assert.Equal(t, `{ "ok": "true" }`, string(tt.Traces()[0].ResponseBody))
+
+	// the inner transport still sees the request body after DumpRequestOut has consumed and restored it
+	capturer := &bodyCapturingTransport{}
+	tt = httpx.WithTracing(capturer, -1)
+	request, err = httpx.NewRequest(ctx, "POST", "https://temba.io", bytes.NewReader([]byte("hello body")), nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	assert.Equal(t, "hello body", string(capturer.body))
+
 	// an error from the inner transport is captured in the trace and returned
 	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
@@ -199,6 +220,39 @@ func TestTracingTransport(t *testing.T) {
 	resp, err = tt.RoundTrip(request)
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
+}
+
+// bodyCapturingTransport is a test http.RoundTripper that records the request body it received
+type bodyCapturingTransport struct{ body []byte }
+
+func (c *bodyCapturingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.body, _ = io.ReadAll(r.Body)
+	r.Body.Close()
+	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(bytes.NewReader([]byte("ok")))}, nil
+}
+
+func TestTracingTransportConcurrent(t *testing.T) {
+	server := newTestHTTPServer(52027)
+	defer server.Close()
+
+	tt := httpx.WithTracing(http.DefaultTransport, -1)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			request, _ := http.NewRequest("GET", server.URL+"?cmd=success", nil)
+			resp, err := tt.RoundTrip(request)
+			if assert.NoError(t, err) {
+				io.ReadAll(resp.Body)
+				resp.Body.Close()
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Len(t, tt.Traces(), 20)
 }
 
 func TestMaxBodyBytes(t *testing.T) {
