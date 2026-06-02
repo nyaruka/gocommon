@@ -1,3 +1,7 @@
+v1.81.2 (2026-06-02)
+-------------------------
+ * httpx: add WithBodyLimit transport to bound response body reads
+
 v1.81.1 (2026-06-02)
 -------------------------
  * Replace deprecated golang.org/x/net/context with stdlib context
