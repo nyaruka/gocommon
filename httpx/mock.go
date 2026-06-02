@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"sync"
 
 	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/nyaruka/gocommon/stringsx"
@@ -121,8 +122,10 @@ func hasUnusedMocks(mocks map[string][]*MockResponse) bool {
 
 // MockTransport is an http.RoundTripper which answers requests from a set of mocked responses, delegating to an
 // inner transport for requests it doesn't handle. It's intended to be the composable replacement for MockRequestor.
+// It is safe for concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
 type MockTransport struct {
 	inner       http.RoundTripper
+	mutex       sync.Mutex // guards mocks and requests
 	mocks       map[string][]*MockResponse
 	requests    []*http.Request
 	ignoreLocal bool
@@ -165,7 +168,15 @@ func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error)
 		return t.inner.RoundTrip(request)
 	}
 
+	// take the next matching mock and record the request under lock, but don't hold it across any delegation to
+	// the inner transport which may block on I/O
+	t.mutex.Lock()
 	mocked := takeMock(t.mocks, request)
+	if mocked != nil {
+		t.requests = append(t.requests, request)
+	}
+	t.mutex.Unlock()
+
 	if mocked == nil {
 		// no matching mock - either pass through to the inner transport or panic to catch the unexpected request
 		if t.passthrough {
@@ -174,8 +185,6 @@ func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error)
 		panic(fmt.Sprintf("missing mock for URL %s", request.URL.String()))
 	}
 
-	t.requests = append(t.requests, request)
-
 	if mocked.Status == 0 {
 		return nil, errors.New("unable to connect to server")
 	}
@@ -183,13 +192,17 @@ func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error)
 	return mocked.Make(request), nil
 }
 
-// Requests returns the requests that were answered from mocks
+// Requests returns a snapshot of the requests that were answered from mocks
 func (t *MockTransport) Requests() []*http.Request {
-	return t.requests
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	return slices.Clone(t.requests)
 }
 
 // HasUnused returns true if there are unused mocks leftover
 func (t *MockTransport) HasUnused() bool {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
 	return hasUnusedMocks(t.mocks)
 }
 
