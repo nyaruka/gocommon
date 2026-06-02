@@ -94,10 +94,10 @@ type accessTransport struct {
 	access *AccessConfig
 }
 
-// NewAccessTransport creates an http.RoundTripper which enforces the given access config before delegating to the
-// inner transport. A nil access config makes it a pass-through, so it's always safe to wrap. If inner is nil then
+// WithAccess wraps an http.RoundTripper so that it enforces the given access config before delegating to the inner
+// transport. A nil access config makes it a pass-through, so it's always safe to wrap. If inner is nil then
 // http.DefaultTransport is used.
-func NewAccessTransport(inner http.RoundTripper, access *AccessConfig) http.RoundTripper {
+func WithAccess(inner http.RoundTripper, access *AccessConfig) http.RoundTripper {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}

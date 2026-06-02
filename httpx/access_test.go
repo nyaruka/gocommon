@@ -96,7 +96,7 @@ func TestAccessTransport(t *testing.T) {
 	inner := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://8.8.8.8": {httpx.NewMockResponse(200, nil, nil)},
 	})
-	transport := httpx.NewAccessTransport(inner, access)
+	transport := httpx.WithAccess(inner, access)
 	req, _ := http.NewRequest("GET", "https://8.8.8.8", nil)
 	resp, err := transport.RoundTrip(req)
 	assert.NoError(t, err)
@@ -105,7 +105,7 @@ func TestAccessTransport(t *testing.T) {
 
 	// disallowed request returns ErrAccessConfig and never reaches the inner transport
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
-	transport = httpx.NewAccessTransport(inner, access)
+	transport = httpx.WithAccess(inner, access)
 	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
 	resp, err = transport.RoundTrip(req)
 	assert.Equal(t, httpx.ErrAccessConfig, err)
@@ -114,7 +114,7 @@ func TestAccessTransport(t *testing.T) {
 
 	// an error from Allow (here a DNS failure) is propagated as-is, not converted to ErrAccessConfig
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
-	transport = httpx.NewAccessTransport(inner, access)
+	transport = httpx.WithAccess(inner, access)
 	req, _ = http.NewRequest("GET", "https://nonexistent.invalid", nil)
 	resp, err = transport.RoundTrip(req)
 	assert.Error(t, err)
@@ -126,7 +126,7 @@ func TestAccessTransport(t *testing.T) {
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://127.0.0.1": {httpx.NewMockResponse(200, nil, nil)},
 	})
-	transport = httpx.NewAccessTransport(inner, nil)
+	transport = httpx.WithAccess(inner, nil)
 	req, _ = http.NewRequest("GET", "https://127.0.0.1", nil)
 	resp, err = transport.RoundTrip(req)
 	assert.NoError(t, err)
