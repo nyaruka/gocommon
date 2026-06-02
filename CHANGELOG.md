@@ -1,3 +1,7 @@
+v1.81.0 (2026-06-02)
+-------------------------
+ * httpx.WithAccessContorl, httpx.WithTracing and httpx.WithMocking
+
 v1.80.1 (2026-05-25)
 -------------------------
  * Fix AccessConfig matching IPv4 hosts against IPv6 nets
