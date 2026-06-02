@@ -1,6 +1,7 @@
 package httpx_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/nyaruka/gocommon/httpx"
-	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
