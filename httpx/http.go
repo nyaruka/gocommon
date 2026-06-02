@@ -156,6 +156,76 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 	return trace, nil
 }
 
+// TracingTransport is an http.RoundTripper which captures a Trace of each request and response, delegating to an
+// inner transport. The response body is buffered so that it remains readable by the caller.
+type TracingTransport struct {
+	inner        http.RoundTripper
+	maxBodyBytes int
+	traces       []*Trace
+}
+
+// WithTracing wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
+// Traces(). The response body is buffered so it remains readable by the caller; at most maxBodyBytes of it are
+// captured into the trace (a value <= 0 captures the entire body). If inner is nil then http.DefaultTransport is used.
+func WithTracing(inner http.RoundTripper, maxBodyBytes int) *TracingTransport {
+	if inner == nil {
+		inner = http.DefaultTransport
+	}
+	return &TracingTransport{inner: inner, maxBodyBytes: maxBodyBytes}
+}
+
+func (t *TracingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	requestTrace, err := httputil.DumpRequestOut(request, true)
+	if err != nil {
+		return nil, err
+	}
+
+	trace := &Trace{
+		Request:      request,
+		RequestTrace: requestTrace,
+		StartTime:    dates.Now(),
+	}
+	t.traces = append(t.traces, trace)
+	defer func() { trace.EndTime = dates.Now() }()
+
+	response, err := t.inner.RoundTrip(request)
+	trace.Response = response
+	if err != nil {
+		return response, err
+	}
+
+	// dump the response trace without the body, which we capture separately
+	responseTrace, err := httputil.DumpResponse(response, false)
+	if err != nil {
+		return response, err
+	}
+	trace.ResponseTrace = responseTrace
+
+	// read the full body so we can both capture it and hand a readable copy back to the caller
+	body, err := io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil {
+		return response, err
+	}
+	response.Body = io.NopCloser(bytes.NewReader(body))
+
+	// capture up to maxBodyBytes of the body into the trace
+	if t.maxBodyBytes > 0 && len(body) > t.maxBodyBytes {
+		trace.ResponseBody = body[:t.maxBodyBytes]
+	} else {
+		trace.ResponseBody = body
+	}
+
+	return response, nil
+}
+
+// Traces returns the traces captured so far
+func (t *TracingTransport) Traces() []*Trace {
+	return t.traces
+}
+
+var _ http.RoundTripper = (*TracingTransport)(nil)
+
 // NewRequest is a convenience method to create a request with the given context and headers
 func NewRequest(ctx context.Context, method string, url string, body io.Reader, headers map[string]string) (*http.Request, error) {
 	r, err := http.NewRequestWithContext(ctx, method, url, body)
