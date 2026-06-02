@@ -106,6 +106,57 @@ func (r *MockRequestor) UnmarshalJSON(data []byte) error {
 
 var _ Requestor = (*MockRequestor)(nil)
 
+// hasMock returns whether there is an unused mocked response available for the given request
+func (r *MockRequestor) hasMock(request *http.Request) bool {
+	url := request.URL.String()
+	match := stringsx.GlobSelect(url, slices.Collect(maps.Keys(r.mocks))...)
+	return len(r.mocks[match]) > 0
+}
+
+// mockTransport is an http.RoundTripper which answers requests from a MockRequestor, delegating to an inner
+// transport for requests it doesn't handle.
+type mockTransport struct {
+	inner       http.RoundTripper
+	mocks       *MockRequestor
+	passthrough bool
+}
+
+// MockOption configures a mocking transport created with WithMocking.
+type MockOption func(*mockTransport)
+
+// MockPassthrough makes a mocking transport delegate a request with no matching mock to the inner transport
+// instead of panicking (the default).
+func MockPassthrough() MockOption {
+	return func(t *mockTransport) { t.passthrough = true }
+}
+
+// WithMocking wraps an http.RoundTripper so that requests matching one of the mocks are answered from the mock
+// instead of being sent. A nil *MockRequestor is a pass-through, so it's always safe to wrap. If inner is nil then
+// http.DefaultTransport is used. By default a request with no matching mock panics, mirroring MockRequestor; pass
+// MockPassthrough to instead delegate such requests to the inner transport.
+func WithMocking(inner http.RoundTripper, mocks *MockRequestor, opts ...MockOption) http.RoundTripper {
+	if inner == nil {
+		inner = http.DefaultTransport
+	}
+	t := &mockTransport{inner: inner, mocks: mocks}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
+}
+
+func (t *mockTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	// fall through to the inner transport for a nil mock, an ignored local request, or - in passthrough mode -
+	// a request with no matching mock
+	if t.mocks == nil || (t.mocks.ignoreLocal && isLocalRequest(request)) {
+		return t.inner.RoundTrip(request)
+	}
+	if t.passthrough && !t.mocks.hasMock(request) {
+		return t.inner.RoundTrip(request)
+	}
+	return t.mocks.RoundTrip(request)
+}
+
 type MockResponse struct {
 	Status       int
 	Headers      map[string]string

@@ -11,6 +11,7 @@ import (
 	"github.com/nyaruka/gocommon/jsonx"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMockRequestor(t *testing.T) {
@@ -108,6 +109,94 @@ func TestMockRequestor(t *testing.T) {
 	response, err = httpx.Do(http.DefaultClient, req9, nil, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, response.StatusCode)
+}
+
+func TestMockTransport(t *testing.T) {
+	// a matched request is answered from the mock and recorded
+	mocks := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(200, nil, []byte("hi"))},
+	})
+	transport := httpx.WithMocking(http.DefaultTransport, mocks)
+	req, err := http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	resp, err := transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, mocks.Requests(), 1)
+
+	// a nil inner transport falls back to http.DefaultTransport; the mock answers so it's never called
+	mocks = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
+	})
+	transport = httpx.WithMocking(nil, mocks)
+	assert.NotNil(t, transport)
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	// by default a request with no matching mock panics
+	mocks = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	transport = httpx.WithMocking(http.DefaultTransport, mocks)
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	assert.Panics(t, func() { transport.RoundTrip(req) })
+
+	// with MockPassthrough, a request with no matching mock is delegated to the inner transport
+	inner := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(418, nil, nil)},
+	})
+	mocks = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	transport = httpx.WithMocking(inner, mocks, httpx.MockPassthrough())
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 418, resp.StatusCode)
+	assert.Len(t, inner.Requests(), 1)
+	assert.Empty(t, mocks.Requests())
+
+	// a matched request is still answered from the mock even in passthrough mode
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	mocks = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
+	})
+	transport = httpx.WithMocking(inner, mocks, httpx.MockPassthrough())
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, mocks.Requests(), 1)
+	assert.Empty(t, inner.Requests())
+
+	// with ignoreLocal set, a local request is delegated to the inner transport rather than mocked
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"http://localhost/health": {httpx.NewMockResponse(200, nil, nil)},
+	})
+	mocks = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	mocks.SetIgnoreLocal(true)
+	transport = httpx.WithMocking(inner, mocks)
+	req, err = http.NewRequest("GET", "http://localhost/health", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, inner.Requests(), 1)
+	assert.Empty(t, mocks.Requests())
+
+	// a nil mock requestor is a pass-through to the inner transport
+	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(202, nil, nil)},
+	})
+	transport = httpx.WithMocking(inner, nil)
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	resp, err = transport.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 202, resp.StatusCode)
+	assert.Len(t, inner.Requests(), 1)
 }
 
 func TestMockRequestorMarshaling(t *testing.T) {
