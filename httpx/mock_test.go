@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/nyaruka/gocommon/httpx"
@@ -201,6 +202,37 @@ func TestMockTransport(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Len(t, inner.Requests(), 1)
 	assert.Empty(t, mt.Requests())
+}
+
+func TestMockTransportConcurrent(t *testing.T) {
+	// a MockTransport shared across a client used by multiple goroutines must be safe for concurrent use, as the
+	// http.RoundTripper contract requires - run under -race to detect any unsynchronized access to mocks/requests
+	const n = 50
+	mocks := make([]*httpx.MockResponse, n)
+	for i := range mocks {
+		mocks[i] = httpx.NewMockResponse(200, nil, []byte("hi"))
+	}
+	mt := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+		"https://temba.io": mocks,
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req, _ := http.NewRequest("GET", "https://temba.io", nil)
+			resp, err := mt.RoundTrip(req)
+			if assert.NoError(t, err) {
+				io.ReadAll(resp.Body)
+				resp.Body.Close()
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Len(t, mt.Requests(), n)
+	assert.False(t, mt.HasUnused())
 }
 
 func TestMockRequestorMarshaling(t *testing.T) {
