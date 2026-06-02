@@ -147,12 +147,12 @@ func MockIgnoreLocal() MockOption {
 // WithMocking wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
 // mock instead of being sent. If inner is nil then http.DefaultTransport is used. By default a request with no
 // matching mock panics, mirroring MockRequestor; pass MockPassthrough to instead delegate such requests to the
-// inner transport.
+// inner transport. The mocks map is copied, so the caller's map is never consumed and can be safely reused.
 func WithMocking(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MockTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	t := &MockTransport{inner: inner, mocks: mocks}
+	t := &MockTransport{inner: inner, mocks: maps.Clone(mocks)}
 	for _, opt := range opts {
 		opt(t)
 	}

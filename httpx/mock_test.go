@@ -124,6 +124,18 @@ func TestMockTransport(t *testing.T) {
 	assert.Len(t, mt.Requests(), 1)
 	assert.False(t, mt.HasUnused())
 
+	// the caller's map is copied, not consumed - so it can be safely reused across runs without Clone()
+	original := map[string][]*httpx.MockResponse{
+		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
+	}
+	mt = httpx.WithMocking(http.DefaultTransport, original)
+	req, err = http.NewRequest("GET", "https://temba.io", nil)
+	require.NoError(t, err)
+	_, err = mt.RoundTrip(req)
+	require.NoError(t, err)
+	assert.False(t, mt.HasUnused())                    // the transport's copy is exhausted
+	assert.Len(t, original["https://temba.io"], 1)     // but the caller's map is untouched
+
 	// a mocked connection error is returned as an error
 	mt = httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
