@@ -105,7 +105,7 @@ func TestAccessTransport(t *testing.T) {
 	inner := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://8.8.8.8": {httpx.NewMockResponse(200, nil, nil)},
 	})
-	transport := httpx.WithAccess(inner, access)
+	transport := httpx.WithAccessControl(inner, access)
 	req, err := http.NewRequest("GET", "https://8.8.8.8", nil)
 	require.NoError(t, err)
 	resp, err := transport.RoundTrip(req)
@@ -115,7 +115,7 @@ func TestAccessTransport(t *testing.T) {
 
 	// disallowed request returns ErrAccessConfig and never reaches the inner transport
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
-	transport = httpx.WithAccess(inner, access)
+	transport = httpx.WithAccessControl(inner, access)
 	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
 	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
@@ -126,7 +126,7 @@ func TestAccessTransport(t *testing.T) {
 	// a denied request with a non-nil body must have that body closed (http.RoundTripper contract)
 	body := &recordingBody{}
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
-	transport = httpx.WithAccess(inner, access)
+	transport = httpx.WithAccessControl(inner, access)
 	req, err = http.NewRequest("POST", "https://127.0.0.1", body)
 	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
@@ -139,7 +139,7 @@ func TestAccessTransport(t *testing.T) {
 	// A 1ns resolve timeout forces a deterministic error without depending on real DNS resolution.
 	timeoutAccess := httpx.NewAccessConfig(time.Nanosecond, []net.IP{net.ParseIP("127.0.0.1")}, nil)
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
-	transport = httpx.WithAccess(inner, timeoutAccess)
+	transport = httpx.WithAccessControl(inner, timeoutAccess)
 	req, err = http.NewRequest("GET", "https://example.com", nil)
 	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
@@ -150,7 +150,7 @@ func TestAccessTransport(t *testing.T) {
 
 	// a nil inner transport falls back to http.DefaultTransport and the result is usable (here the request
 	// is denied before it would reach DefaultTransport, so no real network call is made)
-	transport = httpx.WithAccess(nil, access)
+	transport = httpx.WithAccessControl(nil, access)
 	assert.NotNil(t, transport)
 	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
 	require.NoError(t, err)
@@ -162,7 +162,7 @@ func TestAccessTransport(t *testing.T) {
 	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
 		"https://127.0.0.1": {httpx.NewMockResponse(200, nil, nil)},
 	})
-	transport = httpx.WithAccess(inner, nil)
+	transport = httpx.WithAccessControl(inner, nil)
 	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
 	require.NoError(t, err)
 	resp, err = transport.RoundTrip(req)
