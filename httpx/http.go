@@ -1,22 +1,14 @@
 package httpx
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"net/http/httputil"
-	"slices"
-	"strings"
-	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/nyaruka/gocommon/dates"
 )
 
 // ErrResponseSize is returned when response size exceeds provided limit
@@ -26,6 +18,9 @@ var ErrResponseSize = errors.New("response body exceeds size limit")
 var ErrAccessConfig = errors.New("request not permitted by access config")
 
 // Do makes the given HTTP request using the current requestor and retry config
+//
+// Deprecated: Do bundles request concerns (retrying, access control) that are better handled by composing
+// http.RoundTripper wrappers; it will be removed in a future release.
 func Do(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig) (*http.Response, error) {
 	r, _, err := do(client, request, retries, access)
 	return r, err
@@ -59,188 +54,6 @@ func do(client *http.Client, request *http.Request, retries *RetryConfig, access
 	return response, retry, err
 }
 
-// Trace holds the complete trace of an HTTP request/response
-type Trace struct {
-	Request       *http.Request
-	RequestTrace  []byte
-	Response      *http.Response
-	ResponseTrace []byte
-	ResponseBody  []byte // response body stored separately
-	StartTime     time.Time
-	EndTime       time.Time
-	Retries       int
-}
-
-func (t *Trace) String() string {
-	b := &strings.Builder{}
-	b.WriteString(fmt.Sprintf(">>>>>>>> %s %s\n", t.Request.Method, t.Request.URL))
-	b.WriteString(string(t.RequestTrace))
-	b.WriteString("\n<<<<<<<<\n")
-	b.WriteString(string(t.ResponseTrace))
-	b.WriteString(string(t.ResponseBody))
-	return b.String()
-}
-
-// SanitizedRequest returns a valid UTF-8 string version of the request, substituting the body with a placeholder
-// if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
-func (t *Trace) SanitizedRequest(placeholder string) string {
-	// split request trace into headers and body
-	var headers, body []byte
-	parts := bytes.SplitN(t.RequestTrace, []byte("\r\n\r\n"), 2)
-	headers = append(parts[0], []byte("\r\n\r\n")...)
-
-	if len(parts) > 1 {
-		body = parts[1]
-	} else {
-		body = nil
-	}
-
-	return santizedTrace(headers, body, placeholder)
-}
-
-// SanitizedResponse returns a valid UTF-8 string version of the response, substituting the body with a placeholder
-// if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
-func (t *Trace) SanitizedResponse(placeholder string) string {
-	return santizedTrace(t.ResponseTrace, t.ResponseBody, placeholder)
-}
-
-func santizedTrace(header []byte, body []byte, bodyPlaceHolder string) string {
-	b := &bytes.Buffer{}
-
-	// ensure headers section is valid
-	b.Write(replaceNullChars(bytes.ToValidUTF8(header, []byte(`�`))))
-
-	// only include body if it's valid UTF-8 as it could be a binary file or anything
-	if utf8.Valid(body) {
-		b.Write(replaceNullChars(body))
-	} else {
-		b.Write([]byte(bodyPlaceHolder))
-	}
-
-	return b.String()
-}
-
-func replaceNullChars(b []byte) []byte {
-	return bytes.ReplaceAll(b, []byte{0}, []byte(`�`))
-}
-
-// DoTrace makes the given request saving traces of the complete request and response.
-//
-//   - If the request is successful, the trace will have a response and response body
-//   - If reading the body errors, the trace will have a response but no response body
-//   - If connection fails, the trace will have a request but no response or response body
-func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig, maxBodyBytes int) (*Trace, error) {
-	requestTrace, err := httputil.DumpRequestOut(request, true)
-	if err != nil {
-		return nil, err
-	}
-
-	trace := &Trace{
-		Request:      request,
-		RequestTrace: requestTrace,
-		StartTime:    dates.Now(),
-	}
-	defer func() { trace.EndTime = dates.Now() }()
-
-	response, retryCount, err := do(client, request, retries, access)
-	trace.Response = response
-	trace.Retries = retryCount
-
-	if err != nil {
-		return trace, err
-	}
-
-	trace.ResponseTrace, trace.ResponseBody, err = dumpResponse(response, maxBodyBytes)
-	if err != nil {
-		return trace, err
-	}
-
-	return trace, nil
-}
-
-// TracingTransport is an http.RoundTripper which captures a Trace of each request and response, delegating to an
-// inner transport. The response body is buffered so that it remains readable by the caller. It is safe for
-// concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
-type TracingTransport struct {
-	inner  http.RoundTripper
-	mutex  sync.Mutex
-	traces []*Trace
-}
-
-// WithTracing wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
-// Traces(). The response body is buffered so it remains readable by the caller, and the full body that was read is
-// captured into the trace. To bound how many bytes are read from an untrusted endpoint, wrap the inner transport with
-// WithBodyLimit, e.g. WithTracing(WithBodyLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
-func WithTracing(inner http.RoundTripper) *TracingTransport {
-	if inner == nil {
-		inner = http.DefaultTransport
-	}
-	return &TracingTransport{inner: inner}
-}
-
-func (t *TracingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	requestTrace, err := httputil.DumpRequestOut(request, true)
-	if err != nil {
-		// the http.RoundTripper contract requires the request body to be closed even on error paths
-		if request.Body != nil {
-			request.Body.Close()
-		}
-		return nil, err
-	}
-
-	trace := &Trace{
-		Request:      request,
-		RequestTrace: requestTrace,
-		StartTime:    dates.Now(),
-	}
-	t.mutex.Lock()
-	t.traces = append(t.traces, trace)
-	t.mutex.Unlock()
-	defer func() { trace.EndTime = dates.Now() }()
-
-	response, err := t.inner.RoundTrip(request)
-	trace.Response = response
-	if err != nil {
-		// the inner transport failed to obtain a response
-		return nil, err
-	}
-
-	// dump the response trace without the body, which we capture separately; ignore any dump error as we still
-	// have a usable response to hand back to the caller
-	trace.ResponseTrace, _ = httputil.DumpResponse(response, false)
-
-	// read the full body so we can both capture it and hand a readable copy back to the caller
-	body, readErr := io.ReadAll(response.Body)
-	response.Body.Close()
-
-	// capture the full body that was read into the trace
-	trace.ResponseBody = body
-
-	// restore a readable body for the caller; if reading it failed, replay the partial bytes and the error so the
-	// caller sees exactly what it would have without tracing
-	if readErr != nil {
-		response.Body = io.NopCloser(io.MultiReader(bytes.NewReader(body), errReader{readErr}))
-	} else {
-		response.Body = io.NopCloser(bytes.NewReader(body))
-	}
-
-	return response, nil
-}
-
-// Traces returns a snapshot of the traces captured so far
-func (t *TracingTransport) Traces() []*Trace {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	return slices.Clone(t.traces)
-}
-
-var _ http.RoundTripper = (*TracingTransport)(nil)
-
-// errReader is an io.Reader that always returns its error, used to replay a body read failure to the caller
-type errReader struct{ err error }
-
-func (r errReader) Read([]byte) (int, error) { return 0, r.err }
-
 // NewRequest is a convenience method to create a request with the given context and headers
 func NewRequest(ctx context.Context, method string, url string, body io.Reader, headers map[string]string) (*http.Request, error) {
 	r, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -253,45 +66,6 @@ func NewRequest(ctx context.Context, method string, url string, body io.Reader, 
 	}
 
 	return r, nil
-}
-
-func dumpResponse(response *http.Response, maxBodyBytes int) ([]byte, []byte, error) {
-	// dump response trace without body which will be parsed separately
-	responseTrace, err := httputil.DumpResponse(response, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	responseBody, err := readBody(response, maxBodyBytes)
-	if err != nil {
-		return responseTrace, nil, err
-	}
-
-	return responseTrace, responseBody, nil
-}
-
-// attempts to read the body of an HTTP response
-func readBody(response *http.Response, maxBodyBytes int) ([]byte, error) {
-	defer response.Body.Close()
-
-	if maxBodyBytes > 0 {
-		// we will only read up to our max body bytes limit
-		bodyReader := io.LimitReader(response.Body, int64(maxBodyBytes)+1)
-
-		bodyBytes, err := io.ReadAll(bodyReader)
-		if err != nil {
-			return nil, err
-		}
-
-		// if we have no remaining bytes, error because the body was too big
-		if bodyReader.(*io.LimitedReader).N <= 0 {
-			return nil, ErrResponseSize
-		}
-
-		return bodyBytes, nil
-	}
-
-	// if there is no limit, read the entire body
-	return io.ReadAll(response.Body)
 }
 
 // Requestor is anything that can make an HTTP request with a client

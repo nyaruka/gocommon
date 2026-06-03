@@ -16,6 +16,8 @@ import (
 )
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
+//
+// Deprecated: use the composable MocksTransport (via WithMocks) instead; MockRequestor will be removed in a future release.
 type MockRequestor struct {
 	mocks       map[string][]*MockResponse
 	requests    []*http.Request
@@ -23,6 +25,8 @@ type MockRequestor struct {
 }
 
 // NewMockRequestor creates a new mock requestor with the given mocks
+//
+// Deprecated: use WithMocks to build a MocksTransport instead; MockRequestor will be removed in a future release.
 func NewMockRequestor(mocks map[string][]*MockResponse) *MockRequestor {
 	return &MockRequestor{mocks: mocks}
 }
@@ -120,10 +124,10 @@ func hasUnusedMocks(mocks map[string][]*MockResponse) bool {
 	return false
 }
 
-// MockTransport is an http.RoundTripper which answers requests from a set of mocked responses, delegating to an
+// MocksTransport is an http.RoundTripper which answers requests from a set of mocked responses, delegating to an
 // inner transport for requests it doesn't handle. It's intended to be the composable replacement for MockRequestor.
 // It is safe for concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
-type MockTransport struct {
+type MocksTransport struct {
 	inner       http.RoundTripper
 	mutex       sync.Mutex // guards mocks and requests
 	mocks       map[string][]*MockResponse
@@ -132,37 +136,37 @@ type MockTransport struct {
 	passthrough bool
 }
 
-// MockOption configures a MockTransport created with WithMocking.
-type MockOption func(*MockTransport)
+// MockOption configures a MocksTransport created with WithMocks.
+type MockOption func(*MocksTransport)
 
 // MockPassthrough makes a mocking transport delegate a request with no matching mock to the inner transport
 // instead of panicking (the default).
 func MockPassthrough() MockOption {
-	return func(t *MockTransport) { t.passthrough = true }
+	return func(t *MocksTransport) { t.passthrough = true }
 }
 
 // MockIgnoreLocal makes a mocking transport delegate requests to localhost to the inner transport rather than
 // trying to mock them.
 func MockIgnoreLocal() MockOption {
-	return func(t *MockTransport) { t.ignoreLocal = true }
+	return func(t *MocksTransport) { t.ignoreLocal = true }
 }
 
-// WithMocking wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
+// WithMocks wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
 // mock instead of being sent. If inner is nil then http.DefaultTransport is used. By default a request with no
 // matching mock panics, mirroring MockRequestor; pass MockPassthrough to instead delegate such requests to the
 // inner transport. The mocks map is copied, so the caller's map is never consumed and can be safely reused.
-func WithMocking(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MockTransport {
+func WithMocks(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MocksTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	t := &MockTransport{inner: inner, mocks: maps.Clone(mocks)}
+	t := &MocksTransport{inner: inner, mocks: maps.Clone(mocks)}
 	for _, opt := range opts {
 		opt(t)
 	}
 	return t
 }
 
-func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+func (t *MocksTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	// delegate local requests to the inner transport when ignoring local
 	if t.ignoreLocal && isLocalRequest(request) {
 		return t.inner.RoundTrip(request)
@@ -193,20 +197,20 @@ func (t *MockTransport) RoundTrip(request *http.Request) (*http.Response, error)
 }
 
 // Requests returns a snapshot of the requests that were answered from mocks
-func (t *MockTransport) Requests() []*http.Request {
+func (t *MocksTransport) Requests() []*http.Request {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	return slices.Clone(t.requests)
 }
 
 // HasUnused returns true if there are unused mocks leftover
-func (t *MockTransport) HasUnused() bool {
+func (t *MocksTransport) HasUnused() bool {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	return hasUnusedMocks(t.mocks)
 }
 
-var _ http.RoundTripper = (*MockTransport)(nil)
+var _ http.RoundTripper = (*MocksTransport)(nil)
 
 type MockResponse struct {
 	Status       int
