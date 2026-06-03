@@ -2,7 +2,11 @@ package httpx_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,4 +156,260 @@ func TestParseRetryAfter(t *testing.T) {
 	assert.Equal(t, 10*time.Second, httpx.ParseRetryAfter("10"))
 	assert.Equal(t, 4500*time.Millisecond, httpx.ParseRetryAfter("Wed, 07 Jan 2020 15:10:35 GMT")) // 4.5 seconds in future
 	assert.Equal(t, 0*time.Second, httpx.ParseRetryAfter("Wed, 07 Jan 2020 15:10:25 GMT"))         // 5.5 seconds in the past
+}
+
+// recordingTransport is a test http.RoundTripper which returns a programmed sequence of responses (a zero status
+// simulating a connection error) and records the request body bytes each attempt received.
+type recordingTransport struct {
+	steps  []recordedStep
+	bodies [][]byte
+	calls  int
+}
+
+type recordedStep struct {
+	status  int
+	headers map[string]string
+	body    string
+}
+
+func (rt *recordingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	var body []byte
+	if r.Body != nil {
+		body, _ = io.ReadAll(r.Body)
+		r.Body.Close()
+	}
+	rt.bodies = append(rt.bodies, body)
+
+	step := rt.steps[rt.calls]
+	rt.calls++
+
+	if step.status == 0 {
+		return nil, errors.New("unable to connect to server")
+	}
+
+	header := make(http.Header)
+	for k, v := range step.headers {
+		header.Set(k, v)
+	}
+	return &http.Response{
+		StatusCode:    step.status,
+		Status:        fmt.Sprintf("%d %s", step.status, http.StatusText(step.status)),
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        header,
+		Body:          io.NopCloser(strings.NewReader(step.body)),
+		ContentLength: int64(len(step.body)),
+		Request:       r,
+	}, nil
+}
+
+func TestWithRetries(t *testing.T) {
+	ctx := context.Background()
+
+	// tiny backoffs to keep the test fast; two retries allowed
+	retries := httpx.NewFixedRetries(time.Millisecond, time.Millisecond)
+
+	// a retryable status that eventually succeeds
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "fail"},
+		{status: 503, body: "fail"},
+		{status: 200, body: "ok"},
+	}}
+	req, err := httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	require.NoError(t, err)
+	resp, err := httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 3, inner.calls)
+
+	// the final response body is still readable and un-drained
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", string(body))
+
+	// retries exhausted returns the last response (still readable)
+	inner = &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "a"},
+		{status: 503, body: "b"},
+		{status: 503, body: "c"},
+	}}
+	req, _ = httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	resp, err = httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode)
+	assert.Equal(t, 3, inner.calls)
+	body, _ = io.ReadAll(resp.Body)
+	assert.Equal(t, "c", string(body))
+
+	// no retry when the first response doesn't warrant it
+	inner = &recordingTransport{steps: []recordedStep{{status: 200, body: "ok"}}}
+	req, _ = httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	resp, err = httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 1, inner.calls)
+
+	// no retry for a non-idempotent request (POST without an idempotency key)
+	inner = &recordingTransport{steps: []recordedStep{{status: 503, body: "fail"}}}
+	req, _ = httpx.NewRequest(ctx, "POST", "http://temba.io/", strings.NewReader("data"), nil)
+	resp, err = httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode)
+	assert.Equal(t, 1, inner.calls)
+
+	// retry on a connection error for an idempotent request
+	inner = &recordingTransport{steps: []recordedStep{
+		{status: 0}, // connection error
+		{status: 200, body: "ok"},
+	}}
+	req, _ = httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	resp, err = httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 2, inner.calls)
+
+	// a nil config makes it a pass-through with no retries
+	inner = &recordingTransport{steps: []recordedStep{{status: 503, body: "fail"}}}
+	req, _ = httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	resp, err = httpx.WithRetries(inner, nil).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode)
+	assert.Equal(t, 1, inner.calls)
+}
+
+func TestWithRetriesBodyReplay(t *testing.T) {
+	ctx := context.Background()
+	retries := httpx.NewFixedRetries(time.Millisecond, time.Millisecond)
+
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "fail"},
+		{status: 200, body: "ok"},
+	}}
+	// a POST is idempotent here via the header, and strings.NewReader gives the request a GetBody so it can be replayed
+	req, err := httpx.NewRequest(ctx, "POST", "http://temba.io/", strings.NewReader("payload"), map[string]string{"Idempotency-Key": "abc"})
+	require.NoError(t, err)
+	resp, err := httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	require.Equal(t, 2, inner.calls)
+
+	// the full body was replayed on every attempt
+	assert.Equal(t, "payload", string(inner.bodies[0]))
+	assert.Equal(t, "payload", string(inner.bodies[1]))
+}
+
+func TestWithRetriesUnrewindableBody(t *testing.T) {
+	ctx := context.Background()
+	retries := httpx.NewFixedRetries(time.Millisecond, time.Millisecond)
+
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "fail"},
+		{status: 200, body: "ok"},
+	}}
+	// a body that isn't one of the rewindable types, so http.NewRequest leaves GetBody nil
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://temba.io/", io.NopCloser(strings.NewReader("payload")))
+	require.NoError(t, err)
+	req.Header.Set("Idempotency-Key", "abc") // ShouldRetry would allow a retry...
+	require.Nil(t, req.GetBody)              // ...but the body can't be rewound
+
+	resp, err := httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode) // so we don't retry, and return the first response
+	assert.Equal(t, 1, inner.calls)
+}
+
+func TestWithRetriesRetryAfter(t *testing.T) {
+	ctx := context.Background()
+
+	defer dates.SetNowFunc(time.Now)
+	now := time.Date(2020, 1, 7, 15, 10, 30, 950000000, time.UTC)
+	dates.SetNowFunc(dates.NewFixedNow(now))
+
+	// a Retry-After 50ms in the future, with a backoff long enough to honour it
+	retryAfter := now.Add(50 * time.Millisecond).UTC().Format(http.TimeFormat)
+	retries := httpx.NewFixedRetries(50 * time.Millisecond)
+
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 429, headers: map[string]string{"Retry-After": retryAfter}, body: "slow down"},
+		{status: 200, body: "ok"},
+	}}
+	req, err := httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	require.NoError(t, err)
+	resp, err := httpx.WithRetries(inner, retries).RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 2, inner.calls)
+}
+
+func TestWithRetriesAndTraces(t *testing.T) {
+	ctx := context.Background()
+
+	defer dates.SetNowFunc(time.Now)
+	dates.SetNowFunc(dates.NewSequentialNow(time.Date(2019, 10, 7, 15, 21, 30, 0, time.UTC), time.Second))
+
+	retries := httpx.NewFixedRetries(time.Millisecond, time.Millisecond)
+
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "fail"},
+		{status: 503, body: "fail"},
+		{status: 200, body: "ok"},
+	}}
+
+	// WithTraces(WithRetries(inner)) captures a single trace of the final attempt, with the retry count surfaced
+	tt := httpx.WithTraces(httpx.WithRetries(inner, retries))
+	req, err := httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	require.NoError(t, err)
+	resp, err := tt.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", string(body))
+
+	require.Len(t, tt.Traces(), 1)
+	trace := tt.Traces()[0]
+	assert.Equal(t, 200, trace.Response.StatusCode)
+	assert.Equal(t, "ok", string(trace.ResponseBody))
+	assert.Equal(t, 2, trace.Retries)
+}
+
+func TestWithRetriesContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// a long backoff we should never actually wait out because the context is already cancelled
+	retries := httpx.NewFixedRetries(time.Minute)
+
+	inner := &recordingTransport{steps: []recordedStep{
+		{status: 503, body: "fail"},
+		{status: 200, body: "ok"},
+	}}
+	req, err := httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	require.NoError(t, err)
+
+	cancel() // cancel before the backoff wait
+
+	resp, err := httpx.WithRetries(inner, retries).RoundTrip(req)
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, resp)
+	assert.Equal(t, 1, inner.calls) // only the first attempt happened
+}
+
+func TestWithRetriesNilInner(t *testing.T) {
+	ctx := context.Background()
+	server := newTestHTTPServer(52030)
+	defer server.Close()
+
+	// a nil inner transport falls back to http.DefaultTransport
+	tr := httpx.WithRetries(nil, httpx.NewFixedRetries(time.Millisecond))
+	req, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	assert.Equal(t, `{ "ok": "true" }`, string(body))
 }
