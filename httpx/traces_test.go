@@ -126,7 +126,7 @@ func TestTracesTransport(t *testing.T) {
 	assert.Equal(t, "hello body", string(capturer.body))
 
 	// an error from the inner transport is captured in the trace and returned
-	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	inner := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
 	})
 	tt = httpx.WithTraces(inner)

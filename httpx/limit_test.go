@@ -75,7 +75,7 @@ func TestBodyLimitTransport(t *testing.T) {
 	assert.ErrorIs(t, err, httpx.ErrResponseSize)
 
 	// an error from the inner transport is passed through unchanged, with no response to wrap
-	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	inner := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
 	})
 	tt = httpx.WithBodyLimit(inner, 10)

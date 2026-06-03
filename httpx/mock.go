@@ -132,7 +132,7 @@ type MockTransport struct {
 	passthrough bool
 }
 
-// MockOption configures a MockTransport created with WithMocking.
+// MockOption configures a MockTransport created with WithMocks.
 type MockOption func(*MockTransport)
 
 // MockPassthrough makes a mocking transport delegate a request with no matching mock to the inner transport
@@ -147,11 +147,11 @@ func MockIgnoreLocal() MockOption {
 	return func(t *MockTransport) { t.ignoreLocal = true }
 }
 
-// WithMocking wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
+// WithMocks wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
 // mock instead of being sent. If inner is nil then http.DefaultTransport is used. By default a request with no
 // matching mock panics, mirroring MockRequestor; pass MockPassthrough to instead delegate such requests to the
 // inner transport. The mocks map is copied, so the caller's map is never consumed and can be safely reused.
-func WithMocking(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MockTransport {
+func WithMocks(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MockTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}

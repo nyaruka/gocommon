@@ -114,7 +114,7 @@ func TestMockRequestor(t *testing.T) {
 
 func TestMockTransport(t *testing.T) {
 	// a matched request is answered from the mock and recorded
-	mt := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	mt := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(200, nil, []byte("hi"))},
 	})
 	req, err := http.NewRequest("GET", "https://temba.io", nil)
@@ -129,7 +129,7 @@ func TestMockTransport(t *testing.T) {
 	original := map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
 	}
-	mt = httpx.WithMocking(http.DefaultTransport, original)
+	mt = httpx.WithMocks(http.DefaultTransport, original)
 	req, err = http.NewRequest("GET", "https://temba.io", nil)
 	require.NoError(t, err)
 	_, err = mt.RoundTrip(req)
@@ -138,7 +138,7 @@ func TestMockTransport(t *testing.T) {
 	assert.Len(t, original["https://temba.io"], 1)     // but the caller's map is untouched
 
 	// a mocked connection error is returned as an error
-	mt = httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	mt = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
 	})
 	req, err = http.NewRequest("GET", "https://temba.io", nil)
@@ -148,7 +148,7 @@ func TestMockTransport(t *testing.T) {
 	assert.Nil(t, resp)
 
 	// a nil inner transport falls back to http.DefaultTransport; the mock answers so it's never called
-	mt = httpx.WithMocking(nil, map[string][]*httpx.MockResponse{
+	mt = httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
 	})
 	assert.NotNil(t, mt)
@@ -159,16 +159,16 @@ func TestMockTransport(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	// by default a request with no matching mock panics
-	mt = httpx.WithMocking(http.DefaultTransport, nil)
+	mt = httpx.WithMocks(http.DefaultTransport, nil)
 	req, err = http.NewRequest("GET", "https://temba.io", nil)
 	require.NoError(t, err)
 	assert.Panics(t, func() { mt.RoundTrip(req) })
 
 	// with MockPassthrough, a request with no matching mock is delegated to the inner transport
-	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	inner := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(418, nil, nil)},
 	})
-	mt = httpx.WithMocking(inner, nil, httpx.MockPassthrough())
+	mt = httpx.WithMocks(inner, nil, httpx.MockPassthrough())
 	req, err = http.NewRequest("GET", "https://temba.io", nil)
 	require.NoError(t, err)
 	resp, err = mt.RoundTrip(req)
@@ -178,8 +178,8 @@ func TestMockTransport(t *testing.T) {
 	assert.Empty(t, mt.Requests())
 
 	// a matched request is still answered from the mock even in passthrough mode
-	inner = httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{})
-	mt = httpx.WithMocking(inner, map[string][]*httpx.MockResponse{
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{})
+	mt = httpx.WithMocks(inner, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(200, nil, nil)},
 	}, httpx.MockPassthrough())
 	req, err = http.NewRequest("GET", "https://temba.io", nil)
@@ -191,10 +191,10 @@ func TestMockTransport(t *testing.T) {
 	assert.Empty(t, inner.Requests())
 
 	// with MockIgnoreLocal, a local request is delegated to the inner transport rather than mocked
-	inner = httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"http://localhost/health": {httpx.NewMockResponse(200, nil, nil)},
 	})
-	mt = httpx.WithMocking(inner, map[string][]*httpx.MockResponse{}, httpx.MockIgnoreLocal())
+	mt = httpx.WithMocks(inner, map[string][]*httpx.MockResponse{}, httpx.MockIgnoreLocal())
 	req, err = http.NewRequest("GET", "http://localhost/health", nil)
 	require.NoError(t, err)
 	resp, err = mt.RoundTrip(req)
@@ -212,7 +212,7 @@ func TestMockTransportConcurrent(t *testing.T) {
 	for i := range mocks {
 		mocks[i] = httpx.NewMockResponse(200, nil, []byte("hi"))
 	}
-	mt := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
+	mt := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": mocks,
 	})
 
