@@ -16,6 +16,8 @@ import (
 )
 
 // MockRequestor is a requestor which can be mocked with responses for given URLs
+//
+// Deprecated: use the composable MockTransport (via WithMocks) instead; MockRequestor will be removed in a future release.
 type MockRequestor struct {
 	mocks       map[string][]*MockResponse
 	requests    []*http.Request
@@ -23,6 +25,8 @@ type MockRequestor struct {
 }
 
 // NewMockRequestor creates a new mock requestor with the given mocks
+//
+// Deprecated: use WithMocks to build a MockTransport instead; MockRequestor will be removed in a future release.
 func NewMockRequestor(mocks map[string][]*MockResponse) *MockRequestor {
 	return &MockRequestor{mocks: mocks}
 }
