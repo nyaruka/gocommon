@@ -162,20 +162,20 @@ func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, a
 // inner transport. The response body is buffered so that it remains readable by the caller. It is safe for
 // concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
 type TracingTransport struct {
-	inner        http.RoundTripper
-	maxBodyBytes int
-	mutex        sync.Mutex
-	traces       []*Trace
+	inner  http.RoundTripper
+	mutex  sync.Mutex
+	traces []*Trace
 }
 
 // WithTracing wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
-// Traces(). The response body is buffered so it remains readable by the caller; at most maxBodyBytes of it are
-// captured into the trace (a value <= 0 captures the entire body). If inner is nil then http.DefaultTransport is used.
-func WithTracing(inner http.RoundTripper, maxBodyBytes int) *TracingTransport {
+// Traces(). The response body is buffered so it remains readable by the caller, and the full body that was read is
+// captured into the trace. To bound how many bytes are read from an untrusted endpoint, wrap the inner transport with
+// WithBodyLimit, e.g. WithTracing(WithBodyLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
+func WithTracing(inner http.RoundTripper) *TracingTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	return &TracingTransport{inner: inner, maxBodyBytes: maxBodyBytes}
+	return &TracingTransport{inner: inner}
 }
 
 func (t *TracingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
@@ -213,13 +213,8 @@ func (t *TracingTransport) RoundTrip(request *http.Request) (*http.Response, err
 	body, readErr := io.ReadAll(response.Body)
 	response.Body.Close()
 
-	// capture up to maxBodyBytes of the body into the trace, cloning when truncating so we don't pin the full
-	// body's backing array
-	if t.maxBodyBytes > 0 && len(body) > t.maxBodyBytes {
-		trace.ResponseBody = bytes.Clone(body[:t.maxBodyBytes])
-	} else {
-		trace.ResponseBody = body
-	}
+	// capture the full body that was read into the trace
+	trace.ResponseBody = body
 
 	// restore a readable body for the caller; if reading it failed, replay the partial bytes and the error so the
 	// caller sees exactly what it would have without tracing

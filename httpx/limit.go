@@ -16,12 +16,11 @@ type bodyLimitTransport struct {
 // ErrResponseSize; a body of exactly maxBytes is allowed. A value <= 0 disables the limit. If inner is nil then
 // http.DefaultTransport is used.
 //
-// Unlike WithTracing's own limit — which only bounds how much of the body is captured into the trace — this bounds
-// the bytes actually read from the network, so it's what guards against buffering an arbitrarily large response from
-// an untrusted endpoint. To get that protection while also tracing, wrap this *inside* WithTracing so the limit
-// applies before the body is buffered:
+// This bounds the bytes actually read from the network, so it's what guards against buffering an arbitrarily large
+// response from an untrusted endpoint. To get that protection while also tracing, wrap this *inside* WithTracing so
+// the limit applies before the body is buffered:
 //
-//	httpx.WithTracing(httpx.WithBodyLimit(inner, maxBytes), captureBytes)
+//	httpx.WithTracing(httpx.WithBodyLimit(inner, maxBytes))
 //
 // Wrapping the other way around (WithBodyLimit outside WithTracing) is ineffective, as WithTracing reads the full
 // body into memory before the limit would be applied.
