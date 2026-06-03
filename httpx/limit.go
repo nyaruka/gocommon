@@ -5,14 +5,14 @@ import (
 	"net/http"
 )
 
-// bodyLimitTransport is an http.RoundTripper which bounds how many bytes can be read from each response body,
+// readLimitTransport is an http.RoundTripper which bounds how many bytes can be read from each response body,
 // delegating to an inner transport. Reading a body beyond the limit fails with ErrResponseSize.
-type bodyLimitTransport struct {
+type readLimitTransport struct {
 	inner    http.RoundTripper
 	maxBytes int
 }
 
-// WithBodyLimit wraps an http.RoundTripper so that reading more than maxBytes from any response body fails with
+// WithReadLimit wraps an http.RoundTripper so that reading more than maxBytes from any response body fails with
 // ErrResponseSize; a body of exactly maxBytes is allowed. A value <= 0 disables the limit. If inner is nil then
 // http.DefaultTransport is used.
 //
@@ -20,18 +20,18 @@ type bodyLimitTransport struct {
 // response from an untrusted endpoint. To get that protection while also tracing, wrap this *inside* WithTraces so
 // the limit applies before the body is buffered:
 //
-//	httpx.WithTraces(httpx.WithBodyLimit(inner, maxBytes))
+//	httpx.WithTraces(httpx.WithReadLimit(inner, maxBytes))
 //
-// Wrapping the other way around (WithBodyLimit outside WithTraces) is ineffective, as WithTraces reads the full
+// Wrapping the other way around (WithReadLimit outside WithTraces) is ineffective, as WithTraces reads the full
 // body into memory before the limit would be applied.
-func WithBodyLimit(inner http.RoundTripper, maxBytes int) http.RoundTripper {
+func WithReadLimit(inner http.RoundTripper, maxBytes int) http.RoundTripper {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	return &bodyLimitTransport{inner: inner, maxBytes: maxBytes}
+	return &readLimitTransport{inner: inner, maxBytes: maxBytes}
 }
 
-func (t *bodyLimitTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+func (t *readLimitTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	response, err := t.inner.RoundTrip(request)
 	if err != nil || t.maxBytes <= 0 || response == nil || response.Body == nil {
 		return response, err
@@ -42,7 +42,7 @@ func (t *bodyLimitTransport) RoundTrip(request *http.Request) (*http.Response, e
 	return response, nil
 }
 
-var _ http.RoundTripper = (*bodyLimitTransport)(nil)
+var _ http.RoundTripper = (*readLimitTransport)(nil)
 
 // limitedBody wraps a response body so that reading more than left bytes from it fails with ErrResponseSize. It
 // permits reading one byte beyond the limit so that a body of exactly the limit is allowed while a larger one is

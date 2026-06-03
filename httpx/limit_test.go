@@ -30,7 +30,7 @@ func TestBodyLimitTransport(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tt := httpx.WithBodyLimit(http.DefaultTransport, tc.limit)
+		tt := httpx.WithReadLimit(http.DefaultTransport, tc.limit)
 		request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 		require.NoError(t, err)
 
@@ -52,7 +52,7 @@ func TestBodyLimitTransport(t *testing.T) {
 	}
 
 	// a nil inner transport falls back to http.DefaultTransport
-	tt := httpx.WithBodyLimit(nil, 1024)
+	tt := httpx.WithReadLimit(nil, 1024)
 	require.NotNil(t, tt)
 	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestBodyLimitTransport(t *testing.T) {
 
 	// composed inside WithTraces, the limit bounds the body before it's buffered, so the caller reading the
 	// handed-back body sees ErrResponseSize rather than WithTraces silently buffering the whole thing
-	tracing := httpx.WithTraces(httpx.WithBodyLimit(http.DefaultTransport, 4))
+	tracing := httpx.WithTraces(httpx.WithReadLimit(http.DefaultTransport, 4))
 	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err = tracing.RoundTrip(request)
@@ -78,7 +78,7 @@ func TestBodyLimitTransport(t *testing.T) {
 	inner := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
 	})
-	tt = httpx.WithBodyLimit(inner, 10)
+	tt = httpx.WithReadLimit(inner, 10)
 	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
@@ -87,7 +87,7 @@ func TestBodyLimitTransport(t *testing.T) {
 
 	// closing the wrapped body closes the inner body
 	spy := &scriptedBody{data: []byte("hello")}
-	tt = httpx.WithBodyLimit(&fixedBodyTransport{body: spy}, 100)
+	tt = httpx.WithReadLimit(&fixedBodyTransport{body: spy}, 100)
 	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
@@ -98,7 +98,7 @@ func TestBodyLimitTransport(t *testing.T) {
 	// a body delivered in small chunks that straddles the limit yields exactly the within-limit bytes plus the size
 	// error, exercising the multi-call accounting in limitedBody.Read
 	chunked := &scriptedBody{data: []byte("0123456789abcdefghij"), chunk: 3}
-	tt = httpx.WithBodyLimit(&fixedBodyTransport{body: chunked}, 8)
+	tt = httpx.WithReadLimit(&fixedBodyTransport{body: chunked}, 8)
 	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)

@@ -129,7 +129,7 @@ type TracesTransport struct {
 // WithTraces wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
 // Traces(). The response body is buffered so it remains readable by the caller, and the full body that was read is
 // captured into the trace. To bound how many bytes are read from an untrusted endpoint, wrap the inner transport with
-// WithBodyLimit, e.g. WithTraces(WithBodyLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
+// WithReadLimit, e.g. WithTraces(WithReadLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
 func WithTraces(inner http.RoundTripper) *TracesTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
