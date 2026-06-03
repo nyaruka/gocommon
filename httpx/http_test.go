@@ -136,7 +136,7 @@ func TestTracingTransport(t *testing.T) {
 	server := newTestHTTPServer(52026)
 	defer server.Close()
 
-	tt := httpx.WithTracing(http.DefaultTransport, -1)
+	tt := httpx.WithTracing(http.DefaultTransport)
 
 	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
@@ -166,31 +166,9 @@ func TestTracingTransport(t *testing.T) {
 	io.ReadAll(resp.Body)
 	assert.Len(t, tt.Traces(), 2)
 
-	// maxBodyBytes truncates the captured body, but the caller still reads the full body
-	tt = httpx.WithTracing(http.DefaultTransport, 4)
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
-	require.NoError(t, err)
-	resp, err = tt.RoundTrip(request)
-	require.NoError(t, err)
-	body, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Equal(t, `{ "ok": "true" }`, string(body))               // full body still readable
-	assert.Equal(t, `{ "o`, string(tt.Traces()[0].ResponseBody))    // captured body truncated to 4 bytes
-
-	// maxBodyBytes of 0 captures the entire body
-	tt = httpx.WithTracing(http.DefaultTransport, 0)
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
-	require.NoError(t, err)
-	resp, err = tt.RoundTrip(request)
-	require.NoError(t, err)
-	body, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Equal(t, `{ "ok": "true" }`, string(body))
-	assert.Equal(t, `{ "ok": "true" }`, string(tt.Traces()[0].ResponseBody))
-
 	// the inner transport still sees the request body after DumpRequestOut has consumed and restored it
 	capturer := &bodyCapturingTransport{}
-	tt = httpx.WithTracing(capturer, -1)
+	tt = httpx.WithTracing(capturer)
 	request, err = httpx.NewRequest(ctx, "POST", "https://temba.io", bytes.NewReader([]byte("hello body")), nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
@@ -201,7 +179,7 @@ func TestTracingTransport(t *testing.T) {
 	inner := httpx.WithMocking(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.MockConnectionError},
 	})
-	tt = httpx.WithTracing(inner, -1)
+	tt = httpx.WithTracing(inner)
 	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
@@ -213,7 +191,7 @@ func TestTracingTransport(t *testing.T) {
 	assert.Nil(t, tt.Traces()[0].ResponseBody)
 
 	// a nil inner transport falls back to http.DefaultTransport
-	tt = httpx.WithTracing(nil, -1)
+	tt = httpx.WithTracing(nil)
 	assert.NotNil(t, tt)
 	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
@@ -235,7 +213,7 @@ func TestTracingTransportConcurrent(t *testing.T) {
 	server := newTestHTTPServer(52027)
 	defer server.Close()
 
-	tt := httpx.WithTracing(http.DefaultTransport, -1)
+	tt := httpx.WithTracing(http.DefaultTransport)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
