@@ -63,9 +63,9 @@ func TestBodyLimitTransport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{ "ok": "true" }`, string(body))
 
-	// composed inside WithTracing, the limit bounds the body before it's buffered, so the caller reading the
-	// handed-back body sees ErrResponseSize rather than WithTracing silently buffering the whole thing
-	tracing := httpx.WithTracing(httpx.WithBodyLimit(http.DefaultTransport, 4))
+	// composed inside WithTraces, the limit bounds the body before it's buffered, so the caller reading the
+	// handed-back body sees ErrResponseSize rather than WithTraces silently buffering the whole thing
+	tracing := httpx.WithTraces(httpx.WithBodyLimit(http.DefaultTransport, 4))
 	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err = tracing.RoundTrip(request)

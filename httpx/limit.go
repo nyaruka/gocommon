@@ -17,12 +17,12 @@ type bodyLimitTransport struct {
 // http.DefaultTransport is used.
 //
 // This bounds the bytes actually read from the network, so it's what guards against buffering an arbitrarily large
-// response from an untrusted endpoint. To get that protection while also tracing, wrap this *inside* WithTracing so
+// response from an untrusted endpoint. To get that protection while also tracing, wrap this *inside* WithTraces so
 // the limit applies before the body is buffered:
 //
-//	httpx.WithTracing(httpx.WithBodyLimit(inner, maxBytes))
+//	httpx.WithTraces(httpx.WithBodyLimit(inner, maxBytes))
 //
-// Wrapping the other way around (WithBodyLimit outside WithTracing) is ineffective, as WithTracing reads the full
+// Wrapping the other way around (WithBodyLimit outside WithTraces) is ineffective, as WithTraces reads the full
 // body into memory before the limit would be applied.
 func WithBodyLimit(inner http.RoundTripper, maxBytes int) http.RoundTripper {
 	if inner == nil {
