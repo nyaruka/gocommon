@@ -100,6 +100,11 @@ func ParseRetryAfter(value string) time.Duration {
 	return 0
 }
 
+// maxRetryDrain caps how many bytes of a to-be-discarded response body we drain before retrying. Draining lets the
+// underlying connection be reused, but an unbounded drain of a large or slow error body could cost more than the
+// reuse it buys, so we bound it to the same size net/http.Transport uses for the same purpose.
+const maxRetryDrain = 2 << 10 // 2KB
+
 // retryTransport is an http.RoundTripper which retries requests according to a RetryConfig, delegating each attempt
 // to an inner transport. It holds no mutable state, so it's safe for concurrent use by multiple goroutines, as the
 // http.RoundTripper contract requires.
@@ -158,9 +163,10 @@ func (t *retryTransport) RoundTrip(request *http.Request) (*http.Response, error
 			return response, err
 		}
 
-		// drain and close the response we're discarding so the underlying connection can be reused
+		// drain and close the response we're discarding so the underlying connection can be reused; cap the drain
+		// (as net/http.Transport does) so a large or slow error body doesn't cost more than the reuse it buys
 		if response != nil {
-			io.Copy(io.Discard, response.Body)
+			io.CopyN(io.Discard, response.Body, maxRetryDrain)
 			response.Body.Close()
 		}
 
@@ -191,6 +197,12 @@ var _ http.RoundTripper = (*retryTransport)(nil)
 
 // wait blocks for the given duration, returning early with the context's error if it is cancelled first.
 func wait(ctx context.Context, d time.Duration) error {
+	// check for cancellation up front so a zero or already-elapsed backoff can't race the select into returning nil
+	// when the context is already done
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 
