@@ -112,7 +112,7 @@ func TestMockRequestor(t *testing.T) {
 	assert.Equal(t, 200, response.StatusCode)
 }
 
-func TestMockTransport(t *testing.T) {
+func TestMocksTransport(t *testing.T) {
 	// a matched request is answered from the mock and recorded
 	mt := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {httpx.NewMockResponse(200, nil, []byte("hi"))},
@@ -204,8 +204,8 @@ func TestMockTransport(t *testing.T) {
 	assert.Empty(t, mt.Requests())
 }
 
-func TestMockTransportConcurrent(t *testing.T) {
-	// a MockTransport shared across a client used by multiple goroutines must be safe for concurrent use, as the
+func TestMocksTransportConcurrent(t *testing.T) {
+	// a MocksTransport shared across a client used by multiple goroutines must be safe for concurrent use, as the
 	// http.RoundTripper contract requires - run under -race to detect any unsynchronized access to mocks/requests
 	const n = 50
 	mocks := make([]*httpx.MockResponse, n)
