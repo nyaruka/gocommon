@@ -147,6 +147,11 @@ func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, erro
 		return nil, err
 	}
 
+	// carry a counter so that an inner retryTransport, if composed inside us, can report how many retries it made,
+	// which we then surface as Trace.Retries
+	ctx, retryCount := contextWithRetryCount(request.Context())
+	request = request.WithContext(ctx)
+
 	trace := &Trace{
 		Request:      request,
 		RequestTrace: requestTrace,
@@ -159,6 +164,7 @@ func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, erro
 
 	response, err := t.inner.RoundTrip(request)
 	trace.Response = response
+	trace.Retries = int(retryCount.Load())
 	if err != nil {
 		// the inner transport failed to obtain a response
 		return nil, err
