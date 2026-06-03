@@ -1,3 +1,8 @@
+v1.81.3 (2026-06-03)
+-------------------------
+ * httpx: remove maxBodyBytes parameter from WithTracing
+ * httpx.. renames
+
 v1.81.2 (2026-06-02)
 -------------------------
  * httpx: add WithBodyLimit transport to bound response body reads
