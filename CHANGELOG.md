@@ -1,3 +1,7 @@
+v1.81.4 (2026-06-03)
+-------------------------
+ * httpx: add composable WithRetries transport
+
 v1.81.3 (2026-06-03)
 -------------------------
  * httpx: remove maxBodyBytes parameter from WithTracing
