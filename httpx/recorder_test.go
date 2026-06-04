@@ -123,8 +123,9 @@ func TestRecorder(t *testing.T) {
 		req, err := httpx.NewRequest(ctx, tc.method, tc.url, tc.requestBody, tc.headers)
 		require.NoError(t, err)
 
-		_, err = httpx.Do(http.DefaultClient, req, nil, nil)
-		assert.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		resp.Body.Close()
 
 		assert.Equal(t, tc.expectedReadBody, string(readBody), "read body mismatch in test case %d", i)
 		assert.Equal(t, tc.expectedRequestURL, trace.Request.URL.String(), "url mismatch in test case %d", i)
