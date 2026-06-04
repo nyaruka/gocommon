@@ -99,8 +99,8 @@ github.com/nyaruka/librato v1.1.1 h1:0nTYtJLl3Sn7lX3CuHsLf+nXy1k/tGV0OjVxLy3Et4s
 github.com/nyaruka/librato v1.1.1/go.mod h1:fme1Fu1PT2qvkaBZyw8WW+SrnFe2qeeCWpvqmAaKAKE=
 github.com/nyaruka/null/v3 v3.0.0 h1:JvOiNuKmRBFHxzZFt4sWii+ewmMkCQ1vO7X0clTNn6E=
 github.com/nyaruka/null/v3 v3.0.0/go.mod h1:Sus286RmC8P0VihFuQDDQPib/xJQ7++TsaPLdRuwgVc=
-github.com/nyaruka/phonenumbers v1.7.0 h1:fiWBNIwJDvpV0HE1565fAWnBFYleaUrrrsZ+m6JgyX8=
-github.com/nyaruka/phonenumbers v1.7.0/go.mod h1:fsKPJ70O9JetEA4ggnJadYTFWwtGPvu/lETTXNXq6Cs=
+github.com/nyaruka/phonenumbers/v2 v2.0.0-rc1 h1:oJsWrmyzkMDybfMyiotF2js/CTo92pugoe672Y0kz7A=
+github.com/nyaruka/phonenumbers/v2 v2.0.0-rc1/go.mod h1:uRz+kEcEdxFvXC9KcuN+N0tMeXquLdZCrWSAV07TTEU=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
