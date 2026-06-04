@@ -16,67 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDoTrace(t *testing.T) {
-	ctx := context.Background()
-
-	defer dates.SetNowFunc(time.Now)
-
-	dates.SetNowFunc(dates.NewSequentialNow(time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), time.Second))
-
-	server := newTestHTTPServer(52025)
-
-	// test with a text response
-	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
-	require.NoError(t, err)
-
-	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, "GET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
-	assert.Equal(t, `{ "ok": "true" }`, string(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, "{ \"ok\": \"true\" }", string(trace.ResponseBody))
-	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 30, 123456789, time.UTC), trace.StartTime)
-	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 31, 123456789, time.UTC), trace.EndTime)
-	assert.Equal(t, 0, trace.Retries)
-
-	assert.Equal(t, "GET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.SanitizedRequest("...")))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", string(trace.SanitizedResponse("...")))
-	assert.Equal(t, ">>>>>>>> GET http://127.0.0.1:52025?cmd=success\nGET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n\n<<<<<<<<\nHTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n{ \"ok\": \"true\" }", trace.String())
-
-	// test with a binary response
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=binary", nil, nil)
-	require.NoError(t, err)
-
-	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, "GET /?cmd=binary HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, 1000, len(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\nContent-Type: application/octet-stream\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
-
-	// test with a response containing null chars
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=nullchars", nil, nil)
-	require.NoError(t, err)
-
-	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, "GET /?cmd=nullchars HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, 7, len(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 7\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\nab�cd��", string(trace.SanitizedResponse("...")))
-
-	// test with a response containing invalid UTF8 sequences
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=badutf8", nil, nil)
-	require.NoError(t, err)
-
-	trace, err = httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, "GET /?cmd=badutf8 HTTP/1.1\r\nHost: 127.0.0.1:52025\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: \x80\x81\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, 6, len(trace.ResponseBody))
-	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nBad-Header: �\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n...", string(trace.SanitizedResponse("...")))
-}
-
 func TestTracesTransport(t *testing.T) {
 	ctx := context.Background()
 
@@ -183,53 +122,10 @@ func TestTracesTransportConcurrent(t *testing.T) {
 	assert.Len(t, tt.Traces(), 20)
 }
 
-func TestMaxBodyBytes(t *testing.T) {
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
-	testBody := []byte(`abcdefghijklmnopqrstuvwxyz`)
-
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
-		"https://temba.io": {
-			httpx.NewMockResponse(200, nil, testBody),
-			httpx.NewMockResponse(200, nil, testBody),
-			httpx.NewMockResponse(200, nil, testBody),
-			httpx.NewMockResponse(200, nil, testBody),
-		},
-	}))
-
-	call := func(maxBodyBytes int) (*httpx.Trace, error) {
-		request, _ := http.NewRequest("GET", "https://temba.io", nil)
-		return httpx.DoTrace(http.DefaultClient, request, nil, nil, maxBodyBytes)
-	}
-
-	trace, err := call(-1) // no body limit
-	assert.NoError(t, err)
-	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, string(testBody), string(trace.ResponseBody))
-
-	trace, err = call(1000) // limit bigger than body
-	assert.NoError(t, err)
-	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, string(testBody), string(trace.ResponseBody))
-
-	trace, err = call(len(testBody)) // limit same as body
-	assert.NoError(t, err)
-	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, string(testBody), string(trace.ResponseBody))
-
-	trace, err = call(10) // limit smaller than body
-	assert.Equal(t, err, httpx.ErrResponseSize)
-	assert.EqualError(t, err, `response body exceeds size limit`)
-	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 26\r\n\r\n", string(trace.ResponseTrace))
-	assert.Equal(t, ``, string(trace.ResponseBody))
-}
-
 func TestNonUTF8Request(t *testing.T) {
 	ctx := context.Background()
 
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {
 			&httpx.MockResponse{Status: 200, Headers: nil, Body: nil},
 		},
@@ -238,8 +134,11 @@ func TestNonUTF8Request(t *testing.T) {
 	request, err := httpx.NewRequest(ctx, "GET", "https://temba.io", bytes.NewReader([]byte{'\xc3', '\x28'}), map[string]string{"X-Badness": string([]byte{'\xc3', '\x28'})})
 	require.NoError(t, err)
 
-	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
+	resp, err := tt.RoundTrip(request)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	trace := tt.Traces()[0]
 	assert.Equal(t, "GET / HTTP/1.1\r\nHost: temba.io\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 2\r\nX-Badness: \xc3(\r\nAccept-Encoding: gzip\r\n\r\n\xc3(", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n", string(trace.ResponseTrace))
 	assert.False(t, utf8.Valid(trace.RequestTrace))
@@ -254,9 +153,7 @@ func TestNonUTF8Request(t *testing.T) {
 func TestNonUTF8Response(t *testing.T) {
 	ctx := context.Background()
 
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {
 			&httpx.MockResponse{Status: 200, Headers: map[string]string{"X-Badness": string([]byte{'\xc3', '\x28'})}, Body: []byte{'\xc3', '\x28'}},
 		},
@@ -265,8 +162,11 @@ func TestNonUTF8Response(t *testing.T) {
 	request, err := httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 
-	trace, err := httpx.DoTrace(http.DefaultClient, request, nil, nil, -1)
-	assert.NoError(t, err)
+	resp, err := tt.RoundTrip(request)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	trace := tt.Traces()[0]
 	assert.Equal(t, "GET / HTTP/1.1\r\nHost: temba.io\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 2\r\nX-Badness: \xc3(\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, []byte{'\xc3', '\x28'}, trace.ResponseBody)

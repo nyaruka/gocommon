@@ -80,43 +80,6 @@ func replaceNullChars(b []byte) []byte {
 	return bytes.ReplaceAll(b, []byte{0}, []byte(`�`))
 }
 
-// DoTrace makes the given request saving traces of the complete request and response.
-//
-//   - If the request is successful, the trace will have a response and response body
-//   - If reading the body errors, the trace will have a response but no response body
-//   - If connection fails, the trace will have a request but no response or response body
-//
-// Deprecated: DoTrace bundles request concerns (tracing, retrying, access control, body limiting) that are better
-// handled by composing http.RoundTripper wrappers; it will be removed in a future release.
-func DoTrace(client *http.Client, request *http.Request, retries *RetryConfig, access *AccessConfig, maxBodyBytes int) (*Trace, error) {
-	requestTrace, err := httputil.DumpRequestOut(request, true)
-	if err != nil {
-		return nil, err
-	}
-
-	trace := &Trace{
-		Request:      request,
-		RequestTrace: requestTrace,
-		StartTime:    dates.Now(),
-	}
-	defer func() { trace.EndTime = dates.Now() }()
-
-	response, retryCount, err := do(client, request, retries, access)
-	trace.Response = response
-	trace.Retries = retryCount
-
-	if err != nil {
-		return trace, err
-	}
-
-	trace.ResponseTrace, trace.ResponseBody, err = dumpResponse(response, maxBodyBytes)
-	if err != nil {
-		return trace, err
-	}
-
-	return trace, nil
-}
-
 // TracesTransport is an http.RoundTripper which captures a Trace of each request and response, delegating to an
 // inner transport. The response body is buffered so that it remains readable by the caller. It is safe for
 // concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
@@ -205,42 +168,3 @@ var _ http.RoundTripper = (*TracesTransport)(nil)
 type errReader struct{ err error }
 
 func (r errReader) Read([]byte) (int, error) { return 0, r.err }
-
-func dumpResponse(response *http.Response, maxBodyBytes int) ([]byte, []byte, error) {
-	// dump response trace without body which will be parsed separately
-	responseTrace, err := httputil.DumpResponse(response, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	responseBody, err := readBody(response, maxBodyBytes)
-	if err != nil {
-		return responseTrace, nil, err
-	}
-
-	return responseTrace, responseBody, nil
-}
-
-// attempts to read the body of an HTTP response
-func readBody(response *http.Response, maxBodyBytes int) ([]byte, error) {
-	defer response.Body.Close()
-
-	if maxBodyBytes > 0 {
-		// we will only read up to our max body bytes limit
-		bodyReader := io.LimitReader(response.Body, int64(maxBodyBytes)+1)
-
-		bodyBytes, err := io.ReadAll(bodyReader)
-		if err != nil {
-			return nil, err
-		}
-
-		// if we have no remaining bytes, error because the body was too big
-		if bodyReader.(*io.LimitedReader).N <= 0 {
-			return nil, ErrResponseSize
-		}
-
-		return bodyBytes, nil
-	}
-
-	// if there is no limit, read the entire body
-	return io.ReadAll(response.Body)
-}

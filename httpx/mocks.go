@@ -15,82 +15,6 @@ import (
 	"github.com/nyaruka/gocommon/stringsx"
 )
 
-// MockRequestor is a requestor which can be mocked with responses for given URLs
-//
-// Deprecated: use the composable MocksTransport (via WithMocks) instead; MockRequestor will be removed in a future release.
-type MockRequestor struct {
-	mocks       map[string][]*MockResponse
-	requests    []*http.Request
-	ignoreLocal bool
-}
-
-// NewMockRequestor creates a new mock requestor with the given mocks
-//
-// Deprecated: use WithMocks to build a MocksTransport instead; MockRequestor will be removed in a future release.
-func NewMockRequestor(mocks map[string][]*MockResponse) *MockRequestor {
-	return &MockRequestor{mocks: mocks}
-}
-
-// SetIgnoreLocal sets whether the requestor should ignore requests on localhost and delegate these
-// the the default requestor.
-func (r *MockRequestor) SetIgnoreLocal(ignore bool) {
-	r.ignoreLocal = ignore
-}
-
-// Do returns the mocked reponse for the given request
-func (r *MockRequestor) Do(client *http.Client, request *http.Request) (*http.Response, error) {
-	if r.ignoreLocal && isLocalRequest(request) {
-		return DefaultRequestor.Do(client, request)
-	}
-
-	return r.RoundTrip(request)
-}
-
-// RoundTrip allows this to be used as a http.RoundTripper
-func (r *MockRequestor) RoundTrip(request *http.Request) (*http.Response, error) {
-	r.requests = append(r.requests, request)
-
-	mocked := takeMock(r.mocks, request)
-	if mocked == nil {
-		panic(fmt.Sprintf("missing mock for URL %s", request.URL.String()))
-	}
-
-	if mocked.Status == 0 {
-		return nil, errors.New("unable to connect to server")
-	}
-
-	return mocked.Make(request), nil
-}
-
-// Requests returns the received requests
-func (r *MockRequestor) Requests() []*http.Request {
-	return r.requests
-}
-
-// HasUnused returns true if there are unused mocks leftover
-func (r *MockRequestor) HasUnused() bool {
-	return hasUnusedMocks(r.mocks)
-}
-
-// Clone returns a clone of this requestor
-func (r *MockRequestor) Clone() *MockRequestor {
-	cloned := make(map[string][]*MockResponse)
-	for url, ms := range r.mocks {
-		cloned[url] = ms
-	}
-	return NewMockRequestor(cloned)
-}
-
-func (r *MockRequestor) MarshalJSON() ([]byte, error) {
-	return jsonx.Marshal(&r.mocks)
-}
-
-func (r *MockRequestor) UnmarshalJSON(data []byte) error {
-	return jsonx.Unmarshal(data, &r.mocks)
-}
-
-var _ Requestor = (*MockRequestor)(nil)
-
 // takeMock pops the next mocked response matching the request's URL, mutating mocks. Returns nil if none match.
 func takeMock(mocks map[string][]*MockResponse, request *http.Request) *MockResponse {
 	url := request.URL.String()
@@ -125,8 +49,8 @@ func hasUnusedMocks(mocks map[string][]*MockResponse) bool {
 }
 
 // MocksTransport is an http.RoundTripper which answers requests from a set of mocked responses, delegating to an
-// inner transport for requests it doesn't handle. It's intended to be the composable replacement for MockRequestor.
-// It is safe for concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
+// inner transport for requests it doesn't handle. It is safe for concurrent use by multiple goroutines, as the
+// http.RoundTripper contract requires.
 type MocksTransport struct {
 	inner       http.RoundTripper
 	mutex       sync.Mutex // guards mocks and requests
@@ -153,8 +77,8 @@ func MockIgnoreLocal() MockOption {
 
 // WithMocks wraps an http.RoundTripper so that requests matching one of the given mocks are answered from the
 // mock instead of being sent. If inner is nil then http.DefaultTransport is used. By default a request with no
-// matching mock panics, mirroring MockRequestor; pass MockPassthrough to instead delegate such requests to the
-// inner transport. The mocks map is copied, so the caller's map is never consumed and can be safely reused.
+// matching mock panics; pass MockPassthrough to instead delegate such requests to the inner transport. The mocks
+// map is copied, so the caller's map is never consumed and can be safely reused.
 func WithMocks(inner http.RoundTripper, mocks map[string][]*MockResponse, opts ...MockOption) *MocksTransport {
 	if inner == nil {
 		inner = http.DefaultTransport

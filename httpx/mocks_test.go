@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 
@@ -14,103 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestMockRequestor(t *testing.T) {
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
-	// start a real HTTP server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`COOL`))
-	}))
-	defer server.Close()
-
-	// can create requestor with constructor
-	requestor1 := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
-		"http://google.com": {
-			httpx.NewMockResponse(200, nil, []byte("this is google")),
-			httpx.NewMockResponse(201, nil, []byte("this is google again")),
-		},
-		"http://yahoo.com": {
-			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
-			httpx.MockConnectionError,
-		},
-		"http://*": {
-			httpx.NewMockResponse(203, nil, []byte("this is partial")),
-		},
-		"*": {
-			httpx.NewMockResponse(204, nil, []byte("this is wild")),
-		},
-		server.URL + "/thing": {
-			httpx.NewMockResponse(205, nil, []byte("this is local")),
-		},
-	})
-
-	httpx.SetRequestor(requestor1)
-
-	req1, _ := http.NewRequest("GET", "http://google.com", nil)
-	response, err := httpx.Do(http.DefaultClient, req1, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, response.StatusCode)
-
-	body, err := io.ReadAll(response.Body)
-	assert.NoError(t, err)
-	assert.Equal(t, "this is google", string(body))
-
-	assert.Equal(t, []*http.Request{req1}, requestor1.Requests())
-	assert.True(t, requestor1.HasUnused())
-
-	// request another mocked URL
-	req2, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response, err = httpx.Do(http.DefaultClient, req2, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 202, response.StatusCode)
-	assert.Equal(t, []*http.Request{req1, req2}, requestor1.Requests())
-
-	// request second mock for first URL
-	req3, _ := http.NewRequest("GET", "http://google.com", nil)
-	response, err = httpx.Do(http.DefaultClient, req3, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 201, response.StatusCode)
-
-	// request mocked connection error
-	req4, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response, err = httpx.Do(http.DefaultClient, req4, nil, nil)
-	assert.EqualError(t, err, "unable to connect to server")
-	assert.Nil(t, response)
-
-	// request mocked localhost request
-	req5, _ := http.NewRequest("GET", server.URL+"/thing", nil)
-	response, err = httpx.Do(http.DefaultClient, req5, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 205, response.StatusCode)
-
-	// match against http://*
-	req6, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response, err = httpx.Do(http.DefaultClient, req6, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 203, response.StatusCode)
-
-	// match against *
-	req7, _ := http.NewRequest("GET", "http://yahoo.com", nil)
-	response, err = httpx.Do(http.DefaultClient, req7, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 204, response.StatusCode)
-
-	assert.False(t, requestor1.HasUnused())
-
-	// panic if we've run out of mocks for a URL
-	req8, _ := http.NewRequest("GET", "http://google.com", nil)
-	assert.Panics(t, func() { httpx.Do(http.DefaultClient, req8, nil, nil) })
-
-	requestor1.SetIgnoreLocal(true)
-
-	// now a request to the local server should actually get there
-	req9, _ := http.NewRequest("GET", server.URL+"/thing", nil)
-	response, err = httpx.Do(http.DefaultClient, req9, nil, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, response.StatusCode)
-}
 
 func TestMocksTransport(t *testing.T) {
 	// a matched request is answered from the mock and recorded
@@ -134,8 +36,8 @@ func TestMocksTransport(t *testing.T) {
 	require.NoError(t, err)
 	_, err = mt.RoundTrip(req)
 	require.NoError(t, err)
-	assert.False(t, mt.HasUnused())                    // the transport's copy is exhausted
-	assert.Len(t, original["https://temba.io"], 1)     // but the caller's map is untouched
+	assert.False(t, mt.HasUnused())                // the transport's copy is exhausted
+	assert.Len(t, original["https://temba.io"], 1) // but the caller's map is untouched
 
 	// a mocked connection error is returned as an error
 	mt = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
@@ -235,9 +137,8 @@ func TestMocksTransportConcurrent(t *testing.T) {
 	assert.False(t, mt.HasUnused())
 }
 
-func TestMockRequestorMarshaling(t *testing.T) {
-	// can create requestor with constructor
-	requestor1 := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+func TestMockResponseMarshaling(t *testing.T) {
+	mocks := map[string][]*httpx.MockResponse{
 		"http://google.com": {
 			httpx.NewMockResponse(200, nil, []byte("this is google")),
 			httpx.NewMockResponse(201, nil, []byte("this is google again")),
@@ -250,7 +151,7 @@ func TestMockRequestorMarshaling(t *testing.T) {
 			httpx.NewMockResponse(202, nil, []byte("this is yahoo")),
 			httpx.MockConnectionError,
 		},
-	})
+	}
 
 	asJSON := []byte(`{
 		"http://google.com": [
@@ -265,13 +166,13 @@ func TestMockRequestorMarshaling(t *testing.T) {
 	}`)
 
 	// test unmarshaling
-	requestor2 := &httpx.MockRequestor{}
-	err := json.Unmarshal(asJSON, requestor2)
+	unmarshaled := map[string][]*httpx.MockResponse{}
+	err := json.Unmarshal(asJSON, &unmarshaled)
 	assert.NoError(t, err)
-	assert.Equal(t, requestor1, requestor2)
+	assert.Equal(t, mocks, unmarshaled)
 
 	// test re-marshaling
-	marshaled, err := jsonx.Marshal(requestor2)
+	marshaled, err := jsonx.Marshal(unmarshaled)
 	assert.NoError(t, err)
 	assert.JSONEq(t, string(asJSON), string(marshaled))
 }

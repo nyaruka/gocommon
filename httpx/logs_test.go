@@ -15,9 +15,7 @@ import (
 func TestLogs(t *testing.T) {
 	ctx := context.Background()
 
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"http://temba.io/code/987654321/long-url/rwhrehreh/erhether/yreyrreyeyreureuetutrurtueyre/y": {
 			httpx.NewMockResponse(400, nil, []byte("long response long response long response long response long response long response long response")),
 		},
@@ -27,6 +25,15 @@ func TestLogs(t *testing.T) {
 		},
 	}))
 
+	// trace makes the given request through the tracing transport and returns the captured trace
+	trace := func(req *http.Request) *httpx.Trace {
+		resp, err := tt.RoundTrip(req)
+		require.NoError(t, err)
+		resp.Body.Close()
+		traces := tt.Traces()
+		return traces[len(traces)-1]
+	}
+
 	req1, err := httpx.NewRequest(
 		ctx,
 		"GET", "http://temba.io/code/987654321/long-url/rwhrehreh/erhether/yreyrreyeyreureuetutrurtueyre/y",
@@ -34,8 +41,7 @@ func TestLogs(t *testing.T) {
 		nil,
 	)
 	require.NoError(t, err)
-	trace1, err := httpx.DoTrace(http.DefaultClient, req1, nil, nil, -1)
-	require.NoError(t, err)
+	trace1 := trace(req1)
 
 	// check that URL and traces are truncated
 	log1 := httpx.NewLog(trace1, 32, 64, nil)
@@ -46,14 +52,12 @@ func TestLogs(t *testing.T) {
 	// create a request with a code we need to redact in the URL and in the header
 	req2, err := httpx.NewRequest(ctx, "GET", "http://temba.io/code/987654321/", nil, map[string]string{"X-Code": "987654321"})
 	require.NoError(t, err)
-	trace2, err := httpx.DoTrace(http.DefaultClient, req2, nil, nil, -1)
-	require.NoError(t, err)
+	trace2 := trace(req2)
 
 	// create a request with a code we need to redact in the URL and in the request body
 	req3, err := httpx.NewRequest(ctx, "GET", "http://temba.io/code/987654321/", strings.NewReader("My code is 987654321"), nil)
 	require.NoError(t, err)
-	trace3, err := httpx.DoTrace(http.DefaultClient, req3, nil, nil, -1)
-	require.NoError(t, err)
+	trace3 := trace(req3)
 
 	redactor := stringsx.NewRedactor("****************", "987654321", "43t34wf#@f3")
 

@@ -15,8 +15,6 @@ import (
 var _, ipv4MappedIPv6Net, _ = net.ParseCIDR("::ffff:0:0/96")
 
 func TestAccessConfig(t *testing.T) {
-	defer httpx.SetRequestor(httpx.DefaultRequestor)
-
 	access := httpx.NewAccessConfig(
 		30*time.Second,
 		[]net.IP{
@@ -31,18 +29,6 @@ func TestAccessConfig(t *testing.T) {
 			ipv4MappedIPv6Net,
 		},
 	)
-
-	httpx.SetRequestor(httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
-		"https://nyaruka.com": {
-			httpx.NewMockResponse(200, nil, nil),
-		},
-		"https://11.0.0.0": {
-			httpx.NewMockResponse(200, nil, nil),
-		},
-		"https://8.8.8.8": {
-			httpx.NewMockResponse(200, nil, nil),
-		},
-	}))
 
 	tests := []struct {
 		url     string
@@ -76,13 +62,9 @@ func TestAccessConfig(t *testing.T) {
 		request, err := http.NewRequest("GET", tc.url, nil)
 		require.NoError(t, err)
 
-		_, err = httpx.DoTrace(http.DefaultClient, request, nil, access, -1)
-
-		if tc.allowed {
-			assert.NoError(t, err)
-		} else {
-			assert.Equal(t, err, httpx.ErrAccessConfig, "error message mismatch for url %s", tc.url)
-		}
+		allowed, err := access.Allow(request)
+		require.NoError(t, err, "unexpected error for url %s", tc.url)
+		assert.Equal(t, tc.allowed, allowed, "allowed mismatch for url %s", tc.url)
 	}
 }
 
@@ -102,7 +84,7 @@ func TestAccessTransport(t *testing.T) {
 	)
 
 	// allowed request delegates to the inner transport
-	inner := httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+	inner := httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://8.8.8.8": {httpx.NewMockResponse(200, nil, nil)},
 	})
 	transport := httpx.WithAccessControl(inner, access)
@@ -114,7 +96,7 @@ func TestAccessTransport(t *testing.T) {
 	assert.Len(t, inner.Requests(), 1)
 
 	// disallowed request returns ErrAccessConfig and never reaches the inner transport
-	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{})
 	transport = httpx.WithAccessControl(inner, access)
 	req, err = http.NewRequest("GET", "https://127.0.0.1", nil)
 	require.NoError(t, err)
@@ -125,7 +107,7 @@ func TestAccessTransport(t *testing.T) {
 
 	// a denied request with a non-nil body must have that body closed (http.RoundTripper contract)
 	body := &recordingBody{}
-	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{})
 	transport = httpx.WithAccessControl(inner, access)
 	req, err = http.NewRequest("POST", "https://127.0.0.1", body)
 	require.NoError(t, err)
@@ -138,7 +120,7 @@ func TestAccessTransport(t *testing.T) {
 	// an error from Allow (here a resolver timeout) is propagated as-is, not converted to ErrAccessConfig.
 	// A 1ns resolve timeout forces a deterministic error without depending on real DNS resolution.
 	timeoutAccess := httpx.NewAccessConfig(time.Nanosecond, []net.IP{net.ParseIP("127.0.0.1")}, nil)
-	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{})
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{})
 	transport = httpx.WithAccessControl(inner, timeoutAccess)
 	req, err = http.NewRequest("GET", "https://example.com", nil)
 	require.NoError(t, err)
@@ -159,7 +141,7 @@ func TestAccessTransport(t *testing.T) {
 	assert.Nil(t, resp)
 
 	// a nil access config is a pass-through, even for an otherwise-denied host
-	inner = httpx.NewMockRequestor(map[string][]*httpx.MockResponse{
+	inner = httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://127.0.0.1": {httpx.NewMockResponse(200, nil, nil)},
 	})
 	transport = httpx.WithAccessControl(inner, nil)
