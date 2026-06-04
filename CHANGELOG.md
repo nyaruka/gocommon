@@ -1,3 +1,7 @@
+v1.82.0 (2026-06-04)
+-------------------------
+ * Update to phonenumbers v2.0.0-rc1
+
 v1.81.4 (2026-06-03)
 -------------------------
  * httpx: add composable WithRetries transport
