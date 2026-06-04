@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	"github.com/nyaruka/null/v3"
-	"github.com/nyaruka/phonenumbers"
+	"github.com/nyaruka/phonenumbers/v2"
 )
 
 // Country is a ISO 3166-1 alpha-2 country code

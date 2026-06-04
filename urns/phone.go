@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/nyaruka/gocommon/i18n"
-	"github.com/nyaruka/phonenumbers"
+	"github.com/nyaruka/phonenumbers/v2"
 )
 
 var nonTelCharsRegex = regexp.MustCompile(`[^0-9A-Za-z]`)
