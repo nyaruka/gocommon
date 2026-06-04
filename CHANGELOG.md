@@ -1,3 +1,7 @@
+v1.83.0 (2026-06-04)
+-------------------------
+ * httpx: remove deprecated request-bundling API in favour of transports
+
 v1.82.0 (2026-06-04)
 -------------------------
  * Update to phonenumbers v2.0.0-rc1
