@@ -94,7 +94,8 @@ func (w *Writer) Stats() (int64, int64) {
 }
 
 func (w *Writer) flush(batch []*writable) {
-	ctx := context.TODO()
+	// detached background context: this must run to completion even during batcher drain on shutdown
+	ctx := context.Background()
 
 	items := w.dedupe(batch)
 

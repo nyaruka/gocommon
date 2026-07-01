@@ -68,7 +68,8 @@ func (w *Writer) Stats() (int64, int64) {
 }
 
 func (w *Writer) flush(batch []*Document) {
-	ctx := context.TODO()
+	// detached background context: this must run to completion even during batcher drain on shutdown
+	ctx := context.Background()
 
 	numWritten, unprocessed, err := Bulk(ctx, w.client, batch)
 	if err != nil {
