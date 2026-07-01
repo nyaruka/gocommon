@@ -1,3 +1,8 @@
+v1.84.0 (2026-07-01)
+-------------------------
+ * aws: resolve credentials and region from the SDK default chain
+ * dynamo/elastic: use real contexts for spool and writer flushes
+
 v1.83.0 (2026-06-04)
 -------------------------
  * httpx: remove deprecated request-bundling API in favour of transports
