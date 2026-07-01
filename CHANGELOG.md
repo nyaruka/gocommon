@@ -1,3 +1,7 @@
+v1.84.1 (2026-07-01)
+-------------------------
+ * Update dependencies
+
 v1.84.0 (2026-07-01)
 -------------------------
  * aws: resolve credentials and region from the SDK default chain
