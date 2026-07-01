@@ -1,7 +1,6 @@
 package s3x_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,9 +11,9 @@ import (
 )
 
 func TestService(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
-	svc, err := s3x.NewService("root", "tembatemba", "us-east-1", "http://localstack:4566", true)
+	svc, err := s3x.NewService(ctx, "us-east-1", "http://localstack:4566", true)
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
@@ -75,7 +74,7 @@ func TestService(t *testing.T) {
 	err = svc.Test(ctx, "gocommon-tests")
 	assert.Error(t, err)
 
-	aws, err := s3x.NewService("AA1234", "2345263", "us-east-1", "https://s3.amazonaws.com", false)
+	aws, err := s3x.NewService(ctx, "us-east-1", "https://s3.amazonaws.com", false)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://gocommon-tests.s3.us-east-1.amazonaws.com/1/hello+world.txt", aws.ObjectURL("gocommon-tests", "1/hello world.txt"))
 }

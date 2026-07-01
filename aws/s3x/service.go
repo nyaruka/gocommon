@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	awsx "github.com/nyaruka/gocommon/aws"
 )
 
 // Service is simple abstraction layer to work with a S3-compatible storage service
@@ -20,9 +20,10 @@ type Service struct {
 	urler  ObjectURLer
 }
 
-// NewService creates a new S3 service with the given credentials and configuration
-func NewService(accessKey, secretKey, region, endpoint string, pathStyle bool) (*Service, error) {
-	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+// NewService creates a new S3 service, resolving credentials from the standard AWS SDK default chain. The region is
+// still required for virtual-host style object URLs.
+func NewService(ctx context.Context, region, endpoint string, pathStyle bool) (*Service, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}

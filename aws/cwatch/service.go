@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
-	awsx "github.com/nyaruka/gocommon/aws"
 )
 
 type Service struct {
@@ -15,15 +15,15 @@ type Service struct {
 	deployment string
 }
 
-// NewService creates a new Cloudwatch service with the given credentials and configuration. If deployment is given as
-// "dev" or "test", then metrics are logged and not sent to Cloudwatch.
-func NewService(accessKey, secretKey, region, namespace, deployment string) (*Service, error) {
+// NewService creates a new Cloudwatch service, resolving credentials and region from the standard AWS SDK default
+// chain. If deployment is given as "dev" or "test", then metrics are logged and not sent to Cloudwatch.
+func NewService(ctx context.Context, namespace, deployment string) (*Service, error) {
 	var client Client
 
 	if deployment == "dev" || deployment == "test" {
 		client = &DevClient{}
 	} else {
-		cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+		cfg, err := config.LoadDefaultConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
