@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	awsx "github.com/nyaruka/gocommon/aws"
 )
 
-// NewClient creates a new DynamoDB client with the provided credentials.
-func NewClient(accessKey, secretKey, region, endpoint string) (*dynamodb.Client, error) {
-	cfg, err := awsx.NewConfig(accessKey, secretKey, region)
+// NewClient creates a new DynamoDB client, resolving credentials and region from the standard AWS SDK default chain.
+func NewClient(ctx context.Context, endpoint string) (*dynamodb.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
