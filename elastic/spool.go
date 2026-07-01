@@ -115,7 +115,7 @@ func (s *Spool) Add(docs []*Document) error {
 }
 
 func (s *Spool) flush() error {
-	ctx := context.TODO()
+	ctx := s.ctx
 
 	files, err := s.enumerateFiles()
 	if err != nil {

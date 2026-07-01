@@ -123,7 +123,7 @@ func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error
 }
 
 func (s *Spool) flush() error {
-	ctx := context.TODO()
+	ctx := s.ctx
 
 	files, err := s.enumerateFiles()
 	if err != nil {
