@@ -1,9 +1,16 @@
+# General
+*~
 .DS_Store
+.vscode/
 .devcontainer
+deploy
+fabfile.py
+
+# AI
 .claude/
 CLAUDE.md
 CODEX.md
 AGENTS.md
+
+# Go
 coverage.text
-deploy
-fabfile.*
