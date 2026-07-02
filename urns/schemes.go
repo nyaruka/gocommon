@@ -196,9 +196,19 @@ var WeChat = &Scheme{
 }
 
 var WhatsApp = &Scheme{
-	Prefix:   "whatsapp",
-	Name:     "WhatsApp",
-	Validate: func(path string) bool { return allDigitsRegex.MatchString(path) },
+	Prefix: "whatsapp",
+	Name:   "WhatsApp",
+	Normalize: func(path string) string {
+		// business-scoped user IDs have format CC.ALPHANUMERIC - uppercase the country code
+		if dot := strings.IndexByte(path, '.'); dot == 2 {
+			return strings.ToUpper(path[:dot]) + path[dot:]
+		}
+		return path
+	},
+	// a WhatsApp identity is either a phone number (all digits) or a business-scoped user ID (CC.ALPHANUMERIC)
+	Validate: func(path string) bool {
+		return allDigitsRegex.MatchString(path) || whatsAppBSUIDRegex.MatchString(path)
+	},
 }
 
 var BSUID = &Scheme{
