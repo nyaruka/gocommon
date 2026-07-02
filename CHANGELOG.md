@@ -1,3 +1,7 @@
+v1.85.0 (2026-07-02)
+-------------------------
+ * Add centrifugo package with Client interface, gocent-based client and mock client for testing
+
 v1.84.1 (2026-07-01)
 -------------------------
  * Update dependencies
