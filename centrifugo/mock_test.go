@@ -40,8 +40,13 @@ func TestMockClient(t *testing.T) {
 		{"channel": "chat:general", "data": {"text": "hola"}}
 	]`, string(jsonx.MustMarshal(mock.Publications())))
 
-	// unmarshalable data is an error identifying the channel, and nothing is recorded
-	assert.ErrorContains(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:bad", Data: func() {}}), "error marshaling data for channel chat:bad")
+	// unmarshalable data is an error identifying the channel, and nothing is recorded - even for other publications
+	// in the same batch, matching the real client which sends nothing if any publication fails to marshal
+	err := mock.Publish(ctx,
+		&centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"lost"}`)},
+		&centrifugo.Publication{Channel: "chat:bad", Data: func() {}},
+	)
+	assert.ErrorContains(t, err, "error marshaling data for channel chat:bad")
 	assert.Len(t, mock.Publications(), 4)
 
 	// a configured error is returned by Publish and Info, and nothing is recorded

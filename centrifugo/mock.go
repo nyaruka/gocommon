@@ -33,13 +33,17 @@ func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if c.err != nil {
 		return c.err
 	}
-	for _, p := range pubs {
+
+	// marshal everything before recording anything - like the real client, a batch with a marshal error sends nothing
+	recorded := make([]*Publication, len(pubs))
+	for i, p := range pubs {
 		data, err := json.Marshal(p.Data)
 		if err != nil {
 			return fmt.Errorf("error marshaling data for channel %s: %w", p.Channel, err)
 		}
-		c.publications = append(c.publications, &Publication{Channel: p.Channel, Data: json.RawMessage(data)})
+		recorded[i] = &Publication{Channel: p.Channel, Data: json.RawMessage(data)}
 	}
+	c.publications = append(c.publications, recorded...)
 	return nil
 }
 
