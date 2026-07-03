@@ -8,10 +8,10 @@ import (
 
 // MockClient is a mock implementation of Client that records publications in memory.
 type MockClient struct {
-	mu        sync.Mutex
+	mu           sync.Mutex
 	publications []*Publication
-	requests  int
-	err       error
+	requests     int
+	err          error
 }
 
 // NewMockClient creates a new mock client.
