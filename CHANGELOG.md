@@ -1,3 +1,7 @@
+v1.86.1 (2026-07-03)
+-------------------------
+ * Marshal centrifugo publication data at send time
+
 v1.86.0 (2026-07-03)
 -------------------------
  * Add centrifugo.Service which layers channel subscriber tracking on a client
