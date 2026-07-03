@@ -1,3 +1,7 @@
+v1.86.0 (2026-07-03)
+-------------------------
+ * Add centrifugo.Service which layers channel subscriber tracking on a client
+
 v1.85.0 (2026-07-02)
 -------------------------
  * Add centrifugo package with Client interface, gocent-based client and mock client for testing
