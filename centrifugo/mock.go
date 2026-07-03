@@ -6,10 +6,10 @@ import (
 	"sync"
 )
 
-// MockClient is a mock implementation of Client that records publishes in memory.
+// MockClient is a mock implementation of Client that records publications in memory.
 type MockClient struct {
 	mu        sync.Mutex
-	publishes []*Publication
+	publications []*Publication
 	requests  int
 	err       error
 }
@@ -19,7 +19,7 @@ func NewMockClient() *MockClient {
 	return &MockClient{}
 }
 
-// Publish records the given publishes, or returns the configured error.
+// Publish records the given publications, or returns the configured error.
 func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
@@ -31,7 +31,7 @@ func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if c.err != nil {
 		return c.err
 	}
-	c.publishes = append(c.publishes, pubs...)
+	c.publications = append(c.publications, pubs...)
 	c.requests++
 	return nil
 }
@@ -50,7 +50,7 @@ func (c *MockClient) Published(channel string) []json.RawMessage {
 	defer c.mu.Unlock()
 
 	var data []json.RawMessage
-	for _, p := range c.publishes {
+	for _, p := range c.publications {
 		if p.Channel == channel {
 			data = append(data, p.Data)
 		}
@@ -74,12 +74,12 @@ func (c *MockClient) SetError(err error) {
 	c.err = err
 }
 
-// Clear removes all recorded publishes and resets the request count.
+// Clear removes all recorded publications and resets the request count.
 func (c *MockClient) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.publishes = nil
+	c.publications = nil
 	c.requests = 0
 }
 
