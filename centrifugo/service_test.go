@@ -5,6 +5,7 @@ import (
 
 	valkey "github.com/gomodule/redigo/redis"
 	"github.com/nyaruka/gocommon/centrifugo"
+	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/nyaruka/vkutil/assertvk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,26 +62,27 @@ func TestServicePublish(t *testing.T) {
 
 	// zero publishes is a no-op that doesn't touch valkey or the server
 	require.NoError(t, svc.Publish(ctx))
-	assert.Equal(t, 0, mock.Requests())
+	assert.Empty(t, mock.Publications())
 
 	setSubscribed(t, vk, "chat:1")
 
-	// only publishes to subscribed channels are sent, as a single request
+	// only publishes to subscribed channels are sent
 	err := svc.Publish(ctx,
 		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"hi"}`)},
 		&centrifugo.Publication{Channel: "chat:2", Data: []byte(`{"text":"yo"}`)},
 		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"bye"}`)},
 	)
 	require.NoError(t, err)
-	assert.Equal(t, 1, mock.Requests())
-	assert.Len(t, mock.Published("chat:1"), 2)
-	assert.Len(t, mock.Published("chat:2"), 0)
+	assert.JSONEq(t, `[
+		{"channel": "chat:1", "data": {"text": "hi"}},
+		{"channel": "chat:1", "data": {"text": "bye"}}
+	]`, string(jsonx.MustMarshal(mock.Publications())))
 
 	// a batch with no subscribed channels doesn't touch the server at all
 	mock.Clear()
 	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: []byte(`{}`)})
 	require.NoError(t, err)
-	assert.Equal(t, 0, mock.Requests())
+	assert.Empty(t, mock.Publications())
 
 	// client errors are returned
 	mock.SetError(assert.AnError)

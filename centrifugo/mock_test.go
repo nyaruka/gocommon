@@ -1,7 +1,6 @@
 package centrifugo_test
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -18,21 +17,15 @@ func TestMockClient(t *testing.T) {
 
 	require.NoError(t, mock.Info(ctx))
 
-	// zero publishes is a no-op that isn't counted as a request
+	// zero publications is a no-op
 	require.NoError(t, mock.Publish(ctx))
-	assert.Equal(t, 0, mock.Requests())
+	assert.Empty(t, mock.Publications())
 
-	// each publish call is recorded as a single request, publishes readable per channel in order
 	require.NoError(t, mock.Publish(ctx,
 		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
 		&centrifugo.Publication{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
 	))
 	require.NoError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)}))
-
-	assert.Equal(t, 2, mock.Requests())
-	assert.Equal(t, []json.RawMessage{[]byte(`{"text":"hi"}`), []byte(`{"text":"bye"}`)}, mock.Published("chat:general"))
-	assert.Equal(t, []json.RawMessage{[]byte(`{"text":"yo"}`)}, mock.Published("chat:random"))
-	assert.Empty(t, mock.Published("chat:other"))
 
 	// the entire recording can be asserted at once, e.g. as JSON against a fixture
 	assert.JSONEq(t, `[
@@ -45,13 +38,10 @@ func TestMockClient(t *testing.T) {
 	mock.SetError(errors.New("boom"))
 	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)}), "boom")
 	assert.EqualError(t, mock.Info(ctx), "boom")
-	assert.Equal(t, 2, mock.Requests())
-	assert.Len(t, mock.Published("chat:general"), 2)
+	assert.Len(t, mock.Publications(), 3)
 	mock.SetError(nil)
 
-	// clearing removes recorded publishes and resets the request count
+	// clearing removes recorded publications
 	mock.Clear()
-	assert.Equal(t, 0, mock.Requests())
-	assert.Empty(t, mock.Published("chat:general"))
 	assert.Empty(t, mock.Publications())
 }
