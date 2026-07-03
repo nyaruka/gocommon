@@ -23,10 +23,10 @@ func TestMockClient(t *testing.T) {
 
 	// each publish call is recorded as a single request, publishes readable per channel in order
 	require.NoError(t, mock.Publish(ctx,
-		&centrifugo.Publish{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publish{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
 	))
-	require.NoError(t, mock.Publish(ctx, &centrifugo.Publish{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)}))
+	require.NoError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)}))
 
 	assert.Equal(t, 2, mock.Requests())
 	assert.Equal(t, []json.RawMessage{[]byte(`{"text":"hi"}`), []byte(`{"text":"bye"}`)}, mock.Published("chat:general"))
@@ -35,7 +35,7 @@ func TestMockClient(t *testing.T) {
 
 	// a configured error is returned by Publish and Info, and nothing is recorded
 	mock.SetError(errors.New("boom"))
-	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publish{Channel: "chat:general", Data: []byte(`{}`)}), "boom")
+	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)}), "boom")
 	assert.EqualError(t, mock.Info(ctx), "boom")
 	assert.Equal(t, 2, mock.Requests())
 	assert.Len(t, mock.Published("chat:general"), 2)

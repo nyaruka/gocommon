@@ -67,9 +67,9 @@ func TestServicePublish(t *testing.T) {
 
 	// only publishes to subscribed channels are sent, as a single request
 	err := svc.Publish(ctx,
-		&centrifugo.Publish{Channel: "chat:1", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publish{Channel: "chat:2", Data: []byte(`{"text":"yo"}`)},
-		&centrifugo.Publish{Channel: "chat:1", Data: []byte(`{"text":"bye"}`)},
+		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:2", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"bye"}`)},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1, mock.Requests())
@@ -78,12 +78,12 @@ func TestServicePublish(t *testing.T) {
 
 	// a batch with no subscribed channels doesn't touch the server at all
 	mock.Clear()
-	err = svc.Publish(ctx, &centrifugo.Publish{Channel: "chat:2", Data: []byte(`{}`)})
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: []byte(`{}`)})
 	require.NoError(t, err)
 	assert.Equal(t, 0, mock.Requests())
 
 	// client errors are returned
 	mock.SetError(assert.AnError)
-	err = svc.Publish(ctx, &centrifugo.Publish{Channel: "chat:1", Data: []byte(`{}`)})
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})
 	assert.ErrorIs(t, err, assert.AnError)
 }

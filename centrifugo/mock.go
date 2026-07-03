@@ -9,7 +9,7 @@ import (
 // MockClient is a mock implementation of Client that records publishes in memory.
 type MockClient struct {
 	mu        sync.Mutex
-	publishes []*Publish
+	publishes []*Publication
 	requests  int
 	err       error
 }
@@ -20,7 +20,7 @@ func NewMockClient() *MockClient {
 }
 
 // Publish records the given publishes, or returns the configured error.
-func (c *MockClient) Publish(ctx context.Context, pubs ...*Publish) error {
+func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
 	}

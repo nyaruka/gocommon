@@ -10,8 +10,8 @@ import (
 	"github.com/centrifugal/gocent/v3"
 )
 
-// Publish is a single publish of data to a channel.
-type Publish struct {
+// Publication is a single publish of data to a channel.
+type Publication struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
@@ -20,7 +20,7 @@ type Publish struct {
 type Client interface {
 	// Publish sends the given publishes to the server as a single pipelined request. If an individual publish is
 	// rejected, the returned error identifies its channel.
-	Publish(ctx context.Context, pubs ...*Publish) error
+	Publish(ctx context.Context, pubs ...*Publication) error
 
 	// Info checks that the server is reachable and accepts our API key.
 	Info(ctx context.Context) error
@@ -35,7 +35,7 @@ func NewClient(endpoint, key string) Client {
 	return &client{gc: gocent.New(gocent.Config{Addr: endpoint, Key: key})}
 }
 
-func (c *client) Publish(ctx context.Context, pubs ...*Publish) error {
+func (c *client) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
 	}
