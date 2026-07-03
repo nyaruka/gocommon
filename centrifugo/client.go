@@ -1,4 +1,5 @@
-// Package centrifugo provides a client for the Centrifugo server API, and a mock implementation for testing.
+// Package centrifugo provides a client for the Centrifugo server API, a mock implementation for testing, and a
+// service that layers channel subscriber tracking on top of a client.
 package centrifugo
 
 import (
