@@ -195,16 +195,19 @@ var WeChat = &Scheme{
 	Name:   "WeChat",
 }
 
+// normalizeBSUID uppercases the two-letter country code of a business-scoped user ID (format CC.ALPHANUMERIC),
+// shared by the whatsapp and bsuid schemes so they stay in lockstep
+func normalizeBSUID(path string) string {
+	if dot := strings.IndexByte(path, '.'); dot == 2 {
+		return strings.ToUpper(path[:dot]) + path[dot:]
+	}
+	return path
+}
+
 var WhatsApp = &Scheme{
-	Prefix: "whatsapp",
-	Name:   "WhatsApp",
-	Normalize: func(path string) string {
-		// business-scoped user IDs have format CC.ALPHANUMERIC - uppercase the country code
-		if dot := strings.IndexByte(path, '.'); dot == 2 {
-			return strings.ToUpper(path[:dot]) + path[dot:]
-		}
-		return path
-	},
+	Prefix:    "whatsapp",
+	Name:      "WhatsApp",
+	Normalize: normalizeBSUID,
 	// a WhatsApp identity is either a phone number (all digits) or a business-scoped user ID (CC.ALPHANUMERIC)
 	Validate: func(path string) bool {
 		return allDigitsRegex.MatchString(path) || whatsAppBSUIDRegex.MatchString(path)
@@ -212,15 +215,9 @@ var WhatsApp = &Scheme{
 }
 
 var BSUID = &Scheme{
-	Prefix: "bsuid",
-	Name:   "WhatsApp BSUID",
-	Normalize: func(path string) string {
-		// BSUIDs have format CC.ALPHANUMERIC - uppercase the country code
-		if dot := strings.IndexByte(path, '.'); dot == 2 {
-			return strings.ToUpper(path[:dot]) + path[dot:]
-		}
-		return path
-	},
+	Prefix:    "bsuid",
+	Name:      "WhatsApp BSUID",
+	Normalize: normalizeBSUID,
 	Validate: func(path string) bool {
 		return whatsAppBSUIDRegex.MatchString(path)
 	},

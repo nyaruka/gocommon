@@ -64,6 +64,7 @@ func TestNewFromParts(t *testing.T) {
 		{urns.Instagram, "12345", nil, "", "instagram:12345", "instagram:12345", false},
 		{urns.Telegram, "12345", nil, "Jane", "telegram:12345#Jane", "telegram:12345", false},
 		{urns.WhatsApp, "12345", nil, "", "whatsapp:12345", "whatsapp:12345", false},
+		{urns.WhatsApp, "br.ABC123", nil, "", "whatsapp:BR.ABC123", "whatsapp:BR.ABC123", false}, // BSUID form normalized then validated
 		{urns.BSUID, "US.ABC123DEF", nil, "", "bsuid:US.ABC123DEF", "bsuid:US.ABC123DEF", false},
 		{urns.WebChat, "123456789012345678901234", nil, "", "webchat:123456789012345678901234", "webchat:123456789012345678901234", false},
 		{urns.WebChat, "123456789012345678901234", nil, "bob@nyaruka.com", "webchat:123456789012345678901234#bob@nyaruka.com", "webchat:123456789012345678901234", false},
@@ -122,7 +123,11 @@ func TestNormalize(t *testing.T) {
 		{"bsuid:br.ABC123", "bsuid:BR.ABC123"},
 		{"bsuid:BR.ABC123", "bsuid:BR.ABC123"},
 		{"bsuid:12345", "bsuid:12345"},
+
+		// whatsapp URNs uppercase the country code of business-scoped user IDs, but leave phone numbers untouched
 		{"whatsapp:12345", "whatsapp:12345"},
+		{"whatsapp:br.ABC123", "whatsapp:BR.ABC123"},
+		{"whatsapp:BR.ABC123", "whatsapp:BR.ABC123"},
 	}
 
 	for _, tc := range testCases {
@@ -229,14 +234,16 @@ func TestValidate(t *testing.T) {
 		{"viber:asdf!12354", "invalid path component"},
 		{"viber:xy5/5y6O81+/kbWHpLhBoA==", ""},
 
-		//whatsapp paths must be digits only
+		// whatsapp paths must be digits or a business-scoped user ID in the form CC.alphanumeric
 		{"whatsapp:12354", ""},
+		{"whatsapp:BR.1A2B3C4D5E6F7G8H9I0J", ""},
+		{"whatsapp:US.abc123DEF456", ""},
 		{"whatsapp:abcde", "invalid path component"},
 		{"whatsapp:+12067799294", "invalid path component"},
 		{"whatsapp:B.123", "invalid path component"},
 		{"whatsapp:BRA.123", "invalid path component"},
 		{"whatsapp:BR.", "invalid path component"},
-		{"whatsapp:br.ABC123", "invalid path component"},
+		{"whatsapp:br.ABC123", "invalid path component"}, // not normalized before validation, so lowercase cc is invalid
 
 		// bsuid paths must be BSUIDs in the form CC.alphanumeric
 		{"bsuid:BR.1A2B3C4D5E6F7G8H9I0J", ""},
