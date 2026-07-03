@@ -88,4 +88,16 @@ func TestServicePublish(t *testing.T) {
 	mock.SetError(assert.AnError)
 	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})
 	assert.ErrorIs(t, err, assert.AnError)
+	mock.SetError(nil)
+
+	// a valkey error during the presence lookup is returned and nothing is published
+	badVK := &valkey.Pool{
+		Dial: func() (valkey.Conn, error) { return valkey.Dial("tcp", "localhost:1") },
+	}
+	defer badVK.Close()
+
+	badSvc := centrifugo.NewService(mock, badVK)
+	err = badSvc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})
+	assert.ErrorContains(t, err, "error checking channel subscriptions")
+	assert.Empty(t, mock.Publications())
 }

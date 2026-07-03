@@ -65,6 +65,9 @@ func (s *Service) Subscribed(ctx context.Context, channels ...string) (map[strin
 // publishes would be delivered to nobody so dropping them just saves the server the work. Subscriber presence for
 // all the channels is resolved in a single lookup and the surviving publishes are sent as a single pipelined
 // request, so a batch of any size costs at most two round-trips and lands or fails together.
+//
+// Note this is inherently best-effort: presence is read before publishing, so a subscriber arriving in between
+// misses this batch. Callers should treat delivery as an optimization for live watchers, not a guarantee.
 func (s *Service) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
@@ -89,6 +92,9 @@ func (s *Service) Publish(ctx context.Context, pubs ...*Publication) error {
 		if subscribed[p.Channel] {
 			send = append(send, p)
 		}
+	}
+	if len(send) == 0 {
+		return nil
 	}
 
 	return s.Client.Publish(ctx, send...)
