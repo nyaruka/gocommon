@@ -23,10 +23,10 @@ func TestMockClient(t *testing.T) {
 	assert.Empty(t, mock.Publications())
 
 	require.NoError(t, mock.Publish(ctx,
-		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publication{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:random", Data: json.RawMessage(`{"text":"yo"}`)},
 	))
-	require.NoError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)}))
+	require.NoError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"bye"}`)}))
 
 	// unmarshaled data is marshaled when recorded, like the real client marshals when sending
 	require.NoError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: map[string]any{"text": "hola"}}))
@@ -46,7 +46,7 @@ func TestMockClient(t *testing.T) {
 
 	// a configured error is returned by Publish and Info, and nothing is recorded
 	mock.SetError(errors.New("boom"))
-	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)}), "boom")
+	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{}`)}), "boom")
 	assert.EqualError(t, mock.Info(ctx), "boom")
 	assert.Len(t, mock.Publications(), 4)
 	mock.SetError(nil)

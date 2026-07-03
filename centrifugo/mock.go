@@ -34,7 +34,7 @@ func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 		return c.err
 	}
 	for _, p := range pubs {
-		data, err := p.marshaledData()
+		data, err := json.Marshal(p.Data)
 		if err != nil {
 			return fmt.Errorf("error marshaling data for channel %s: %w", p.Channel, err)
 		}
