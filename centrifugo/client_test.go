@@ -74,9 +74,9 @@ func TestClientPublish(t *testing.T) {
 
 	// a batch of publishes is sent as a single request with one command per publish, in order
 	err := c.Publish(ctx,
-		&centrifugo.Publish{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publish{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
-		&centrifugo.Publish{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)},
 	)
 	require.NoError(t, err)
 
@@ -95,14 +95,14 @@ func TestClientPublish(t *testing.T) {
 	// an error reply is attributed to the channel of the publish it corresponds to
 	srv.nextReplies = []string{`{"result":{}}`, `{"error":{"code":102,"message":"unknown channel"}}`}
 	err = c.Publish(ctx,
-		&centrifugo.Publish{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publish{Channel: "chat:nope", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:nope", Data: []byte(`{"text":"yo"}`)},
 	)
 	assert.EqualError(t, err, "error publishing to channel chat:nope: unknown channel: 102")
 
 	// a non-200 response is an error
 	srv.Close()
-	err = c.Publish(ctx, &centrifugo.Publish{Channel: "chat:general", Data: []byte(`{}`)})
+	err = c.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)})
 	assert.ErrorContains(t, err, "error sending publishes")
 }
 

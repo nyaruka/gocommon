@@ -2,16 +2,15 @@ package centrifugo
 
 import (
 	"context"
-	"encoding/json"
+	"slices"
 	"sync"
 )
 
-// MockClient is a mock implementation of Client that records publishes in memory.
+// MockClient is a mock implementation of Client that records publications in memory.
 type MockClient struct {
-	mu        sync.Mutex
-	publishes []*Publish
-	requests  int
-	err       error
+	mu           sync.Mutex
+	publications []*Publication
+	err          error
 }
 
 // NewMockClient creates a new mock client.
@@ -19,8 +18,8 @@ func NewMockClient() *MockClient {
 	return &MockClient{}
 }
 
-// Publish records the given publishes, or returns the configured error.
-func (c *MockClient) Publish(ctx context.Context, pubs ...*Publish) error {
+// Publish records the given publications, or returns the configured error.
+func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
 	}
@@ -31,8 +30,7 @@ func (c *MockClient) Publish(ctx context.Context, pubs ...*Publish) error {
 	if c.err != nil {
 		return c.err
 	}
-	c.publishes = append(c.publishes, pubs...)
-	c.requests++
+	c.publications = append(c.publications, pubs...)
 	return nil
 }
 
@@ -44,26 +42,13 @@ func (c *MockClient) Info(ctx context.Context) error {
 	return c.err
 }
 
-// Published returns the data payloads published to the given channel, oldest first.
-func (c *MockClient) Published(channel string) []json.RawMessage {
+// Publications returns all recorded publications across all channels, oldest first. Publications marshal to JSON so
+// the entire recording can be asserted in one go, e.g. against a test fixture.
+func (c *MockClient) Publications() []*Publication {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var data []json.RawMessage
-	for _, p := range c.publishes {
-		if p.Channel == channel {
-			data = append(data, p.Data)
-		}
-	}
-	return data
-}
-
-// Requests returns the number of publish requests made, i.e. server round-trips.
-func (c *MockClient) Requests() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return c.requests
+	return slices.Clone(c.publications)
 }
 
 // SetError sets the error returned by subsequent calls.
@@ -74,13 +59,12 @@ func (c *MockClient) SetError(err error) {
 	c.err = err
 }
 
-// Clear removes all recorded publishes and resets the request count.
+// Clear removes all recorded publications.
 func (c *MockClient) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.publishes = nil
-	c.requests = 0
+	c.publications = nil
 }
 
 var _ Client = (*MockClient)(nil)

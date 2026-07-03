@@ -15,6 +15,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-playground/validator/v10 v10.30.3
+	github.com/gomodule/redigo v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jellydator/ttlcache/v3 v3.4.1
@@ -22,6 +23,7 @@ require (
 	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v3 v3.0.0
 	github.com/nyaruka/phonenumbers/v2 v2.0.2
+	github.com/nyaruka/vkutil v0.21.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vinovest/sqlx v1.7.2
