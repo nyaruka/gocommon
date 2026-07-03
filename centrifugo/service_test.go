@@ -84,6 +84,12 @@ func TestServicePublish(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, mock.Publications())
 
+	// and because marshaling only happens at send time, dropped publishes never pay for it - even unmarshalable
+	// data isn't an error when nobody is subscribed to its channel
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: func() {}})
+	require.NoError(t, err)
+	assert.Empty(t, mock.Publications())
+
 	// client errors are returned
 	mock.SetError(assert.AnError)
 	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})

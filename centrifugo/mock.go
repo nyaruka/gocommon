@@ -2,6 +2,8 @@ package centrifugo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"slices"
 	"sync"
 )
@@ -18,7 +20,8 @@ func NewMockClient() *MockClient {
 	return &MockClient{}
 }
 
-// Publish records the given publications, or returns the configured error.
+// Publish records the given publications, or returns the configured error. Like the real client it marshals each
+// publication's data at this point, so what's recorded is the JSON that would have been sent.
 func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if len(pubs) == 0 {
 		return nil
@@ -30,7 +33,13 @@ func (c *MockClient) Publish(ctx context.Context, pubs ...*Publication) error {
 	if c.err != nil {
 		return c.err
 	}
-	c.publications = append(c.publications, pubs...)
+	for _, p := range pubs {
+		data, err := p.marshaledData()
+		if err != nil {
+			return fmt.Errorf("error marshaling data for channel %s: %w", p.Channel, err)
+		}
+		c.publications = append(c.publications, &Publication{Channel: p.Channel, Data: json.RawMessage(data)})
+	}
 	return nil
 }
 
