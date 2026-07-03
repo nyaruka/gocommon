@@ -3,6 +3,7 @@ package centrifugo
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"sync"
 )
 
@@ -42,6 +43,15 @@ func (c *MockClient) Info(ctx context.Context) error {
 	defer c.mu.Unlock()
 
 	return c.err
+}
+
+// Publications returns all recorded publications across all channels, oldest first. Publications marshal to JSON so
+// the entire recording can be asserted in one go, e.g. against a test fixture.
+func (c *MockClient) Publications() []*Publication {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return slices.Clone(c.publications)
 }
 
 // Published returns the data payloads published to the given channel, oldest first.

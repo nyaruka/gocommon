@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nyaruka/gocommon/centrifugo"
+	"github.com/nyaruka/gocommon/jsonx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,6 +34,13 @@ func TestMockClient(t *testing.T) {
 	assert.Equal(t, []json.RawMessage{[]byte(`{"text":"yo"}`)}, mock.Published("chat:random"))
 	assert.Empty(t, mock.Published("chat:other"))
 
+	// the entire recording can be asserted at once, e.g. as JSON against a fixture
+	assert.JSONEq(t, `[
+		{"channel": "chat:general", "data": {"text": "hi"}},
+		{"channel": "chat:random", "data": {"text": "yo"}},
+		{"channel": "chat:general", "data": {"text": "bye"}}
+	]`, string(jsonx.MustMarshal(mock.Publications())))
+
 	// a configured error is returned by Publish and Info, and nothing is recorded
 	mock.SetError(errors.New("boom"))
 	assert.EqualError(t, mock.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)}), "boom")
@@ -45,4 +53,5 @@ func TestMockClient(t *testing.T) {
 	mock.Clear()
 	assert.Equal(t, 0, mock.Requests())
 	assert.Empty(t, mock.Published("chat:general"))
+	assert.Empty(t, mock.Publications())
 }
