@@ -74,9 +74,9 @@ func TestClientPublish(t *testing.T) {
 
 	// a batch of publishes is sent as a single request with one command per publish, in order
 	err := c.Publish(ctx,
-		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publication{Channel: "chat:random", Data: []byte(`{"text":"yo"}`)},
-		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"bye"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:random", Data: json.RawMessage(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"bye"}`)},
 	)
 	require.NoError(t, err)
 
@@ -92,17 +92,30 @@ func TestClientPublish(t *testing.T) {
 	assert.JSONEq(t, `{"channel":"chat:random","data":{"text":"yo"}}`, string(cmds[1].Params))
 	assert.JSONEq(t, `{"channel":"chat:general","data":{"text":"bye"}}`, string(cmds[2].Params))
 
+	// data that isn't already marshaled is marshaled at send time
+	err = c.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: map[string]any{"text": "hola"}})
+	require.NoError(t, err)
+	require.Len(t, srv.requests, 2)
+	cmds = srv.requests[1]
+	require.Len(t, cmds, 1)
+	assert.JSONEq(t, `{"channel":"chat:general","data":{"text":"hola"}}`, string(cmds[0].Params))
+
+	// unmarshalable data is an error identifying the channel, and nothing is sent
+	err = c.Publish(ctx, &centrifugo.Publication{Channel: "chat:bad", Data: func() {}})
+	assert.ErrorContains(t, err, "error marshaling data for channel chat:bad")
+	assert.Len(t, srv.requests, 2)
+
 	// an error reply is attributed to the channel of the publish it corresponds to
 	srv.nextReplies = []string{`{"result":{}}`, `{"error":{"code":102,"message":"unknown channel"}}`}
 	err = c.Publish(ctx,
-		&centrifugo.Publication{Channel: "chat:general", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publication{Channel: "chat:nope", Data: []byte(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:nope", Data: json.RawMessage(`{"text":"yo"}`)},
 	)
 	assert.EqualError(t, err, "error publishing to channel chat:nope: unknown channel: 102")
 
 	// a non-200 response is an error
 	srv.Close()
-	err = c.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: []byte(`{}`)})
+	err = c.Publish(ctx, &centrifugo.Publication{Channel: "chat:general", Data: json.RawMessage(`{}`)})
 	assert.ErrorContains(t, err, "error sending publishes")
 }
 

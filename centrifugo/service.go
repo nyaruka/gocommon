@@ -64,7 +64,8 @@ func (s *Service) Subscribed(ctx context.Context, channels ...string) (map[strin
 // Publish sends the given publishes to the server, skipping any whose channel has no current subscribers - such
 // publishes would be delivered to nobody so dropping them just saves the server the work. Subscriber presence for
 // all the channels is resolved in a single lookup and the surviving publishes are sent as a single pipelined
-// request, so a batch of any size costs at most two round-trips and lands or fails together.
+// request, so a batch of any size costs at most two round-trips and lands or fails together. Because data is only
+// marshaled at send time, callers can pass unmarshaled values and dropped publishes never pay the marshaling cost.
 //
 // Note this is inherently best-effort: presence is read before publishing, so a subscriber arriving in between
 // misses this batch. Callers should treat delivery as an optimization for live watchers, not a guarantee.

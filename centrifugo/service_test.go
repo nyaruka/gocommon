@@ -1,6 +1,7 @@
 package centrifugo_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	valkey "github.com/gomodule/redigo/redis"
@@ -68,9 +69,9 @@ func TestServicePublish(t *testing.T) {
 
 	// only publishes to subscribed channels are sent
 	err := svc.Publish(ctx,
-		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"hi"}`)},
-		&centrifugo.Publication{Channel: "chat:2", Data: []byte(`{"text":"yo"}`)},
-		&centrifugo.Publication{Channel: "chat:1", Data: []byte(`{"text":"bye"}`)},
+		&centrifugo.Publication{Channel: "chat:1", Data: json.RawMessage(`{"text":"hi"}`)},
+		&centrifugo.Publication{Channel: "chat:2", Data: json.RawMessage(`{"text":"yo"}`)},
+		&centrifugo.Publication{Channel: "chat:1", Data: json.RawMessage(`{"text":"bye"}`)},
 	)
 	require.NoError(t, err)
 	assert.JSONEq(t, `[
@@ -80,13 +81,19 @@ func TestServicePublish(t *testing.T) {
 
 	// a batch with no subscribed channels doesn't touch the server at all
 	mock.Clear()
-	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: []byte(`{}`)})
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: json.RawMessage(`{}`)})
+	require.NoError(t, err)
+	assert.Empty(t, mock.Publications())
+
+	// and because marshaling only happens at send time, dropped publishes never pay for it - even unmarshalable
+	// data isn't an error when nobody is subscribed to its channel
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:2", Data: func() {}})
 	require.NoError(t, err)
 	assert.Empty(t, mock.Publications())
 
 	// client errors are returned
 	mock.SetError(assert.AnError)
-	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})
+	err = svc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: json.RawMessage(`{}`)})
 	assert.ErrorIs(t, err, assert.AnError)
 	mock.SetError(nil)
 
@@ -97,7 +104,7 @@ func TestServicePublish(t *testing.T) {
 	defer badVK.Close()
 
 	badSvc := centrifugo.NewService(mock, badVK)
-	err = badSvc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: []byte(`{}`)})
+	err = badSvc.Publish(ctx, &centrifugo.Publication{Channel: "chat:1", Data: json.RawMessage(`{}`)})
 	assert.ErrorContains(t, err, "error checking channel subscriptions")
 	assert.Empty(t, mock.Publications())
 }

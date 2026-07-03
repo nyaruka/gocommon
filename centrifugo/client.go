@@ -10,10 +10,13 @@ import (
 	"github.com/centrifugal/gocent/v3"
 )
 
-// Publication is a single publish of data to a channel.
+// Publication is a single publish of data to a channel. Data can be any JSON marshal-able value and is only
+// marshaled when the publication is actually sent, so callers can defer the marshaling cost of publications that
+// end up dropped (see Service.Publish). Pre-marshaled JSON should be typed as json.RawMessage - a plain []byte
+// would be marshaled as a base64 string.
 type Publication struct {
-	Channel string          `json:"channel"`
-	Data    json.RawMessage `json:"data"`
+	Channel string `json:"channel"`
+	Data    any    `json:"data"`
 }
 
 // Client is the interface for Centrifugo API clients, real and mock.
@@ -42,7 +45,11 @@ func (c *client) Publish(ctx context.Context, pubs ...*Publication) error {
 
 	pipe := c.gc.Pipe()
 	for _, p := range pubs {
-		if err := pipe.AddPublish(p.Channel, p.Data); err != nil {
+		data, err := json.Marshal(p.Data)
+		if err != nil {
+			return fmt.Errorf("error marshaling data for channel %s: %w", p.Channel, err)
+		}
+		if err := pipe.AddPublish(p.Channel, data); err != nil {
 			return fmt.Errorf("error adding publish for channel %s: %w", p.Channel, err)
 		}
 	}
