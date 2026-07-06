@@ -1,3 +1,7 @@
+v1.86.2 (2026-07-06)
+-------------------------
+ * Verify spool directory is writable on start, not just present
+
 v1.86.1 (2026-07-03)
 -------------------------
  * Marshal centrifugo publication data at send time
