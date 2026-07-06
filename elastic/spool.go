@@ -54,6 +54,14 @@ func (s *Spool) Start() error {
 		return fmt.Errorf("error creating spool directory %s: %w", s.directory, err)
 	}
 
+	// MkdirAll succeeds if directory already exists even if it's not writable, so probe actual writability
+	probe, err := os.CreateTemp(s.directory, ".probe-*")
+	if err != nil {
+		return fmt.Errorf("spool directory %s is not writable: %w", s.directory, err)
+	}
+	probe.Close()
+	os.Remove(probe.Name())
+
 	// enumerate existing files to get current size
 	files, err := s.enumerateFiles()
 	if err != nil {
