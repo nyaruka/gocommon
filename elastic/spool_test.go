@@ -1,6 +1,8 @@
 package elastic_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -58,4 +60,27 @@ func TestSpool(t *testing.T) {
 	assertCount(t, testClient, "test-spool", 3)
 
 	spool.Stop()
+}
+
+func TestSpoolStartDirectoryErrors(t *testing.T) {
+	// a file in place of the directory means it can't be created
+	notADir := filepath.Join(t.TempDir(), "spool")
+	require.NoError(t, os.WriteFile(notADir, []byte("!"), 0644))
+
+	spool := elastic.NewSpool(nil, notADir, 30*time.Second)
+	err := spool.Start()
+	assert.ErrorContains(t, err, "error creating spool directory")
+
+	// an existing but unwritable directory should fail the writability probe.. but skip if running as
+	// root because then permission bits are ignored
+	if os.Geteuid() == 0 {
+		t.Skip("running as root so can't test unwritable directory")
+	}
+
+	unwritable := filepath.Join(t.TempDir(), "spool")
+	require.NoError(t, os.Mkdir(unwritable, 0555))
+
+	spool = elastic.NewSpool(nil, unwritable, 30*time.Second)
+	err = spool.Start()
+	assert.ErrorContains(t, err, "is not writable")
 }
