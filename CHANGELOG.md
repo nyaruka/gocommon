@@ -1,3 +1,7 @@
+v1.87.0 (2026-07-07)
+-------------------------
+ * Accept business-scoped user IDs as WhatsApp URNs
+
 v1.86.2 (2026-07-06)
 -------------------------
  * Verify spool directory is writable on start, not just present
