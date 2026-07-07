@@ -1,3 +1,7 @@
+v1.89.1 (2026-07-07)
+-------------------------
+ * Restore elastic.Spool type alias for symmetry with dynamo.Spool
+
 v1.89.0 (2026-07-07)
 -------------------------
  * Rename spool package to spools for consistency with other packages
