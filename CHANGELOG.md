@@ -1,3 +1,7 @@
+v1.88.0 (2026-07-07)
+-------------------------
+ * Extract generic file-backed spool package used by dynamo and elastic spools
+
 v1.87.0 (2026-07-07)
 -------------------------
  * Accept business-scoped user IDs as WhatsApp URNs
