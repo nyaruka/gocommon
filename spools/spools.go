@@ -1,6 +1,6 @@
-// Package spool provides a generic file-backed spool for items which couldn't be written to their primary store and
+// Package spools provides a generic file-backed spool for items which couldn't be written to their primary store and
 // need to be retried later.
-package spool
+package spools
 
 import (
 	"bufio"

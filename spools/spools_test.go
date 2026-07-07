@@ -1,4 +1,4 @@
-package spool_test
+package spools_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/nyaruka/gocommon/dates"
-	"github.com/nyaruka/gocommon/spool"
+	"github.com/nyaruka/gocommon/spools"
 	"github.com/nyaruka/gocommon/uuids"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ func TestSpool(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "spool")
 	fl := &flusher{failing: map[string]bool{}}
 
-	s := spool.New(dir, time.Hour, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s := spools.New(dir, time.Hour, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	require.NoError(t, s.Start())
 	defer s.Stop()
 
@@ -118,14 +118,14 @@ func TestSpoolRestart(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "spool")
 	fl := &flusher{}
 
-	s := spool.New(dir, time.Hour, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s := spools.New(dir, time.Hour, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	require.NoError(t, s.Start())
 	require.NoError(t, s.Add([]*thing{{Name: "Thing 1", Count: 123}, {Name: "Thing 2", Count: 234}}))
 	require.NoError(t, s.Add([]*thing{{Name: "Thing 3", Count: 345}}))
 	s.Stop()
 
 	// new spool instance picks up size from the existing files and flushes them in the background
-	s = spool.New(dir, 100*time.Millisecond, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s = spools.New(dir, 100*time.Millisecond, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	require.NoError(t, s.Start())
 	defer s.Stop()
 
@@ -141,7 +141,7 @@ func TestSpoolCorruptFile(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "spool")
 	fl := &flusher{}
 
-	s := spool.New(dir, time.Hour, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s := spools.New(dir, time.Hour, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	require.NoError(t, s.Start())
 	defer s.Stop()
 
@@ -165,10 +165,10 @@ func TestSpoolAddMarshalError(t *testing.T) {
 		if t.Name == "bad" {
 			return nil, errors.New("can't marshal")
 		}
-		return spool.MarshalJSON(t)
+		return spools.MarshalJSON(t)
 	}
 
-	s := spool.New(dir, time.Hour, marshal, spool.UnmarshalJSON[*thing], (&flusher{}).flush)
+	s := spools.New(dir, time.Hour, marshal, spools.UnmarshalJSON[*thing], (&flusher{}).flush)
 	require.NoError(t, s.Start())
 	defer s.Stop()
 
@@ -189,7 +189,7 @@ func TestSpoolStartDirectoryErrors(t *testing.T) {
 	notADir := filepath.Join(t.TempDir(), "spool")
 	require.NoError(t, os.WriteFile(notADir, []byte("!"), 0644))
 
-	s := spool.New(notADir, time.Hour, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s := spools.New(notADir, time.Hour, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	err := s.Start()
 	assert.ErrorContains(t, err, "error creating spool directory")
 
@@ -202,7 +202,7 @@ func TestSpoolStartDirectoryErrors(t *testing.T) {
 	unwritable := filepath.Join(t.TempDir(), "spool")
 	require.NoError(t, os.Mkdir(unwritable, 0555))
 
-	s = spool.New(unwritable, time.Hour, spool.MarshalJSON[*thing], spool.UnmarshalJSON[*thing], fl.flush)
+	s = spools.New(unwritable, time.Hour, spools.MarshalJSON[*thing], spools.UnmarshalJSON[*thing], fl.flush)
 	err = s.Start()
 	assert.ErrorContains(t, err, "is not writable")
 }

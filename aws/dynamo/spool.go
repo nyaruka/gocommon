@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/nyaruka/gocommon/spool"
+	"github.com/nyaruka/gocommon/spools"
 )
 
 // spooled is a DynamoDB item and the table it's destined for.
@@ -46,25 +46,25 @@ func unmarshalSpooled(data []byte) (*spooled, error) {
 
 // Spool writes DynamoDB items to local files and periodically retries putting them in DynamoDB.
 //
-// Flushing is at-least-once so items may be re-put after a crash - see [spool.Spool].
+// Flushing is at-least-once so items may be re-put after a crash - see [spools.Spool].
 type Spool struct {
 	client *dynamodb.Client
-	spool  *spool.Spool[*spooled]
+	spool  *spools.Spool[*spooled]
 }
 
 // NewSpool creates a new spool using the given directory and flush interval.
 func NewSpool(client *dynamodb.Client, directory string, flushInterval time.Duration) *Spool {
 	s := &Spool{client: client}
-	s.spool = spool.New(directory, flushInterval, marshalSpooled, unmarshalSpooled, s.flushBatch)
+	s.spool = spools.New(directory, flushInterval, marshalSpooled, unmarshalSpooled, s.flushBatch)
 	return s
 }
 
-// Start starts the spool's background flushing - see [spool.Spool.Start].
+// Start starts the spool's background flushing - see [spools.Spool.Start].
 func (s *Spool) Start() error {
 	return s.spool.Start()
 }
 
-// Stop stops the spool's background flushing - see [spool.Spool.Stop].
+// Stop stops the spool's background flushing - see [spools.Spool.Stop].
 func (s *Spool) Stop() {
 	s.spool.Stop()
 }
@@ -78,7 +78,7 @@ func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error
 	return s.spool.Add(batch)
 }
 
-// Flush performs an immediate flush of all spooled files - see [spool.Spool.Flush].
+// Flush performs an immediate flush of all spooled files - see [spools.Spool.Flush].
 func (s *Spool) Flush() error {
 	return s.spool.Flush()
 }
