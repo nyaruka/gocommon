@@ -33,7 +33,7 @@ func TestFair(t *testing.T) {
 
 	defer assertvk.FlushDB()
 
-	q := queues.NewFair("test", 3)
+	q := queues.NewFair("test", 3, time.Minute*5, 3)
 
 	assertQueued := func(expected map[queues.OwnerID]int) {
 		actualStrings, err := valkey.StringMap(vc.Do("ZRANGE", "{test}:queued", 0, -1, "WITHSCORES"))
@@ -64,6 +64,14 @@ func TestFair(t *testing.T) {
 		}
 
 		assert.Equal(t, expected, actual)
+
+		// the in-flight records should always match the active counts
+		numInFlight := 0
+		for _, count := range expected {
+			numInFlight += count
+		}
+		assertvk.HLen(t, vc, "{test}:inflight", numInFlight)
+		assertvk.ZCard(t, vc, "{test}:expires", numInFlight)
 	}
 
 	assertTasks := func(owner queues.OwnerID, expected0, expected1 []string) {
@@ -91,7 +99,7 @@ func TestFair(t *testing.T) {
 	assertActive(map[queues.OwnerID]int{})
 	assertTasks("owner1", []string{}, []string{})
 	assertTasks("owner2", []string{}, []string{})
-	assertDump(`{"queued": {}, "active": {}, "paused": {}}`)
+	assertDump(`{"queued": {}, "active": {}, "paused": {}, "inflight": {}, "dead": 0}`)
 
 	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
 	task2UUID := assertPush(t, q, vc, "owner1", true, []byte(`task2`))
@@ -118,11 +126,11 @@ func TestFair(t *testing.T) {
 	assertActive(map[queues.OwnerID]int{"owner1": 2, "owner2": 1})
 	assertTasks("owner1", []string{"01980000-0000-7000-8000-000000000004|task4"}, []string{})
 	assertTasks("owner2", []string{"01980000-0000-7000-8000-000000000003|task3"}, []string{})
-	assertDump(`{"queued": {"owner1": 1, "owner2": 1}, "active": {"owner1": 2, "owner2": 1}, "paused": {}}`)
+	assertDump(`{"queued": {"owner1": 1, "owner2": 1}, "active": {"owner1": 2, "owner2": 1}, "paused": {}, "inflight": {"owner1": 2, "owner2": 1}, "dead": 0}`)
 
 	// mark task2 and task1 (owner1) as complete
-	q.Done(ctx, vc, "owner1")
-	q.Done(ctx, vc, "owner1")
+	q.Done(ctx, vc, task2UUID)
+	q.Done(ctx, vc, task1UUID)
 
 	assertQueued(map[queues.OwnerID]int{"owner1": 1, "owner2": 1})
 	assertActive(map[queues.OwnerID]int{"owner2": 1})
@@ -143,9 +151,9 @@ func TestFair(t *testing.T) {
 	assertActive(map[queues.OwnerID]int{"owner1": 1, "owner2": 2})
 
 	// mark remaining tasks as complete
-	q.Done(ctx, vc, "owner1")
-	q.Done(ctx, vc, "owner2")
-	q.Done(ctx, vc, "owner2")
+	q.Done(ctx, vc, task4UUID)
+	q.Done(ctx, vc, task5UUID)
+	q.Done(ctx, vc, task3UUID)
 
 	assertQueued(map[queues.OwnerID]int{})
 	assertActive(map[queues.OwnerID]int{})
@@ -162,7 +170,7 @@ func TestFair(t *testing.T) {
 
 	assertQueued(map[queues.OwnerID]int{"owner1": 1, "owner2": 2})
 	assertActive(map[queues.OwnerID]int{"owner1": 1})
-	assertDump(`{"queued": {"owner1": 1, "owner2": 2}, "active": {"owner1": 1}, "paused": {"owner1": 1}}`)
+	assertDump(`{"queued": {"owner1": 1, "owner2": 2}, "active": {"owner1": 1}, "paused": {"owner1": 1}, "inflight": {"owner1": 1}, "dead": 0}`)
 
 	paused, err := q.Paused(ctx, vc)
 	assert.NoError(t, err)
@@ -184,10 +192,10 @@ func TestFair(t *testing.T) {
 
 	assertPop(t, q, vc, task7UUID, "owner1", "task7")
 
-	q.Done(ctx, vc, "owner1")
-	q.Done(ctx, vc, "owner1")
-	q.Done(ctx, vc, "owner2")
-	q.Done(ctx, vc, "owner2")
+	q.Done(ctx, vc, task6UUID)
+	q.Done(ctx, vc, task7UUID)
+	q.Done(ctx, vc, task8UUID)
+	q.Done(ctx, vc, task9UUID)
 
 	assertQueued(map[queues.OwnerID]int{})
 	assertActive(map[queues.OwnerID]int{})
@@ -209,9 +217,9 @@ func TestFair(t *testing.T) {
 	assertQueued(map[queues.OwnerID]int{})
 	assertActive(map[queues.OwnerID]int{"owner2": 1})
 
-	// if we somehow call done too many times, we never get negative workers
-	q.Done(ctx, vc, "owner2")
-	q.Done(ctx, vc, "owner2")
+	// if we somehow call done too many times, the extra calls are no-ops
+	q.Done(ctx, vc, task11UUID)
+	q.Done(ctx, vc, task11UUID)
 
 	assertActive(map[queues.OwnerID]int{})
 }
@@ -223,13 +231,17 @@ func TestTaskPayloads(t *testing.T) {
 
 	defer assertvk.FlushDB()
 
-	q := queues.NewFair("test", 2)
+	q := queues.NewFair("test", 2, time.Minute*5, 3)
 
 	task1UUID := assertPush(t, q, vc, "owner1", true, []byte(`{"foo": "|"}`))
 	task2UUID := assertPush(t, q, vc, "owner1", true, []byte(`task2`))
 
 	assertPop(t, q, vc, task1UUID, "owner1", `{"foo": "|"}`)
 	assertPop(t, q, vc, task2UUID, "owner1", "task2")
+
+	// owner IDs can't contain the separator used in the in-flight records
+	_, err := q.Push(t.Context(), vc, "owner|1", false, []byte(`task3`))
+	assert.EqualError(t, err, "owner ID cannot contain '|': owner|1")
 }
 
 func TestFairMaxActivePerOwner(t *testing.T) {
@@ -240,7 +252,7 @@ func TestFairMaxActivePerOwner(t *testing.T) {
 
 	defer assertvk.FlushDB()
 
-	q := queues.NewFair("test", 2)
+	q := queues.NewFair("test", 2, time.Minute*5, 3)
 
 	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
 	task2UUID := assertPush(t, q, vc, "owner1", true, []byte(`task2`))
@@ -250,9 +262,233 @@ func TestFairMaxActivePerOwner(t *testing.T) {
 	assertPop(t, q, vc, task1UUID, "owner1", "task1")
 	assertPop(t, q, vc, "", "", "") // owner1 has reached max active tasks
 
-	q.Done(ctx, vc, "owner1")
+	q.Done(ctx, vc, task2UUID)
 
 	assertPop(t, q, vc, task3UUID, "owner1", "task3") // now we can pop task3
+}
+
+func TestFairLeaseExpiry(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	now := base
+	queues.SetTimeNow(func() time.Time { return now })
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewFair("test", 3, time.Minute*5, 3)
+
+	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
+
+	p1 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 1, p1.Attempts)
+
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{"owner1": 1})
+	assertvk.HGetAll(t, vc, "{test}:inflight", map[string]string{string(task1UUID): "owner1|0|1|task1"})
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*5).UnixMilli()))
+
+	// lease not yet expired so nothing to pop
+	now = base.Add(time.Minute * 4)
+	assertPop(t, q, vc, "", "", "")
+
+	// advance past the lease expiry.. task is redelivered with a new lease
+	now = base.Add(time.Minute * 6)
+	p2 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 2, p2.Attempts)
+
+	// active count is unchanged because the task still holds its slot
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{"owner1": 1})
+	assertvk.HGetAll(t, vc, "{test}:inflight", map[string]string{string(task1UUID): "owner1|0|2|task1"})
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*11).UnixMilli()))
+
+	// done releases the lease and heals the active count
+	assert.NoError(t, q.Done(ctx, vc, p2.ID))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+	assertvk.HLen(t, vc, "{test}:inflight", 0)
+	assertvk.ZCard(t, vc, "{test}:expires", 0)
+
+	// a late done from the original consumer is a no-op
+	assert.NoError(t, q.Done(ctx, vc, p1.ID))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+}
+
+func TestFairDeadLetter(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	now := base
+	queues.SetTimeNow(func() time.Time { return now })
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewFair("test", 3, time.Minute*5, 2) // tasks can only be delivered twice
+
+	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
+
+	p1 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 1, p1.Attempts)
+
+	now = now.Add(time.Minute * 6)
+	p2 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 2, p2.Attempts)
+
+	// on the next expiry the task has used up its delivery attempts and is moved to the dead list
+	now = now.Add(time.Minute * 6)
+	assertPop(t, q, vc, "", "", "")
+
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+	assertvk.HLen(t, vc, "{test}:inflight", 0)
+	assertvk.ZCard(t, vc, "{test}:expires", 0)
+	assertvk.LGetAll(t, vc, "{test}:dead", []string{string(task1UUID) + "|owner1|0|2|task1"})
+
+	// done for a dead-lettered task is a no-op
+	assert.NoError(t, q.Done(ctx, vc, p2.ID))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+
+	dump, err := q.Dump(ctx, vc)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"queued": {}, "active": {}, "paused": {}, "inflight": {}, "dead": 1}`, string(dump))
+}
+
+func TestFairPausedLease(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	now := base
+	queues.SetTimeNow(func() time.Time { return now })
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewFair("test", 3, time.Minute*5, 3)
+
+	task1UUID := assertPush(t, q, vc, "owner1", true, []byte(`task1`))
+
+	assertPop(t, q, vc, task1UUID, "owner1", "task1")
+
+	require.NoError(t, q.Pause(ctx, vc, "owner1"))
+
+	// when the lease expires, it's re-armed instead of the task being redelivered
+	now = base.Add(time.Minute * 6)
+	assertPop(t, q, vc, "", "", "")
+
+	assertvk.ZGetAll(t, vc, "{test}:queued", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{"owner1": 1})
+	assertvk.HGetAll(t, vc, "{test}:inflight", map[string]string{string(task1UUID): "owner1|1|1|task1"})
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*11).UnixMilli()))
+
+	require.NoError(t, q.Resume(ctx, vc, "owner1"))
+
+	// still within the re-armed lease.. nothing to pop
+	assertPop(t, q, vc, "", "", "")
+
+	// once the re-armed lease expires, the task is redelivered with its attempts preserved
+	now = base.Add(time.Minute * 12)
+	p2 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 2, p2.Attempts)
+
+	assert.NoError(t, q.Done(ctx, vc, p2.ID))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+}
+
+func TestFairExtend(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	now := base
+	queues.SetTimeNow(func() time.Time { return now })
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewFair("test", 3, time.Minute*5, 3)
+
+	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
+
+	p1 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+
+	// extend the lease before it expires
+	now = base.Add(time.Minute * 4)
+	extended, err := q.Extend(ctx, vc, p1.ID, p1.Attempts, time.Minute*5)
+	assert.NoError(t, err)
+	assert.True(t, extended)
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*9).UnixMilli()))
+
+	// past the original expiry but within the extended lease.. nothing to pop
+	now = base.Add(time.Minute * 6)
+	assertPop(t, q, vc, "", "", "")
+
+	// past the extended lease.. task is redelivered
+	now = base.Add(time.Minute * 10)
+	p2 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assert.Equal(t, 2, p2.Attempts)
+
+	// the original consumer's extend is now fenced off and doesn't touch the new lease
+	now = base.Add(time.Minute * 11)
+	extended, err = q.Extend(ctx, vc, p1.ID, p1.Attempts, time.Minute*5)
+	assert.NoError(t, err)
+	assert.False(t, extended)
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*15).UnixMilli()))
+
+	// but the current holder can extend
+	extended, err = q.Extend(ctx, vc, p2.ID, p2.Attempts, time.Minute*5)
+	assert.NoError(t, err)
+	assert.True(t, extended)
+	assertvk.ZScore(t, vc, "{test}:expires", string(task1UUID), float64(base.Add(time.Minute*16).UnixMilli()))
+
+	assert.NoError(t, q.Done(ctx, vc, p2.ID))
+
+	// can't extend a lease that no longer exists
+	extended, err = q.Extend(ctx, vc, p2.ID, p2.Attempts, time.Minute*5)
+	assert.NoError(t, err)
+	assert.False(t, extended)
+}
+
+func TestFairReconcile(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	q := queues.NewFair("test", 3, time.Minute*5, 3)
+
+	// simulate leaked active counts, e.g. from consumers which died before tasks were recorded as in-flight
+	_, err := vc.Do("ZADD", "{test}:active", 3, "owner1")
+	require.NoError(t, err)
+
+	// owner1 appears to be at max active tasks so their queued tasks are starved
+	task1UUID := assertPush(t, q, vc, "owner1", false, []byte(`task1`))
+	assertPop(t, q, vc, "", "", "")
+
+	// reconciling rebuilds the active counts from the in-flight records
+	require.NoError(t, q.Reconcile(ctx, vc))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+
+	p1 := assertPop(t, q, vc, task1UUID, "owner1", "task1")
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{"owner1": 1})
+
+	// reconciling again is a no-op because the counts match the in-flight records
+	require.NoError(t, q.Reconcile(ctx, vc))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{"owner1": 1})
+
+	require.NoError(t, q.Done(ctx, vc, p1.ID))
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
 }
 
 func TestFairConcurrency(t *testing.T) {
@@ -263,7 +499,7 @@ func TestFairConcurrency(t *testing.T) {
 
 	defer assertvk.FlushDB()
 
-	q := queues.NewFair("test", 5) // one owner can only occupy 5 of the 10 consumers at a time
+	q := queues.NewFair("test", 5, time.Minute*5, 3) // one owner can only occupy 5 of the 10 consumers at a time
 
 	type ownerAndTask struct {
 		owner queues.OwnerID
@@ -323,18 +559,18 @@ func TestFairConcurrency(t *testing.T) {
 			defer vc.Close()
 
 			for {
-				_, owner, task, err := q.Pop(ctx, vc)
+				p, err := q.Pop(ctx, vc)
 				assert.NoError(t, err, "Consumer %d failed to pop task", i)
 
-				if task != nil {
+				if p != nil {
 					time.Sleep(time.Duration(rand.IntN(5)) * time.Millisecond)
 
-					err = q.Done(ctx, vc, owner)
+					err = q.Done(ctx, vc, p.ID)
 					assert.NoError(t, err, "Consumer %d failed to mark task done", i)
 
-					recordTaskProcessed(owner, string(task))
+					recordTaskProcessed(p.Owner, string(p.Task))
 
-					fmt.Printf("Consumer %d processed task %s for owner %s\n", i, string(task), owner)
+					fmt.Printf("Consumer %d processed task %s for owner %s\n", i, string(p.Task), p.Owner)
 				} else {
 					fmt.Printf("Consumer %d got no task when popping\n", i)
 				}
@@ -359,11 +595,111 @@ func TestFairConcurrency(t *testing.T) {
 
 	assertvk.ZGetAll(t, vc, "{test}:queued", map[string]float64{})
 	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+	assertvk.HLen(t, vc, "{test}:inflight", 0)
+	assertvk.ZCard(t, vc, "{test}:expires", 0)
 
 	for i := range 5 {
 		assertvk.LGetAll(t, vc, fmt.Sprintf("{test}:o:owner%d/0", i+1), []string{})
 		assertvk.LGetAll(t, vc, fmt.Sprintf("{test}:o:owner%d/1", i+1), []string{})
 	}
+}
+
+func TestFairConcurrencyWithKills(t *testing.T) {
+	ctx := t.Context()
+	vp := assertvk.TestDB()
+	vc := vp.Get()
+	defer vc.Close()
+
+	defer assertvk.FlushDB()
+
+	// short lease (real time) so tasks abandoned by killed consumers are redelivered quickly, and enough
+	// attempts that repeated kills of the same task never dead-letter it
+	q := queues.NewFair("test", 5, time.Millisecond*250, 100)
+
+	numTasks := 500
+	pushed := make(map[string]bool, numTasks)
+	processed := make(map[string]bool, numTasks)
+	kills, redeliveries := 0, 0
+
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
+	// start 5 producers to push tasks concurrently
+	for i := range 5 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			vc := vp.Get()
+			defer vc.Close()
+
+			for range numTasks / 5 {
+				owner := queues.OwnerID(fmt.Sprintf("owner%d", rand.IntN(5)+1))
+				task := []byte(uuid.Must(uuid.NewV7()).String())
+				_, err := q.Push(ctx, vc, owner, false, task)
+				assert.NoError(t, err, "Producer %d failed to push task for owner %s", i, owner)
+
+				mutex.Lock()
+				pushed[string(task)] = true
+				mutex.Unlock()
+			}
+		}()
+	}
+
+	// start 10 consumers which are "killed" on ~20% of deliveries, i.e. never mark the task done
+	for i := range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			vc := vp.Get()
+			defer vc.Close()
+
+			for {
+				p, err := q.Pop(ctx, vc)
+				assert.NoError(t, err, "Consumer %d failed to pop task", i)
+
+				if p != nil && rand.IntN(5) == 0 {
+					mutex.Lock()
+					kills++
+					mutex.Unlock()
+				} else if p != nil {
+					err = q.Done(ctx, vc, p.ID)
+					assert.NoError(t, err, "Consumer %d failed to mark task done", i)
+
+					mutex.Lock()
+					processed[string(p.Task)] = true
+					if p.Attempts > 1 {
+						redeliveries++
+					}
+					mutex.Unlock()
+				}
+
+				mutex.Lock()
+				allDone := len(processed) >= numTasks
+				mutex.Unlock()
+
+				if allDone {
+					return
+				}
+				time.Sleep(time.Millisecond)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// every pushed task was processed at least once, via redelivery if its consumer was killed
+	assert.Equal(t, pushed, processed)
+	assert.Greater(t, kills, 0, "expected some deliveries to be killed")
+	assert.Greater(t, redeliveries, 0, "expected some tasks to be redelivered")
+
+	// and all state converges to empty
+	assertvk.ZGetAll(t, vc, "{test}:queued", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{test}:active", map[string]float64{})
+	assertvk.HLen(t, vc, "{test}:inflight", 0)
+	assertvk.ZCard(t, vc, "{test}:expires", 0)
+	assertvk.LLen(t, vc, "{test}:dead", 0)
 }
 
 // assertPush is a helper function that asserts the result of a Push operation
@@ -376,16 +712,18 @@ func assertPush(t *testing.T, q *queues.Fair, vc valkey.Conn, owner queues.Owner
 }
 
 // assertPop is a helper function that asserts the result of a Pop operation
-func assertPop(t *testing.T, q *queues.Fair, vc valkey.Conn, expectedID queues.TaskID, expectedOwner queues.OwnerID, expectedTask string) {
+func assertPop(t *testing.T, q *queues.Fair, vc valkey.Conn, expectedID queues.TaskID, expectedOwner queues.OwnerID, expectedTask string) *queues.PoppedTask {
 	ctx := t.Context()
 
-	uuid, owner, task, err := q.Pop(ctx, vc)
+	p, err := q.Pop(ctx, vc)
 	require.NoError(t, err)
 	if expectedTask != "" {
-		assert.Equal(t, expectedID, uuid)
-		assert.Equal(t, expectedOwner, owner)
-		assert.Equal(t, expectedTask, string(task))
+		require.NotNil(t, p)
+		assert.Equal(t, expectedID, p.ID)
+		assert.Equal(t, expectedOwner, p.Owner)
+		assert.Equal(t, expectedTask, string(p.Task))
 	} else {
-		assert.Nil(t, task)
+		assert.Nil(t, p)
 	}
+	return p
 }
