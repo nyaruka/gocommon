@@ -6,9 +6,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"sync"
@@ -42,12 +44,17 @@ var spooledFileRegex = regexp.MustCompile(`^[^#]+#(\d+)\.jsonl$`) // <uuid>#<cou
 
 const maxLineSize = 1024 * 1024 // 1MB
 
+// errCorrupt indicates file content which will never parse, as opposed to a transient read error
+var errCorrupt = errors.New("corrupt spool file")
+
 // Spool writes batches of items to local JSONL files and periodically retries writing them to their primary store
 // using a flush function.
 //
 // Flushing is at-least-once: a crash between a successful flush and removal of the flushed file means that the file's
 // entire batch is replayed on restart. Writes performed by the flush function must therefore be idempotent or
 // deduplicated downstream.
+//
+// A file whose content fails to parse is renamed with a .corrupt suffix and thereafter ignored.
 type Spool[T any] struct {
 	directory     string
 	flushInterval time.Duration
@@ -56,6 +63,7 @@ type Spool[T any] struct {
 	flush         FlushFunc[T]
 
 	size    atomic.Int64
+	sizeMu  sync.Mutex // held whilst making a file visible + incrementing size, and whilst recounting size from disk
 	flushMu sync.Mutex
 
 	ctx    context.Context
@@ -106,6 +114,18 @@ func (s *Spool[T]) Start() error {
 	}
 	s.size.Store(int64(total))
 
+	// warn about files we don't recognize (e.g. written by an older version, or previously quarantined as corrupt)
+	// as they will never be flushed or counted
+	entries, err := os.ReadDir(s.directory)
+	if err != nil {
+		return fmt.Errorf("error listing spool directory %s: %w", s.directory, err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && !spooledFileRegex.MatchString(entry.Name()) {
+			slog.Warn("ignoring unrecognized file in spool directory", "file", filepath.Join(s.directory, entry.Name()))
+		}
+	}
+
 	s.wg.Add(1)
 
 	go func() {
@@ -139,13 +159,17 @@ func (s *Spool[T]) Stop() {
 // Add writes items to a new spool file. The file is written with a temporary name and renamed into place so that a
 // partially written file is never eligible for flushing.
 func (s *Spool[T]) Add(items []T) error {
-	path := fmt.Sprintf("%s/%s#%d.jsonl", s.directory, uuids.NewV7(), len(items))
+	path := filepath.Join(s.directory, fmt.Sprintf("%s#%d.jsonl", uuids.NewV7(), len(items)))
 	temp := path + ".tmp"
 
 	if err := s.writeFile(temp, items); err != nil {
 		os.Remove(temp)
 		return err
 	}
+
+	// rename and increment under the size lock so a concurrent recount from disk can't miss or double count us
+	s.sizeMu.Lock()
+	defer s.sizeMu.Unlock()
 
 	if err := os.Rename(temp, path); err != nil {
 		os.Remove(temp)
@@ -214,8 +238,17 @@ func (s *Spool[T]) flushAll() error {
 	for _, file := range files {
 		items, err := s.readFile(file.path)
 		if err != nil {
-			// don't let one unreadable file prevent others from being flushed
-			slog.Error("error reading spool file", "error", err, "file", file.path)
+			if errors.Is(err, errCorrupt) {
+				// content will never parse so quarantine the file instead of retrying it forever
+				slog.Error("quarantining corrupt spool file", "error", err, "file", file.path)
+				if err := os.Rename(file.path, file.path+".corrupt"); err != nil {
+					return fmt.Errorf("error quarantining corrupt spool file %s: %w", file.path, err)
+				}
+			} else {
+				// read error may be transient so leave the file for retry, but don't let it prevent
+				// others from being flushed
+				slog.Error("error reading spool file", "error", err, "file", file.path)
+			}
 			continue
 		}
 
@@ -237,7 +270,11 @@ func (s *Spool[T]) flushAll() error {
 		}
 	}
 
-	// refresh size from disk to pick up any manual file changes
+	// refresh size from disk to pick up any manual file changes, under the size lock so we can't clobber or double
+	// count a concurrent Add
+	s.sizeMu.Lock()
+	defer s.sizeMu.Unlock()
+
 	files, err = s.enumerateFiles()
 	if err != nil {
 		return fmt.Errorf("error enumerating files after flush: %w", err)
@@ -265,7 +302,7 @@ func (s *Spool[T]) readFile(path string) ([]T, error) {
 	for scanner.Scan() {
 		item, err := s.unmarshal(scanner.Bytes())
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling item from spool file %s: %w", path, err)
+			return nil, fmt.Errorf("%w %s: error unmarshaling item: %w", errCorrupt, path, err)
 		}
 		items = append(items, item)
 	}
@@ -288,7 +325,7 @@ func (s *Spool[T]) enumerateFiles() ([]spooledFile, error) {
 		if !entry.IsDir() {
 			matches := spooledFileRegex.FindStringSubmatch(entry.Name())
 			if len(matches) == 2 {
-				path := fmt.Sprintf("%s/%s", s.directory, entry.Name())
+				path := filepath.Join(s.directory, entry.Name())
 				count, _ := strconv.Atoi(matches[1])
 				files = append(files, spooledFile{path: path, count: count})
 			}

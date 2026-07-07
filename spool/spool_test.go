@@ -147,13 +147,15 @@ func TestSpoolCorruptFile(t *testing.T) {
 
 	require.NoError(t, s.Add([]*thing{{Name: "Thing 1", Count: 123}}))
 
-	// a file that can't be read shouldn't prevent other files being flushed
+	// a file that can't be parsed shouldn't prevent other files being flushed, and should be quarantined so that
+	// it isn't retried forever
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "corrupt#1.jsonl"), []byte("{invalid"), 0644))
 
 	require.NoError(t, s.Flush())
 	assert.Equal(t, 1, fl.numBatches())
-	assert.Equal(t, 1, s.Size()) // the corrupt file's claimed count
-	assert.FileExists(t, filepath.Join(dir, "corrupt#1.jsonl"))
+	assert.Equal(t, 0, s.Size())
+	assert.NoFileExists(t, filepath.Join(dir, "corrupt#1.jsonl"))
+	assert.FileExists(t, filepath.Join(dir, "corrupt#1.jsonl.corrupt"))
 }
 
 func TestSpoolAddMarshalError(t *testing.T) {
