@@ -1,3 +1,7 @@
+v1.89.3 (2026-07-07)
+-------------------------
+ * Expose resolved region as field on s3x.Service
+
 v1.89.2 (2026-07-07)
 -------------------------
  * Resolve region for virtual-host URLs from SDK config in s3x.NewService
