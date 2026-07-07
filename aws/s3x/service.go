@@ -3,6 +3,7 @@ package s3x
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -20,9 +21,9 @@ type Service struct {
 	urler  ObjectURLer
 }
 
-// NewService creates a new S3 service, resolving credentials from the standard AWS SDK default chain. The region is
-// still required for virtual-host style object URLs.
-func NewService(ctx context.Context, region, endpoint string, pathStyle bool) (*Service, error) {
+// NewService creates a new S3 service, resolving credentials and region from the standard AWS SDK default chain. A
+// resolvable region is required for virtual-host style object URLs.
+func NewService(ctx context.Context, endpoint string, pathStyle bool) (*Service, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -32,7 +33,10 @@ func NewService(ctx context.Context, region, endpoint string, pathStyle bool) (*
 	if pathStyle {
 		urler = PathStyleURLer(endpoint)
 	} else {
-		urler = VirtualHostURLer(region)
+		if cfg.Region == "" {
+			return nil, errors.New("unable to resolve AWS region, required for virtual-host style object URLs")
+		}
+		urler = VirtualHostURLer(cfg.Region)
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
