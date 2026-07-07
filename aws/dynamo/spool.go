@@ -78,6 +78,11 @@ func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error
 	return s.spool.Add(batch)
 }
 
+// Flush performs an immediate flush of all spooled files - see [spool.Spool.Flush].
+func (s *Spool) Flush() error {
+	return s.spool.Flush()
+}
+
 // Size returns the number of items currently spooled.
 func (s *Spool) Size() int {
 	return s.spool.Size()
