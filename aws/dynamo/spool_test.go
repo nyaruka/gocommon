@@ -1,6 +1,7 @@
 package dynamo_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,8 +46,8 @@ func TestSpool(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
-	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b#2@TestSpool.jsonl")
-	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1@TestSpool.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1.jsonl")
 
 	spool.Stop()
 
@@ -65,6 +66,48 @@ func TestSpool(t *testing.T) {
 	assert.Equal(t, "Thing 1", obj.Data["name"])
 
 	spool.Stop()
+}
+
+func TestSpoolMixedTableFile(t *testing.T) {
+	ctx := t.Context()
+
+	client, err := dynamo.NewClient(ctx, "http://localstack:4566")
+	require.NoError(t, err)
+
+	defer dyntest.Drop(t, client, "TestSpoolMixed1")
+	defer dyntest.Drop(t, client, "TestSpoolMixed2")
+
+	createTestTable(t, client, "TestSpoolMixed1")
+	createTestTable(t, client, "TestSpoolMixed2")
+
+	// a single spool file can contain items for different tables - can't happen via Add but could be hand crafted,
+	// e.g. by an operator recovering spooled data
+	dir := filepath.Join(t.TempDir(), "spool")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+
+	item1, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}})
+	item2, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2"}})
+	line1, _ := attributevalue.MarshalMapJSON(item1)
+	line2, _ := attributevalue.MarshalMapJSON(item2)
+	content := fmt.Sprintf("{\"table\":\"TestSpoolMixed1\",\"item\":%s}\n{\"table\":\"TestSpoolMixed2\",\"item\":%s}\n", line1, line2)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "mixed#2.jsonl"), []byte(content), 0644))
+
+	spool := dynamo.NewSpool(client, dir, 30*time.Second)
+	require.NoError(t, spool.Start())
+	defer spool.Stop()
+
+	assert.Equal(t, 2, spool.Size())
+
+	require.NoError(t, spool.Flush())
+	assert.Equal(t, 0, spool.Size())
+
+	obj1, err := dynamo.GetItem(ctx, client, "TestSpoolMixed1", dynamo.Key{PK: "P11", SK: "SAA"})
+	require.NoError(t, err)
+	assert.Equal(t, "Thing 1", obj1.Data["name"])
+
+	obj2, err := dynamo.GetItem(ctx, client, "TestSpoolMixed2", dynamo.Key{PK: "P22", SK: "SBB"})
+	require.NoError(t, err)
+	assert.Equal(t, "Thing 2", obj2.Data["name"])
 }
 
 func TestSpoolStartDirectoryErrors(t *testing.T) {

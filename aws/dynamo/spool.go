@@ -1,226 +1,119 @@
 package dynamo
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
-	"log/slog"
-	"os"
-	"regexp"
-	"strconv"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/nyaruka/gocommon/uuids"
+	"github.com/nyaruka/gocommon/spool"
 )
 
-type spooledFile struct {
-	path  string
-	count int
+// spooled is a DynamoDB item and the table it's destined for.
+type spooled struct {
 	table string
+	item  map[string]types.AttributeValue
 }
 
-var spooledFileRegex = regexp.MustCompile(`^[^@]+#(\d+)@(\w+)\.jsonl$`) // <uuid>#<count>@<table>.jsonl
+// spooledJSON is the serialized form of a spooled item.
+type spooledJSON struct {
+	Table string          `json:"table"`
+	Item  json.RawMessage `json:"item"`
+}
+
+func marshalSpooled(s *spooled) ([]byte, error) {
+	item, err := attributevalue.MarshalMapJSON(s.item)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling item: %w", err)
+	}
+	return json.Marshal(&spooledJSON{Table: s.table, Item: item})
+}
+
+func unmarshalSpooled(data []byte) (*spooled, error) {
+	sj := &spooledJSON{}
+	if err := json.Unmarshal(data, sj); err != nil {
+		return nil, err
+	}
+	item, err := attributevalue.UnmarshalMapJSON(sj.Item)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling item: %w", err)
+	}
+	return &spooled{table: sj.Table, item: item}, nil
+}
 
 // Spool writes DynamoDB items to local files and periodically retries putting them in DynamoDB.
+//
+// Flushing is at-least-once so items may be re-put after a crash - see [spool.Spool].
 type Spool struct {
-	client        *dynamodb.Client
-	directory     string
-	size          atomic.Int64
-	flushInterval time.Duration
-
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	client *dynamodb.Client
+	spool  *spool.Spool[*spooled]
 }
 
+// NewSpool creates a new spool using the given directory and flush interval.
 func NewSpool(client *dynamodb.Client, directory string, flushInterval time.Duration) *Spool {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	return &Spool{
-		client:        client,
-		directory:     directory,
-		flushInterval: flushInterval,
-		ctx:           ctx,
-		cancel:        cancel,
-	}
+	s := &Spool{client: client}
+	s.spool = spool.New(directory, flushInterval, marshalSpooled, unmarshalSpooled, s.flushBatch)
+	return s
 }
 
+// Start starts the spool's background flushing - see [spool.Spool.Start].
 func (s *Spool) Start() error {
-	// ensure directory exists
-	if err := os.MkdirAll(s.directory, 0755); err != nil {
-		return fmt.Errorf("error creating spool directory %s: %w", s.directory, err)
-	}
-
-	// MkdirAll succeeds if directory already exists even if it's not writable, so probe actual writability
-	probe, err := os.CreateTemp(s.directory, ".probe-*")
-	if err != nil {
-		return fmt.Errorf("spool directory %s is not writable: %w", s.directory, err)
-	}
-	probe.Close()
-	os.Remove(probe.Name())
-
-	// enumerate existing files to get current size
-	files, err := s.enumerateFiles()
-	if err != nil {
-		return err
-	}
-	total := 0
-	for _, file := range files {
-		total += file.count
-	}
-	s.size.Store(int64(total))
-
-	s.wg.Add(1)
-
-	go func() {
-		defer s.wg.Done()
-
-		ticker := time.NewTicker(s.flushInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-s.ctx.Done():
-				return
-			case <-ticker.C:
-				if err := s.flush(); err != nil {
-					slog.Error("error flushing spool", "error", err)
-				}
-			}
-		}
-	}()
-
-	return nil
+	return s.spool.Start()
 }
 
+// Stop stops the spool's background flushing - see [spool.Spool.Stop].
 func (s *Spool) Stop() {
-	s.cancel()
-
-	s.wg.Wait()
+	s.spool.Stop()
 }
 
+// Add writes items destined for the given table to a new spool file.
 func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error {
-	path := fmt.Sprintf("%s/%s#%d@%s.jsonl", s.directory, uuids.NewV7(), len(items), table)
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("error creating spool file %s: %w", path, err)
+	batch := make([]*spooled, len(items))
+	for i, item := range items {
+		batch[i] = &spooled{table: table, item: item}
 	}
-	defer f.Close()
-
-	for _, item := range items {
-		marshaled, err := attributevalue.MarshalMapJSON(item)
-		if err != nil {
-			return fmt.Errorf("error marshaling item to JSON for spool file %s: %w", path, err)
-		}
-
-		marshaled = append(marshaled, []byte("\n")...)
-
-		if _, err := f.Write(marshaled); err != nil {
-			return fmt.Errorf("error writing item to spool file %s: %w", path, err)
-		}
-
-		s.size.Add(1)
-	}
-
-	return nil
+	return s.spool.Add(batch)
 }
 
-func (s *Spool) flush() error {
-	ctx := s.ctx
-
-	files, err := s.enumerateFiles()
-	if err != nil {
-		return fmt.Errorf("error enumerating files to flush: %w", err)
-	}
-
-	for _, file := range files {
-		items, err := s.readFile(file.path)
-		if err != nil {
-			return fmt.Errorf("error loading spool file %s: %w", file.path, err)
-		}
-
-		unprocessed, err := batchPutItem(ctx, s.client, file.table, items)
-		if err != nil {
-			slog.Error("error flushing spooled dynamo batch", "error", err, "file", file.path)
-			continue
-		}
-
-		if len(unprocessed) > 0 {
-			// write unprocessed items back to a new spool file
-			if err := s.Add(file.table, unprocessed); err != nil {
-				return fmt.Errorf("error writing unprocessed items back to spool file %s: %w", file.path, err)
-			}
-		}
-
-		if err := os.Remove(file.path); err != nil {
-			return fmt.Errorf("error removing spool file %s: %w", file.path, err)
-		}
-	}
-
-	// refresh size from disk to pick up any manual file changes
-	files, err = s.enumerateFiles()
-	if err != nil {
-		return fmt.Errorf("error enumerating files after flush: %w", err)
-	}
-	total := 0
-	for _, file := range files {
-		total += file.count
-	}
-	s.size.Store(int64(total))
-
-	return nil
+// Flush performs an immediate flush of all spooled files - see [spool.Spool.Flush].
+func (s *Spool) Flush() error {
+	return s.spool.Flush()
 }
 
-func (s *Spool) readFile(path string) ([]map[string]types.AttributeValue, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("error opening spool file %s: %w", path, err)
-	}
-	defer f.Close()
-
-	items := make([]map[string]types.AttributeValue, 0, 25)
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		item, err := attributevalue.UnmarshalMapJSON(scanner.Bytes())
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling item from spool file %s: %w", path, err)
-		}
-		items = append(items, item)
-	}
-
-	return items, nil
-}
-
-func (s *Spool) enumerateFiles() ([]spooledFile, error) {
-	files := make([]spooledFile, 0)
-
-	entries, err := os.ReadDir(s.directory)
-	if err != nil {
-		return nil, fmt.Errorf("error listing spool directory %s: %w", s.directory, err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			matches := spooledFileRegex.FindStringSubmatch(entry.Name())
-			if len(matches) == 3 {
-				path := fmt.Sprintf("%s/%s", s.directory, entry.Name())
-				count, _ := strconv.Atoi(matches[1])
-				files = append(files, spooledFile{path: path, count: count, table: matches[2]})
-			}
-		}
-	}
-	return files, nil
-}
-
+// Size returns the number of items currently spooled.
 func (s *Spool) Size() int {
-	return int(s.size.Load())
+	return s.spool.Size()
 }
 
+// Delete removes the spool directory and all spooled files.
 func (s *Spool) Delete() error {
-	return os.RemoveAll(s.directory)
+	return s.spool.Delete()
+}
+
+func (s *Spool) flushBatch(ctx context.Context, batch []*spooled) ([]*spooled, error) {
+	// group by table preserving order - though in practice a spool file is written from a single writer batch so all
+	// of its items are for the same table
+	tables := make([]string, 0, 1)
+	byTable := make(map[string][]map[string]types.AttributeValue, 1)
+	for _, sp := range batch {
+		if _, seen := byTable[sp.table]; !seen {
+			tables = append(tables, sp.table)
+		}
+		byTable[sp.table] = append(byTable[sp.table], sp.item)
+	}
+
+	var failed []*spooled
+	for _, table := range tables {
+		unprocessed, err := batchPutItem(ctx, s.client, table, byTable[table])
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range unprocessed {
+			failed = append(failed, &spooled{table: table, item: item})
+		}
+	}
+	return failed, nil
 }

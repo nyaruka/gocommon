@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v9"
+	"github.com/nyaruka/gocommon/spool"
 	"github.com/nyaruka/gocommon/syncx"
 )
 
@@ -16,7 +17,7 @@ import (
 type Writer struct {
 	client  *elasticsearch.TypedClient
 	batcher *syncx.Batcher[*Document]
-	spool   *Spool
+	spool   *spool.Spool[*Document]
 
 	wg sync.WaitGroup
 
@@ -25,7 +26,7 @@ type Writer struct {
 }
 
 // NewWriter creates a new writer.
-func NewWriter(client *elasticsearch.TypedClient, maxItems int, maxAge time.Duration, bufferSize int, spool *Spool) *Writer {
+func NewWriter(client *elasticsearch.TypedClient, maxItems int, maxAge time.Duration, bufferSize int, spool *spool.Spool[*Document]) *Writer {
 	w := &Writer{
 		client: client,
 		spool:  spool,
