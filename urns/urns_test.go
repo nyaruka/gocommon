@@ -14,6 +14,16 @@ func TestIsValidScheme(t *testing.T) {
 	assert.False(t, urns.IsValidScheme("xyz"))
 }
 
+func TestIsWhatsAppBSUID(t *testing.T) {
+	assert.True(t, urns.IsWhatsAppBSUID("whatsapp:US.abc123"))
+	assert.True(t, urns.IsWhatsAppBSUID("whatsapp:RW.1A2B3C"))
+
+	assert.False(t, urns.IsWhatsAppBSUID("whatsapp:12065551212")) // a phone number, not a BSUID
+	assert.False(t, urns.IsWhatsAppBSUID("whatsapp:us.abc123"))   // lowercase country code isn't a valid BSUID
+	assert.False(t, urns.IsWhatsAppBSUID("bsuid:US.abc123"))      // bsuid scheme, not whatsapp
+	assert.False(t, urns.IsWhatsAppBSUID("tel:+12065551212"))
+}
+
 func TestURNProperties(t *testing.T) {
 	testCases := []struct {
 		urn      urns.URN

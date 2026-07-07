@@ -222,3 +222,9 @@ var BSUID = &Scheme{
 		return whatsAppBSUIDRegex.MatchString(path)
 	},
 }
+
+// IsWhatsAppBSUID reports whether the URN is a WhatsApp business-scoped user ID, i.e. a whatsapp URN whose path
+// is in the CC.ALPHANUMERIC form rather than a phone number.
+func IsWhatsAppBSUID(u URN) bool {
+	return u.Scheme() == WhatsApp.Prefix && whatsAppBSUIDRegex.MatchString(u.Path())
+}
