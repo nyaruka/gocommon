@@ -48,26 +48,17 @@ for _, taskID in ipairs(expired) do
         local priority = string.sub(record, sep1 + 1, sep2 - 1)
         local attempts = tonumber(string.sub(record, sep2 + 1, sep3 - 1))
         local task = string.sub(record, sep3 + 1)
-        local q0Key, q1Key = queueKeys(owner)
 
-        if redis.call("SISMEMBER", pausedKey, owner) == 1 then
-            -- owner is paused so return the task to the front of the queue it came from
-            local listKey = q0Key
-            if priority == "1" then
-                listKey = q1Key
-            end
-            redis.call("LPUSH", listKey, taskID .. "|" .. task)
-            updateQueued(owner, q0Key, q1Key)
-            redis.call("HDEL", inflightKey, taskID)
-            redis.call("ZREM", expiresKey, taskID)
-            decrActive(owner)
-        elseif attempts >= maxAttempts then
+        if attempts >= maxAttempts then
             -- task has been delivered too many times.. move to the dead list
             redis.call("RPUSH", deadKey, taskID .. "|" .. record)
             redis.call("LTRIM", deadKey, -1000, -1)
             redis.call("HDEL", inflightKey, taskID)
             redis.call("ZREM", expiresKey, taskID)
             decrActive(owner)
+        elseif redis.call("SISMEMBER", pausedKey, owner) == 1 then
+            -- owner is paused so re-arm the lease.. the task will be redelivered after they're resumed
+            redis.call("ZADD", expiresKey, deadline, taskID)
         else
             -- redeliver with a new lease.. active count is unchanged as the task still holds its slot
             attempts = attempts + 1

@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	valkey "github.com/gomodule/redigo/redis"
@@ -29,8 +30,9 @@ import (
 // Every popped task is recorded as in-flight with a lease. Consumers must call Done when a task completes, and can
 // call Extend if they need to hold a task for longer than the lease duration. If a consumer dies without calling
 // Done, the task's lease eventually expires and the task is redelivered to a subsequent caller of Pop. Tasks which
-// have been delivered the max number of attempts are instead moved to the dead list. Delivery is thus at-least-once:
-// consumers can see the same task more than once if a previous consumer died holding it or ran past its lease.
+// have been delivered the max number of attempts are instead moved to the dead list, and expired tasks of paused
+// owners keep their leases re-armed until the owner is resumed. Delivery is thus at-least-once: consumers can see
+// the same task more than once if a previous consumer died holding it or ran past its lease.
 //
 // Note: it would be nice if owner queues could use distict hash tags and so live on different nodes in a cluster, but
 // our push and pop scripts require atomic changes to the queued/active sets and the task lists.
@@ -50,8 +52,13 @@ func NewFair(keyBase string, maxActivePerOwner int, lease time.Duration, maxAtte
 var luaFairPush string
 var scriptFairPush = valkey.NewScript(4, luaFairPush)
 
-// Push adds the passed in task to our queue for execution. Note that owner IDs must not contain '|'.
+// Push adds the passed in task to our queue for execution. Owner IDs must not contain '|' as it's used as a
+// separator in the in-flight records.
 func (q *Fair) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, priority bool, task []byte) (TaskID, error) {
+	if strings.ContainsRune(string(owner), '|') {
+		return "", fmt.Errorf("owner ID cannot contain '|': %s", owner)
+	}
+
 	id := newTaskID()
 
 	// prepend UUID to the task
@@ -132,13 +139,14 @@ func (q *Fair) Done(ctx context.Context, vc valkey.Conn, id TaskID) error {
 
 //go:embed lua/fair_extend.lua
 var luaFairExtend string
-var scriptFairExtend = valkey.NewScript(1, luaFairExtend)
+var scriptFairExtend = valkey.NewScript(2, luaFairExtend)
 
-// Extend renews the lease on the given in-flight task for the given duration from now, returning whether the task
-// was still leased. Consumers holding tasks for longer than the queue's lease duration should call this periodically
-// to prevent redelivery.
-func (q *Fair) Extend(ctx context.Context, vc valkey.Conn, id TaskID, dur time.Duration) (bool, error) {
-	extended, err := valkey.Int(scriptFairExtend.DoContext(ctx, vc, q.expiresKey(), timeNow().Add(dur).UnixMilli(), string(id)))
+// Extend renews the lease on the given in-flight task for the given duration from now. Consumers holding tasks for
+// longer than the queue's lease duration should call this periodically to prevent redelivery. The attempts value
+// from the delivery acts as a fence: if the task's lease already expired and it was redelivered to another consumer,
+// the lease is not extended and false is returned.
+func (q *Fair) Extend(ctx context.Context, vc valkey.Conn, id TaskID, attempts int, dur time.Duration) (bool, error) {
+	extended, err := valkey.Int(scriptFairExtend.DoContext(ctx, vc, q.expiresKey(), q.inflightKey(), timeNow().Add(dur).UnixMilli(), string(id), attempts))
 	if err != nil {
 		return false, fmt.Errorf("error extending lease for task %s: %w", id, err)
 	}
