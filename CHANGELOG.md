@@ -1,3 +1,7 @@
+v1.89.2 (2026-07-07)
+-------------------------
+ * Resolve region for virtual-host URLs from SDK config in s3x.NewService
+
 v1.89.1 (2026-07-07)
 -------------------------
  * Restore elastic.Spool type alias for symmetry with dynamo.Spool
