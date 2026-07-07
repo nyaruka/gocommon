@@ -1,6 +1,7 @@
 package s3x_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,7 +14,7 @@ import (
 func TestService(t *testing.T) {
 	ctx := t.Context()
 
-	svc, err := s3x.NewService(ctx, "us-east-1", "http://localstack:4566", true)
+	svc, err := s3x.NewService(ctx, "http://localstack:4566", true)
 	assert.NoError(t, err)
 
 	err = svc.Test(ctx, "gocommon-tests")
@@ -74,7 +75,18 @@ func TestService(t *testing.T) {
 	err = svc.Test(ctx, "gocommon-tests")
 	assert.Error(t, err)
 
-	aws, err := s3x.NewService(ctx, "us-east-1", "https://s3.amazonaws.com", false)
+	// ensure no region is resolvable from the host environment
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_CONFIG_FILE", os.DevNull)
+
+	// virtual-host style URLs require a resolvable region
+	_, err = s3x.NewService(ctx, "https://s3.amazonaws.com", false)
+	assert.EqualError(t, err, "unable to resolve AWS region, required for virtual-host style object URLs")
+
+	t.Setenv("AWS_REGION", "us-east-1")
+
+	aws, err := s3x.NewService(ctx, "https://s3.amazonaws.com", false)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://gocommon-tests.s3.us-east-1.amazonaws.com/1/hello+world.txt", aws.ObjectURL("gocommon-tests", "1/hello world.txt"))
 }
