@@ -18,7 +18,12 @@ import (
 // Service is simple abstraction layer to work with a S3-compatible storage service
 type Service struct {
 	Client *s3.Client
-	urler  ObjectURLer
+
+	// Region is the AWS region resolved from the SDK default chain, and is what object URLs are qualified with when
+	// using virtual-host style URLs. It can be empty when using path-style URLs.
+	Region string
+
+	urler ObjectURLer
 }
 
 // NewService creates a new S3 service, resolving credentials and region from the standard AWS SDK default chain. A
@@ -47,7 +52,7 @@ func NewService(ctx context.Context, endpoint string, pathStyle bool) (*Service,
 		o.UsePathStyle = pathStyle // urls as endpoint/bucket/key instead of bucket.endpoint/key
 	})
 
-	return &Service{Client: client, urler: urler}, nil
+	return &Service{Client: client, Region: cfg.Region, urler: urler}, nil
 }
 
 // ObjectURL returns the publicly accessible URL for the given object
