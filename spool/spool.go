@@ -55,6 +55,9 @@ var errCorrupt = errors.New("corrupt spool file")
 // deduplicated downstream.
 //
 // A file whose content fails to parse is renamed with a .corrupt suffix and thereafter ignored.
+//
+// The directory must be exclusive to a single spool instance: all spools use the same file naming pattern, so a spool
+// can't distinguish its own files from those of another spool sharing the directory and would try to flush them.
 type Spool[T any] struct {
 	directory     string
 	flushInterval time.Duration
