@@ -1,3 +1,9 @@
+v1.89.0 (2026-07-07)
+-------------------------
+ * Rename spool package to spools for consistency with other packages
+ * Rework Fair queue to lease tasks to consumers
+ * Add queues package (moved from vkutil)
+
 v1.88.0 (2026-07-07)
 -------------------------
  * Extract generic file-backed spool package used by dynamo and elastic spools
