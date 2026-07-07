@@ -84,9 +84,15 @@ func TestService(t *testing.T) {
 	_, err = s3x.NewService(ctx, "https://s3.amazonaws.com", false)
 	assert.EqualError(t, err, "unable to resolve AWS region, required for virtual-host style object URLs")
 
+	// but path-style URLs don't
+	noRegion, err := s3x.NewService(ctx, "http://localstack:4566", true)
+	assert.NoError(t, err)
+	assert.Equal(t, "", noRegion.Region)
+
 	t.Setenv("AWS_REGION", "us-east-1")
 
 	aws, err := s3x.NewService(ctx, "https://s3.amazonaws.com", false)
 	assert.NoError(t, err)
+	assert.Equal(t, "us-east-1", aws.Region)
 	assert.Equal(t, "https://gocommon-tests.s3.us-east-1.amazonaws.com/1/hello+world.txt", aws.ObjectURL("gocommon-tests", "1/hello world.txt"))
 }
