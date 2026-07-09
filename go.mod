@@ -20,7 +20,6 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/lib/pq v1.12.3
-	github.com/nyaruka/librato v1.1.1
 	github.com/nyaruka/null/v3 v3.0.0
 	github.com/nyaruka/phonenumbers/v2 v2.0.2
 	github.com/nyaruka/vkutil v0.21.0
