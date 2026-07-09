@@ -1,3 +1,8 @@
+v1.89.4 (2026-07-09)
+-------------------------
+ * Update dependencies
+ * Remove unused analytics package
+
 v1.89.3 (2026-07-07)
 -------------------------
  * Expose resolved region as field on s3x.Service
