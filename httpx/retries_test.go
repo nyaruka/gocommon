@@ -44,18 +44,18 @@ func TestNewExponentialRetries(t *testing.T) {
 	// test backoffs with 5% jitter
 	retries.Jitter = 0.05
 
-	assert.Equal(t, time.Duration(1964211898), retries.Backoff(0))
-	assert.Equal(t, time.Duration(3970345144), retries.Backoff(1))
-	assert.Equal(t, time.Duration(8142741864), retries.Backoff(2))
-	assert.Equal(t, time.Duration(15884061444), retries.Backoff(3))
+	assert.Equal(t, time.Duration(2047085134), retries.Backoff(0))
+	assert.Equal(t, time.Duration(3908410473), retries.Backoff(1))
+	assert.Equal(t, time.Duration(8011635928), retries.Backoff(2))
+	assert.Equal(t, time.Duration(16390662899), retries.Backoff(3))
 
 	// test backoffs with 100% jitter
 	retries.Jitter = 1.0
 
-	assert.Equal(t, time.Duration(1280781995), retries.Backoff(0))
-	assert.Equal(t, time.Duration(5877181643), retries.Backoff(1))
-	assert.Equal(t, time.Duration(8587700930), retries.Backoff(2))
-	assert.Equal(t, time.Duration(9120513163), retries.Backoff(3))
+	assert.Equal(t, time.Duration(1682256946), retries.Backoff(0))
+	assert.Equal(t, time.Duration(2654297682), retries.Backoff(1))
+	assert.Equal(t, time.Duration(9503023613), retries.Backoff(2))
+	assert.Equal(t, time.Duration(9126733867), retries.Backoff(3))
 }
 
 func TestParseRetryAfter(t *testing.T) {

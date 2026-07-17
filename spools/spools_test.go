@@ -69,10 +69,10 @@ func TestSpool(t *testing.T) {
 	require.NoError(t, s.Add([]*thing{{Name: "Thing 3", Count: 345}}))
 
 	assert.Equal(t, 3, s.Size())
-	assert.FileExists(t, filepath.Join(dir, "01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl"))
-	assert.FileExists(t, filepath.Join(dir, "01984174-59e8-7000-b664-880fc7581c77#1.jsonl"))
+	assert.FileExists(t, filepath.Join(dir, "01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl"))
+	assert.FileExists(t, filepath.Join(dir, "01984174-59e8-7000-9a98-cfcce3019710#1.jsonl"))
 
-	data, err := os.ReadFile(filepath.Join(dir, "01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl"))
+	data, err := os.ReadFile(filepath.Join(dir, "01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl"))
 	require.NoError(t, err)
 	assert.Equal(t, "{\"name\":\"Thing 1\",\"count\":123}\n{\"name\":\"Thing 2\",\"count\":234}\n", string(data))
 
@@ -91,8 +91,8 @@ func TestSpool(t *testing.T) {
 	require.NoError(t, s.Flush())
 	assert.Equal(t, 2, fl.numBatches())
 	assert.Equal(t, 1, s.Size())
-	assert.NoFileExists(t, filepath.Join(dir, "01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl"))
-	assert.NoFileExists(t, filepath.Join(dir, "01984174-59e8-7000-b664-880fc7581c77#1.jsonl"))
+	assert.NoFileExists(t, filepath.Join(dir, "01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl"))
+	assert.NoFileExists(t, filepath.Join(dir, "01984174-59e8-7000-9a98-cfcce3019710#1.jsonl"))
 
 	respooled, err := filepath.Glob(filepath.Join(dir, "*#1.jsonl"))
 	require.NoError(t, err)

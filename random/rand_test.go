@@ -14,15 +14,15 @@ func TestRand(t *testing.T) {
 	defer random.SetGenerator(random.DefaultGenerator)
 	random.SetGenerator(random.NewSeededGenerator(1234))
 
-	assert.Equal(t, 2, random.IntN(10))
-	assert.Equal(t, 5, random.IntN(10))
-	assert.Equal(t, 9, random.IntN(10))
-	assert.Equal(t, decimal.RequireFromString("0.8989115230327291"), random.Decimal())
-	assert.Equal(t, decimal.RequireFromString("0.6087185537746531"), random.Decimal())
-	assert.Equal(t, decimal.RequireFromString("0.3023554328904116"), random.Decimal())
+	assert.Equal(t, 0, random.IntN(10))
+	assert.Equal(t, 8, random.IntN(10))
+	assert.Equal(t, 4, random.IntN(10))
+	assert.Equal(t, decimal.RequireFromString("0.7189806938374759"), random.Decimal())
+	assert.Equal(t, decimal.RequireFromString("0.824272697040096"), random.Decimal())
+	assert.Equal(t, decimal.RequireFromString("0.10545532824596571"), random.Decimal())
 
-	assert.Equal(t, "Ej22bFMALM", random.String(10, []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")))
-	assert.Equal(t, "a!!aa!!a!a", random.String(10, []rune("a!z")))
+	assert.Equal(t, "lJ4ZfHEr25", random.String(10, []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")))
+	assert.Equal(t, "zzzaaz!aaz", random.String(10, []rune("a!z")))
 }
 
 func TestRandConcurrency(t *testing.T) {

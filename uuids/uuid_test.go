@@ -36,7 +36,7 @@ func TestNewV7(t *testing.T) {
 
 func TestV7Time(t *testing.T) {
 	// test with a known v7 UUID from the seeded generator (2024-08-01 17:29:30 UTC)
-	tm, err := uuids.V7Time("01910efd-5890-71e2-bd38-d266ec8d3716")
+	tm, err := uuids.V7Time("01910efd-5890-71e2-98c7-1f0d5859f77e")
 	assert.NoError(t, err)
 	assert.Equal(t, time.Date(2024, 8, 1, 17, 29, 30, 0, time.UTC), tm.Truncate(time.Second))
 
@@ -72,14 +72,14 @@ func TestSeededGenerator(t *testing.T) {
 	assert.Equal(t, 7, uuids.Version(string(uuid2)))
 	assert.Equal(t, 4, uuids.Version(string(uuid3)))
 
-	assert.Equal(t, uuids.UUID(`d2f852ec-7b4e-457f-ae7f-f8b243c49ff5`), uuid1)
-	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-bd38-d266ec8d3716`), uuid2)
-	assert.Equal(t, uuids.UUID(`8720f157-ca1c-432f-9c0b-2014ddc77094`), uuid3)
+	assert.Equal(t, uuids.UUID(`1b2083ab-a0cb-48da-924e-9de1a11831b3`), uuid1)
+	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-98c7-1f0d5859f77e`), uuid2)
+	assert.Equal(t, uuids.UUID(`b26fcae1-abb6-49f8-95cf-9fca95f1c30a`), uuid3)
 
 	uuids.SetGenerator(uuids.NewSeededGenerator(123456, dates.NewSequentialNow(time.Date(2024, 7, 32, 17, 29, 30, 123456, time.UTC), time.Second)))
 
 	// should get same sequence again for same seed
-	assert.Equal(t, uuids.UUID(`d2f852ec-7b4e-457f-ae7f-f8b243c49ff5`), uuids.NewV4())
-	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-bd38-d266ec8d3716`), uuids.NewV7())
-	assert.Equal(t, uuids.UUID(`8720f157-ca1c-432f-9c0b-2014ddc77094`), uuids.NewV4())
+	assert.Equal(t, uuids.UUID(`1b2083ab-a0cb-48da-924e-9de1a11831b3`), uuids.NewV4())
+	assert.Equal(t, uuids.UUID(`01910efd-5890-71e2-98c7-1f0d5859f77e`), uuids.NewV7())
+	assert.Equal(t, uuids.UUID(`b26fcae1-abb6-49f8-95cf-9fca95f1c30a`), uuids.NewV4())
 }

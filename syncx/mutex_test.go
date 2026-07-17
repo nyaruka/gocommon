@@ -1,7 +1,7 @@
 package syncx_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"sync"
 	"testing"
@@ -65,7 +65,7 @@ func TestHashMutex(t *testing.T) {
 	randString := func(n int) string {
 		b := make([]rune, n)
 		for i := range b {
-			b[i] = letters[rand.Intn(len(letters))]
+			b[i] = letters[rand.IntN(len(letters))]
 		}
 		return string(b)
 	}
