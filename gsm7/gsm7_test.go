@@ -1,8 +1,10 @@
 package gsm7_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nyaruka/gocommon/gsm7"
 
@@ -28,6 +30,22 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Equal(t, "?toobig", gsm7.Decode([]byte("\x81toobig")))
 
 	assert.Equal(t, []byte("hi!\x20\x3F"), gsm7.Encode("hi! ☺"))
+}
+
+// decoding a large payload must stay linear - a quadratic implementation would blow up on memory/time here
+func TestDecodeLargeInput(t *testing.T) {
+	input := bytes.Repeat([]byte{0x61}, 1<<20) // 1MB of 'a'
+
+	done := make(chan string, 1)
+	go func() { done <- gsm7.Decode(input) }()
+
+	select {
+	case out := <-done:
+		assert.Equal(t, len(input), len(out))
+		assert.Equal(t, strings.Repeat("a", len(input)), out)
+	case <-time.After(5 * time.Second):
+		t.Fatal("gsm7.Decode of 1MB did not complete within 5s - likely quadratic")
+	}
 }
 
 func TestValid(t *testing.T) {

@@ -1,6 +1,9 @@
 package gsm7
 
-import "bytes"
+import (
+	"bytes"
+	"strings"
+)
 
 // base gsm7 characters in our normal table
 var baseGSM7 = map[rune]byte{
@@ -272,10 +275,14 @@ func Encode(str string) []byte {
 
 // Decode decodes the passed in bytes as GSM7 encodings. Each byte is expected to
 // be a single 7 bit GSM7 character.
-func Decode(gsm7 []byte) (str string) {
+func Decode(gsm7 []byte) string {
 	var escaped bool
 	var found bool
 	var r rune
+
+	// each byte decodes to at most one rune, so len(gsm7) is a safe upper bound to preallocate
+	var sb strings.Builder
+	sb.Grow(len(gsm7))
 
 	for _, b := range gsm7 {
 		if b > max {
@@ -292,9 +299,9 @@ func Decode(gsm7 []byte) (str string) {
 		} else {
 			r = gsm7ToBase[b]
 		}
-		str += string(r)
+		sb.WriteRune(r)
 	}
-	return str
+	return sb.String()
 }
 
 // Segments calculates the number of SMS segments it will take to send the passed in text.

@@ -46,3 +46,13 @@ func TestGetTranslation(t *testing.T) {
 		assert.Equal(t, tc.am, trans.AmPm[0], "AM mismatch for locale %s", tc.locale)
 	}
 }
+
+func TestGetTranslationMalformedLocale(t *testing.T) {
+	// a malformed locale must not panic, it just falls back to a usable translation
+	for _, loc := range []i18n.Locale{"!!!", "xxx", "x", "абв", "zzz-ZZ"} {
+		assert.NotPanics(t, func() {
+			trans := dates.GetTranslation(loc)
+			require.NotNil(t, trans, "trans unexpectedly nil for locale '%s'", loc)
+		}, "GetTranslation panicked for locale '%s'", loc)
+	}
+}
