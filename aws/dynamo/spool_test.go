@@ -46,8 +46,8 @@ func TestSpool(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
-	assert.FileExists(t, "./_test_spool/01984174-5600-7000-aded-7d8b151cbd5b#2.jsonl")
-	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-b664-880fc7581c77#1.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl")
+	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-9a98-cfcce3019710#1.jsonl")
 
 	spool.Stop()
 

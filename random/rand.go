@@ -1,21 +1,20 @@
 package random
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sync"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 // DefaultGenerator is the default generator for calls to Rand()
-var DefaultGenerator = rand.New(rand.NewSource(time.Now().UnixNano()))
+var DefaultGenerator = rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 var currentGenerator = DefaultGenerator
 var lock sync.Mutex
 
 // NewSeededGenerator creates a new seeded generator
 func NewSeededGenerator(seed int64) *rand.Rand {
-	return rand.New(rand.NewSource(seed))
+	return rand.New(rand.NewPCG(uint64(seed), uint64(seed)))
 }
 
 // SetGenerator sets the rand used by Rand()
@@ -27,7 +26,7 @@ func SetGenerator(rnd *rand.Rand) {
 func IntN(n int) int {
 	lock.Lock()
 	defer lock.Unlock()
-	return currentGenerator.Intn(n)
+	return currentGenerator.IntN(n)
 }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
