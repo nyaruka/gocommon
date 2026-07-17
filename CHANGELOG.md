@@ -1,3 +1,7 @@
+v1.89.6 (2026-07-17)
+-------------------------
+ * Migrate from math/rand to math/rand/v2
+
 v1.89.5 (2026-07-15)
 -------------------------
  * Update phonenumbers to v2.0.4
