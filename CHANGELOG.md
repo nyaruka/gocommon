@@ -1,3 +1,7 @@
+v1.89.7 (2026-07-17)
+-------------------------
+ * Harden input handling against panics and unbounded allocation
+
 v1.89.6 (2026-07-17)
 -------------------------
  * Migrate from math/rand to math/rand/v2
