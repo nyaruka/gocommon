@@ -11,9 +11,16 @@ func TruncateEllipsis(s string, limit int) string {
 }
 
 func truncate(s string, limit int, ending string) string {
+	if limit < 0 {
+		limit = 0
+	}
 	runes := []rune(s)
 	if len(runes) <= limit {
 		return s
+	}
+	// not enough room to fit the ending, so just hard-truncate to the limit
+	if limit <= len(ending) {
+		return string(runes[:limit])
 	}
 	return string(runes[:limit-len(ending)]) + ending
 }

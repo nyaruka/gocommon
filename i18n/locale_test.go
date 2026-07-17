@@ -61,3 +61,17 @@ func TestBCP47Matcher(t *testing.T) {
 		assert.Equal(t, tc.best, best, "locale mismatch for preferred=%v available=%s", tc.preferred, tc.available)
 	}
 }
+
+func TestBCP47MatcherMalformed(t *testing.T) {
+	// malformed preferred locales must not panic, they just fall back to a default match
+	assert.NotPanics(t, func() {
+		m := i18n.NewBCP47Matcher("en-US", "es-US")
+		assert.Equal(t, "en-US", m.ForLocales("!!!", "xxx", "абв"))
+	})
+
+	// malformed available codes must not panic either
+	assert.NotPanics(t, func() {
+		m := i18n.NewBCP47Matcher("!!!", "en-US")
+		m.ForLocales("eng-US")
+	})
+}

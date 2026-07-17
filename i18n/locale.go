@@ -41,7 +41,12 @@ func (l Locale) Split() (Language, Country) {
 }
 
 func (l Locale) tag() language.Tag {
-	return language.MustParse(string(l))
+	// don't panic on a malformed locale, just treat it as undetermined so matching falls back to a default
+	t, err := language.Parse(string(l))
+	if err != nil {
+		return language.Und
+	}
+	return t
 }
 
 var NilLocale = Locale("")
@@ -62,7 +67,12 @@ type BCP47Matcher struct {
 func NewBCP47Matcher(codes ...string) *BCP47Matcher {
 	tags := make([]language.Tag, len(codes))
 	for i := range codes {
-		tags[i] = language.MustParse(codes[i])
+		// keep the tags slice aligned with codes; a malformed code becomes undetermined rather than panicking
+		t, err := language.Parse(codes[i])
+		if err != nil {
+			t = language.Und
+		}
+		tags[i] = t
 	}
 	return &BCP47Matcher{codes: codes, matcher: language.NewMatcher(tags)}
 }
