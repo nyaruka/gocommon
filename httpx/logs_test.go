@@ -49,6 +49,15 @@ func TestLogs(t *testing.T) {
 	assert.Equal(t, "GET /code/987654321/long-url/rwhrehreh/erhether/yreyrreyeyreu...", log1.Request)
 	assert.Equal(t, "HTTP/1.0 400 Bad Request\r\nContent-Length: 97\r\n\r\nlong response...", log1.Response)
 
+	// but the true sizes are recorded
+	assert.Equal(t, httpx.TraceSizes{Request: 288, Response: 145}, log1.Sizes)
+
+	// if a response body was discarded (e.g. read limit exceeded), the server declared Content-Length is
+	// used to record the true response size
+	trace1.ResponseBody = nil
+	log1 = httpx.NewLog(trace1, 32, 64, nil)
+	assert.Equal(t, httpx.TraceSizes{Request: 288, Response: 145}, log1.Sizes)
+
 	// create a request with a code we need to redact in the URL and in the header
 	req2, err := httpx.NewRequest(ctx, "GET", "http://temba.io/code/987654321/", nil, map[string]string{"X-Code": "987654321"})
 	require.NoError(t, err)

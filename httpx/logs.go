@@ -8,15 +8,23 @@ import (
 	"github.com/nyaruka/gocommon/stringsx"
 )
 
+// TraceSizes are the true sizes in bytes of a request and response, recorded because the traces themselves are
+// trimmed for logging.
+type TraceSizes struct {
+	Request  int `json:"request"`
+	Response int `json:"response"`
+}
+
 // LogWithoutTime is a single HTTP trace that can be serialized/deserialized to/from JSON. Note that this struct has no
 // time component because it's intended to be embedded in something that does.
 type LogWithoutTime struct {
-	URL        string `json:"url" validate:"required"`
-	StatusCode int    `json:"status_code,omitempty"`
-	Request    string `json:"request" validate:"required"`
-	Response   string `json:"response,omitempty"`
-	ElapsedMS  int    `json:"elapsed_ms"`
-	Retries    int    `json:"retries"`
+	URL        string     `json:"url" validate:"required"`
+	StatusCode int        `json:"status_code,omitempty"`
+	Request    string     `json:"request" validate:"required"`
+	Response   string     `json:"response,omitempty"`
+	ElapsedMS  int        `json:"elapsed_ms"`
+	Retries    int        `json:"retries"`
+	Sizes      TraceSizes `json:"sizes"`
 }
 
 // NewLogWithoutTime creates a new log
@@ -43,6 +51,7 @@ func NewLogWithoutTime(trace *Trace, trimURLTo, trimTracesTo int, redact strings
 		Response:   stringsx.TruncateEllipsis(response, trimTracesTo),
 		ElapsedMS:  int((trace.EndTime.Sub(trace.StartTime)) / time.Millisecond),
 		Retries:    trace.Retries,
+		Sizes:      TraceSizes{Request: trace.RequestSize(), Response: trace.ResponseSize()},
 	}
 }
 
