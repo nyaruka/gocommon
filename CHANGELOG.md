@@ -1,3 +1,7 @@
+v1.90.0 (2026-07-22)
+-------------------------
+ * Add request/response size tracking to httpx traces and logs
+
 v1.89.7 (2026-07-17)
 -------------------------
  * Harden input handling against panics and unbounded allocation
