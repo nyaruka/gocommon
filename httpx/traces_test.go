@@ -122,6 +122,40 @@ func TestTracesTransportConcurrent(t *testing.T) {
 	assert.Len(t, tt.Traces(), 20)
 }
 
+func TestTraceSizes(t *testing.T) {
+	ctx := context.Background()
+
+	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
+		"https://temba.io": {
+			httpx.NewMockResponse(200, nil, []byte(`{"ok": true}`)),
+		},
+	}))
+
+	request, err := httpx.NewRequest(ctx, "POST", "https://temba.io", bytes.NewReader([]byte(`{"foo": "bar"}`)), nil)
+	require.NoError(t, err)
+
+	resp, err := tt.RoundTrip(request)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	trace := tt.Traces()[0]
+	assert.Equal(t, len(trace.RequestTrace), trace.RequestSize())
+	assert.Equal(t, len(trace.ResponseTrace)+12, trace.ResponseSize())
+
+	// if the body was discarded, the server declared Content-Length is used in its place
+	trace.ResponseBody = nil
+	assert.Equal(t, len(trace.ResponseTrace)+12, trace.ResponseSize())
+
+	// unless there isn't one, e.g. a chunked response
+	trace.Response.ContentLength = -1
+	assert.Equal(t, len(trace.ResponseTrace), trace.ResponseSize())
+
+	// a connection error leaves no response at all
+	trace.Response = nil
+	trace.ResponseTrace = nil
+	assert.Equal(t, 0, trace.ResponseSize())
+}
+
 func TestNonUTF8Request(t *testing.T) {
 	ctx := context.Background()
 

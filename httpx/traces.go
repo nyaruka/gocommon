@@ -37,6 +37,23 @@ func (t *Trace) String() string {
 	return b.String()
 }
 
+// RequestSize returns the size in bytes of the request (headers and body).
+func (t *Trace) RequestSize() int {
+	return len(t.RequestTrace)
+}
+
+// ResponseSize returns the size in bytes of the response (headers and body). If the body was discarded by the caller
+// (e.g. because reading it exceeded a limit set with WithReadLimit and failed with ErrResponseSize) then the server
+// declared Content-Length, if any, is used as the best available record of its true size. Chunked or decompressed
+// responses declare no length and so will under-report.
+func (t *Trace) ResponseSize() int {
+	bodySize := len(t.ResponseBody)
+	if t.ResponseBody == nil && t.Response != nil && t.Response.ContentLength > 0 {
+		bodySize = int(t.Response.ContentLength)
+	}
+	return len(t.ResponseTrace) + bodySize
+}
+
 // SanitizedRequest returns a valid UTF-8 string version of the request, substituting the body with a placeholder
 // if it isn't valid UTF-8. It also strips any NULL characters as not all external dependencies can handle those.
 func (t *Trace) SanitizedRequest(placeholder string) string {
