@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	maxPathLength    = 255
+	// paths are limited such that any scheme:path identity fits comfortably in the 255 char columns
+	// that systems typically use to store them
+	maxPathLength    = 200
 	maxDisplayLength = 255
 )
 
@@ -103,7 +105,8 @@ func (u URN) Validate() error {
 		return fmt.Errorf("unknown URN scheme")
 	}
 
-	if len(path) > maxPathLength {
+	// measured in its escaped form since that's what is stored
+	if len(escape(path)) > maxPathLength {
 		return fmt.Errorf("path component too long")
 	}
 
