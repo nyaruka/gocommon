@@ -276,6 +276,7 @@ func TestValidate(t *testing.T) {
 		{urns.URN("ext:" + strings.Repeat("x", 251)), ""},
 		{urns.URN("ext:" + strings.Repeat("x", 252)), "identity too long"},
 		{urns.URN("ext:" + strings.Repeat("x", 256)), "path component too long"},
+		{urns.URN("ext:" + strings.Repeat("%", 100)), "identity too long"}, // path chars that escape count in their escaped form
 
 		{"webchat:aA3456789012345678901234", ""},
 		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},

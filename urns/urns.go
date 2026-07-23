@@ -108,8 +108,9 @@ func (u URN) Validate() error {
 		return fmt.Errorf("path component too long")
 	}
 
-	// identity (scheme:path) is what most systems store so has to be bounded as well
-	if len(scheme)+1+len(path) > maxIdentityLength {
+	// identity (scheme:path) is what most systems store so has to be bounded as well - measured in its escaped
+	// form since that's what is stored
+	if len(u.Identity()) > maxIdentityLength {
 		return fmt.Errorf("identity too long")
 	}
 
