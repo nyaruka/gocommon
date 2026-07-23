@@ -272,6 +272,11 @@ func TestValidate(t *testing.T) {
 
 		{"slack:U0123ABCDEF", ""},
 
+		// paths can be up to 255 chars but the whole identity (scheme:path) is also limited to 255
+		{urns.URN("ext:" + strings.Repeat("x", 251)), ""},
+		{urns.URN("ext:" + strings.Repeat("x", 252)), "identity too long"},
+		{urns.URN("ext:" + strings.Repeat("x", 256)), "path component too long"},
+
 		{"webchat:aA3456789012345678901234", ""},
 		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},
 		{"webchat:1234567890123456789", "invalid path component"},

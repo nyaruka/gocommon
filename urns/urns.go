@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	maxPathLength    = 255
-	maxDisplayLength = 255
+	maxIdentityLength = 255
+	maxPathLength     = 255
+	maxDisplayLength  = 255
 )
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -105,6 +106,11 @@ func (u URN) Validate() error {
 
 	if len(path) > maxPathLength {
 		return fmt.Errorf("path component too long")
+	}
+
+	// identity (scheme:path) is what most systems store so has to be bounded as well
+	if len(scheme)+1+len(path) > maxIdentityLength {
+		return fmt.Errorf("identity too long")
 	}
 
 	s := schemeByPrefix[scheme]
