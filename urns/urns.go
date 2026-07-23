@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	maxIdentityLength = 255
-	maxPathLength     = 255
-	maxDisplayLength  = 255
+	// paths are limited such that any scheme:path identity fits comfortably in the 255 char columns
+	// that systems typically use to store them
+	maxPathLength    = 200
+	maxDisplayLength = 255
 )
 
 // IsValidScheme checks whether the provided scheme is valid
@@ -104,14 +105,9 @@ func (u URN) Validate() error {
 		return fmt.Errorf("unknown URN scheme")
 	}
 
-	if len(path) > maxPathLength {
+	// measured in its escaped form since that's what is stored
+	if len(escape(path)) > maxPathLength {
 		return fmt.Errorf("path component too long")
-	}
-
-	// identity (scheme:path) is what most systems store so has to be bounded as well - measured in its escaped
-	// form since that's what is stored
-	if len(u.Identity()) > maxIdentityLength {
-		return fmt.Errorf("identity too long")
 	}
 
 	s := schemeByPrefix[scheme]

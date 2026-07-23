@@ -272,11 +272,11 @@ func TestValidate(t *testing.T) {
 
 		{"slack:U0123ABCDEF", ""},
 
-		// paths can be up to 255 chars but the whole identity (scheme:path) is also limited to 255
-		{urns.URN("ext:" + strings.Repeat("x", 251)), ""},
-		{urns.URN("ext:" + strings.Repeat("x", 252)), "identity too long"},
-		{urns.URN("ext:" + strings.Repeat("x", 256)), "path component too long"},
-		{urns.URN("ext:" + strings.Repeat("%", 100)), "identity too long"}, // path chars that escape count in their escaped form
+		// paths can be up to 200 chars, measured in their escaped form
+		{urns.URN("ext:" + strings.Repeat("x", 200)), ""},
+		{urns.URN("ext:" + strings.Repeat("x", 201)), "path component too long"},
+		{urns.URN("ext:" + strings.Repeat("%", 66)), ""},                        // escapes to 198 chars
+		{urns.URN("ext:" + strings.Repeat("%", 67)), "path component too long"}, // escapes to 201 chars
 
 		{"webchat:aA3456789012345678901234", ""},
 		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},
