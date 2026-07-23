@@ -1,3 +1,7 @@
+v1.90.1 (2026-07-23)
+-------------------------
+ * Limit URN paths to 200 chars (measured in escaped form) so identities always fit in 255 char storage
+
 v1.90.0 (2026-07-22)
 -------------------------
  * Add request/response size tracking to httpx traces and logs
