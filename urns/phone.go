@@ -94,9 +94,10 @@ func parsePossibleNumber(input string, country i18n.Country, allowShort, allowSe
 	return "", ErrNotNumber
 }
 
-// formats a number as E164, re-parsing the result until it's stable, because numbers with leading zeros in their
-// national significant number can format to an E164 form that re-parses differently, e.g. +82011290 re-parses with
-// the 0 stripped as a national prefix, giving +8211290
+// formats a number as E164, re-parsing the result to check it's stable (i.e. re-parses to itself), because numbers
+// with leading zeros in their national significant number can format to an E164 form that re-parses differently,
+// e.g. +82011290 re-parses with the 0 stripped as a national prefix, giving +8211290. Numbers that don't stabilize
+// within a few attempts are rejected.
 func formatE164(parsed *phonenumbers.PhoneNumber) (string, bool) {
 	e164 := phonenumbers.Format(parsed, phonenumbers.E164)
 
