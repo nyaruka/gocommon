@@ -1,3 +1,8 @@
+v1.91.0 (2026-07-24)
+-------------------------
+ * Add smtpx package for sending email via SMTP (moved from goflow but rewritten to use wneessen/go-mail)
+ * Make phone parsing idempotent by only returning E164 values that re-parse to themselves
+
 v1.90.1 (2026-07-23)
 -------------------------
  * Limit URN paths to 200 chars (measured in escaped form) so identities always fit in 255 char storage
