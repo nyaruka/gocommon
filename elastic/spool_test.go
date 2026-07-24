@@ -15,13 +15,14 @@ import (
 
 func TestSpool(t *testing.T) {
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
+	defer uuids.SetGenerator(uuids.DefaultGenerator)
 
 	createTestIndex(t, testClient, "test-spool")
 	defer deleteTestIndex(t, testClient, "test-spool")
 
-	spool := elastic.NewSpool(testClient, "./_test_spool", 30*time.Second)
+	dir := filepath.Join(t.TempDir(), "spool")
 
-	defer spool.Delete()
+	spool := elastic.NewSpool(testClient, dir, 30*time.Second)
 
 	err := spool.Start()
 	require.NoError(t, err)
@@ -38,28 +39,26 @@ func TestSpool(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
-	assert.FileExists(t, "./_test_spool/01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl")
-	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-9a98-cfcce3019710#1.jsonl")
+	assert.FileExists(t, filepath.Join(dir, "01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl"))
+	assert.FileExists(t, filepath.Join(dir, "01984174-59e8-7000-9a98-cfcce3019710#1.jsonl"))
 
 	spool.Stop()
 
-	// start new spool to verify it can read existing spool files
-	spool = elastic.NewSpool(testClient, "./_test_spool", 100*time.Millisecond)
+	// start new spool to verify it can read existing spool files.. and flush explicitly because flushing on the
+	// interval is covered by the spools package tests
+	spool = elastic.NewSpool(testClient, dir, 30*time.Second)
 	err = spool.Start()
 	require.NoError(t, err)
+	defer spool.Stop()
 
 	assert.Equal(t, 3, spool.Size())
 
-	// give spool time to try a flush
-	time.Sleep(200 * time.Millisecond)
-
+	require.NoError(t, spool.Flush())
 	assert.Equal(t, 0, spool.Size())
 
 	// refresh and verify all items were indexed
 	refreshIndex(t, testClient, "test-spool")
 	assertCount(t, testClient, "test-spool", 3)
-
-	spool.Stop()
 }
 
 func TestSpoolStartDirectoryErrors(t *testing.T) {

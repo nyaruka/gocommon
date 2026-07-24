@@ -21,9 +21,10 @@ func TestSpool(t *testing.T) {
 	ctx := t.Context()
 
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
+	defer uuids.SetGenerator(uuids.DefaultGenerator)
 
 	client, err := dynamo.NewClient(ctx, "http://localstack:4566")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defer dyntest.Drop(t, client, "TestSpool")
 
@@ -33,12 +34,12 @@ func TestSpool(t *testing.T) {
 	item2, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2", "count": 234}})
 	item3, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P33", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 3", "count": 345}})
 
-	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second)
+	dir := filepath.Join(t.TempDir(), "spool")
 
-	defer spool.Delete()
+	spool := dynamo.NewSpool(client, dir, 30*time.Second)
 
 	err = spool.Start()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = spool.Add("TestSpool", []map[string]types.AttributeValue{item1, item2})
 	assert.NoError(t, err)
@@ -46,26 +47,26 @@ func TestSpool(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
-	assert.FileExists(t, "./_test_spool/01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl")
-	assert.FileExists(t, "./_test_spool/01984174-59e8-7000-9a98-cfcce3019710#1.jsonl")
+	assert.FileExists(t, filepath.Join(dir, "01984174-5600-7000-8e0f-6b2abe4360d8#2.jsonl"))
+	assert.FileExists(t, filepath.Join(dir, "01984174-59e8-7000-9a98-cfcce3019710#1.jsonl"))
 
 	spool.Stop()
 
-	// Start new spool to verify it can read the existing spool files
-	spool = dynamo.NewSpool(client, "./_test_spool", 100*time.Millisecond)
-	spool.Start()
+	// start new spool to verify it can read the existing spool files.. and flush explicitly because flushing on the
+	// interval is covered by the spools package tests
+	spool = dynamo.NewSpool(client, dir, 30*time.Second)
+	require.NoError(t, spool.Start())
+	defer spool.Stop()
+
 	assert.Equal(t, 3, spool.Size())
 
-	// Give spool time to try a flush
-	time.Sleep(200 * time.Millisecond)
-
+	require.NoError(t, spool.Flush())
 	assert.Equal(t, 0, spool.Size())
 
 	obj, err := dynamo.GetItem(ctx, client, "TestSpool", dynamo.Key{PK: "P11", SK: "SAA"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, obj)
 	assert.Equal(t, "Thing 1", obj.Data["name"])
-
-	spool.Stop()
 }
 
 func TestSpoolMixedTableFile(t *testing.T) {

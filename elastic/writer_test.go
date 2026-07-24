@@ -2,6 +2,7 @@ package elastic_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -16,13 +17,12 @@ func TestWriter(t *testing.T) {
 	createTestIndex(t, testClient, "test-writer")
 	defer deleteTestIndex(t, testClient, "test-writer")
 
-	spool := elastic.NewSpool(testClient, "./_test_spool", 30*time.Second)
+	spool := elastic.NewSpool(testClient, filepath.Join(t.TempDir(), "spool"), 30*time.Second)
 	err := spool.Start()
 	require.NoError(t, err)
 
-	defer spool.Delete()
-
-	writer := elastic.NewWriter(testClient, 25, 100*time.Millisecond, 10, spool)
+	// long max age because we flush explicitly.. flushing on max age is covered by the syncx batcher tests
+	writer := elastic.NewWriter(testClient, 25, time.Minute, 10, spool)
 
 	assert.Equal(t, testClient, writer.Client())
 
@@ -33,8 +33,7 @@ func TestWriter(t *testing.T) {
 		assert.NotZero(t, rem)
 	}
 
-	// allow time for writes to process
-	time.Sleep(200 * time.Millisecond)
+	writer.Flush()
 
 	numWritten, numSpooled := writer.Stats()
 	assert.Equal(t, int64(10), numWritten)
@@ -60,15 +59,14 @@ func TestWriter(t *testing.T) {
 	badClient, err := elastic.NewClient("http://localhost:19999", "", "")
 	require.NoError(t, err)
 
-	badWriter := elastic.NewWriter(badClient, 25, 100*time.Millisecond, 10, spool)
+	badWriter := elastic.NewWriter(badClient, 25, time.Minute, 10, spool)
 	badWriter.Start()
 
 	for i := range 5 {
 		badWriter.Queue(&elastic.Document{Index: "test-writer", ID: fmt.Sprintf("%d", i+15), Routing: "test", Body: []byte(fmt.Sprintf(`{"value": %d}`, i+15))})
 	}
 
-	// allow time for writes to fail
-	time.Sleep(200 * time.Millisecond)
+	badWriter.Flush()
 
 	// and check they were spooled
 	numWritten, numSpooled = badWriter.Stats()
