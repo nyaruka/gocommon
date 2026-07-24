@@ -1,9 +1,12 @@
 package smtpx
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/wneessen/go-mail"
 )
 
 // RetryConfig configures if and how retrying of connections happens
@@ -41,6 +44,11 @@ func DefaultShouldRetry(err error) bool {
 
 // parses an SMTP error response to extract the initial error code
 func extractCode(err error) int {
+	var sendErr *mail.SendError
+	if errors.As(err, &sendErr) {
+		return sendErr.ErrorCode()
+	}
+
 	s := err.Error()
 
 	if len(s) >= 3 {
