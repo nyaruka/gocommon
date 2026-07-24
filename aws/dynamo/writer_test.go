@@ -2,6 +2,7 @@ package dynamo_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -30,12 +31,11 @@ func TestWriter(t *testing.T) {
 
 	createTestTable(t, client, "TestWriter")
 
-	spool := dynamo.NewSpool(client, "./_test_spool", 30*time.Second)
-	spool.Start()
+	spool := dynamo.NewSpool(client, filepath.Join(t.TempDir(), "spool"), 30*time.Second)
+	require.NoError(t, spool.Start())
 
-	defer spool.Delete()
-
-	writer := dynamo.NewWriter(client, "TestWriter", 100*time.Millisecond, 10, spool)
+	// long max age because we flush explicitly.. flushing on max age is covered by the syncx batcher tests
+	writer := dynamo.NewWriter(client, "TestWriter", time.Minute, 10, spool)
 
 	assert.Equal(t, client, writer.Client())
 	assert.Equal(t, "TestWriter", writer.Table())
@@ -52,8 +52,7 @@ func TestWriter(t *testing.T) {
 	_, err = writer.Queue(&Thing{ID: 9, Name: "Item 9 v2"})
 	assert.NoError(t, err)
 
-	// allow time for writes to process
-	time.Sleep(200 * time.Millisecond)
+	writer.Flush()
 
 	numWritten, numSpooled := writer.Stats()
 	assert.Equal(t, int64(10), numWritten)
@@ -64,7 +63,8 @@ func TestWriter(t *testing.T) {
 
 	// check that last version of item9 was written
 	item, err := dynamo.GetItem(t.Context(), client, "TestWriter", dynamo.Key{PK: "test", SK: "item9"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, item)
 	assert.Equal(t, "Item 9 v2", item.Data["Name"])
 
 	for i := range 5 {
@@ -77,17 +77,16 @@ func TestWriter(t *testing.T) {
 	assert.Equal(t, int64(15), numWritten)
 	assert.Equal(t, int64(0), numSpooled)
 
-	// Break writing by deleting the underlying table
+	// break writing by deleting the underlying table
 	dyntest.Drop(t, client, "TestWriter")
 
 	for i := range 5 {
 		writer.Queue(&Thing{ID: i + 15, Name: fmt.Sprintf("Item %d", i+15)})
 	}
 
-	// Allow time for writes to fail
-	time.Sleep(200 * time.Millisecond)
+	writer.Flush()
 
-	// And check they were spooled
+	// and check they were spooled
 	numWritten, numSpooled = writer.Stats()
 	assert.Equal(t, int64(15), numWritten)
 	assert.Equal(t, int64(5), numSpooled)

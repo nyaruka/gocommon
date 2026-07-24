@@ -3,6 +3,7 @@ package syncx
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -12,10 +13,11 @@ type Batcher[T any] struct {
 	maxItems int
 	maxAge   time.Duration
 
-	buffer  chan T
-	force   chan *sync.WaitGroup
-	batch   []T
-	timeout <-chan time.Time
+	buffer    chan T
+	force     chan *sync.WaitGroup
+	batch     []T          // only accessed by the background goroutine
+	batchSize atomic.Int64 // mirrors len(batch) for reading from other goroutines
+	timeout   <-chan time.Time
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -50,6 +52,7 @@ func (b *Batcher[T]) Start(wg *sync.WaitGroup) {
 			select {
 			case v := <-b.buffer:
 				b.batch = append(b.batch, v)
+				b.batchSize.Store(int64(len(b.batch)))
 
 				// if this is the first item in the batch we need to restart the age timeout
 				if b.timeout == nil {
@@ -83,7 +86,7 @@ func (b *Batcher[T]) Start(wg *sync.WaitGroup) {
 func (b *Batcher[T]) Queue(value T) int {
 	b.buffer <- value
 
-	return (cap(b.batch) + cap(b.buffer)) - (len(b.batch) + len(b.buffer))
+	return (b.maxItems + cap(b.buffer)) - (int(b.batchSize.Load()) + len(b.buffer))
 }
 
 // Stop stops this batcher.
@@ -104,6 +107,7 @@ func (b *Batcher[T]) flush() {
 	if len(b.batch) > 0 {
 		b.process(b.batch)
 		b.batch = make([]T, 0, b.maxItems)
+		b.batchSize.Store(0)
 		b.timeout = nil
 	}
 }
@@ -118,6 +122,7 @@ func (b *Batcher[T]) drain() {
 			v := <-b.buffer
 			b.batch = append(b.batch, v)
 		}
+		b.batchSize.Store(int64(len(b.batch)))
 
 		b.flush()
 	}

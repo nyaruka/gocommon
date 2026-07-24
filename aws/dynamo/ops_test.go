@@ -46,40 +46,40 @@ func TestPutAndGet(t *testing.T) {
 	client, err := dynamo.NewClient(ctx, "http://localstack:4566")
 	assert.NoError(t, err)
 
-	defer dyntest.Drop(t, client, "TestThings")
+	defer dyntest.Drop(t, client, "TestPutAndGet")
 
-	err = dynamo.Test(ctx, client, "TestThings")
+	err = dynamo.Test(ctx, client, "TestPutAndGet")
 	assert.Error(t, err)
 
-	createTestTable(t, client, "TestThings")
+	createTestTable(t, client, "TestPutAndGet")
 
-	err = dynamo.Test(ctx, client, "TestThings")
+	err = dynamo.Test(ctx, client, "TestPutAndGet")
 	assert.NoError(t, err)
 
 	thing1 := &dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}}
 	thing2 := &dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2"}}
 
-	err = dynamo.PutItem(ctx, client, "TestThings", thing1)
+	err = dynamo.PutItem(ctx, client, "TestPutAndGet", thing1)
 	assert.NoError(t, err)
-	err = dynamo.PutItem(ctx, client, "TestThings", thing2)
+	err = dynamo.PutItem(ctx, client, "TestPutAndGet", thing2)
 	assert.NoError(t, err)
 
-	dyntest.AssertCount(t, client, "TestThings", 2)
+	dyntest.AssertCount(t, client, "TestPutAndGet", 2)
 
-	obj, err := dynamo.GetItem(ctx, client, "TestThings", dynamo.Key{PK: "P11", SK: "SAA"})
+	obj, err := dynamo.GetItem(ctx, client, "TestPutAndGet", dynamo.Key{PK: "P11", SK: "SAA"})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{"name": "Thing 1"}, obj.Data)
 
 	// try to get a non-existent item
-	obj, err = dynamo.GetItem(ctx, client, "TestThings", dynamo.Key{PK: "P77", SK: "SAA"})
+	obj, err = dynamo.GetItem(ctx, client, "TestPutAndGet", dynamo.Key{PK: "P77", SK: "SAA"})
 	assert.NoError(t, err)
 	assert.Nil(t, obj)
 
-	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestThings", []*dynamo.Item{})
+	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestPutAndGet", []*dynamo.Item{})
 	assert.NoError(t, err)
 	assert.Equal(t, []*dynamo.Item{}, unprocessed)
 
-	unprocessed, err = dynamo.BatchPutItem(ctx, client, "TestThings", []*dynamo.Item{
+	unprocessed, err = dynamo.BatchPutItem(ctx, client, "TestPutAndGet", []*dynamo.Item{
 		{Key: dynamo.Key{PK: "BATCH1", SK: "S1"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 1"}},
 		{Key: dynamo.Key{PK: "BATCH2", SK: "S2"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 2"}},
 		{Key: dynamo.Key{PK: "BATCH3", SK: "S3"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 3"}},
@@ -88,16 +88,16 @@ func TestPutAndGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, unprocessed)
 
-	dyntest.AssertCount(t, client, "TestThings", 6)
+	dyntest.AssertCount(t, client, "TestPutAndGet", 6)
 
 	// batch get with empty keys
-	items, unprocessedKeys, err := dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{})
+	items, unprocessedKeys, err := dynamo.BatchGetItem(ctx, client, "TestPutAndGet", []dynamo.Key{})
 	assert.NoError(t, err)
 	assert.Nil(t, items)
 	assert.Nil(t, unprocessedKeys)
 
 	// batch get existing items
-	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{
+	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestPutAndGet", []dynamo.Key{
 		{PK: "BATCH1", SK: "S1"},
 		{PK: "BATCH3", SK: "S3"},
 	})
@@ -106,7 +106,7 @@ func TestPutAndGet(t *testing.T) {
 	assert.Empty(t, unprocessedKeys)
 
 	// batch get with mix of existing and non-existing keys
-	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestThings", []dynamo.Key{
+	items, unprocessedKeys, err = dynamo.BatchGetItem(ctx, client, "TestPutAndGet", []dynamo.Key{
 		{PK: "P11", SK: "SAA"},
 		{PK: "NOTEXIST", SK: "NOPE"},
 	})
