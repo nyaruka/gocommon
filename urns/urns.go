@@ -80,17 +80,20 @@ func (u URN) ToParts() (string, string, string, string) {
 
 // Normalize normalizes the URN into it's canonical form and should be performed before URN comparisons
 func (u URN) Normalize() URN {
-	scheme, path, query, display := u.ToParts()
-	s := schemeByPrefix[scheme]
+	parsed, err := parseURN(string(u))
+	if err != nil {
+		return u // structurally invalid URNs are left as is
+	}
 
-	path = strings.TrimSpace(path)
-	display = strings.TrimSpace(display)
+	path := strings.TrimSpace(parsed.path)
+	display := strings.TrimSpace(parsed.fragment)
 
+	s := schemeByPrefix[parsed.scheme]
 	if s != nil && s.Normalize != nil {
 		path = s.Normalize(path)
 	}
 
-	return newFromParts(scheme, path, query, display)
+	return newFromParts(parsed.scheme, path, parsed.query, display)
 }
 
 // Validate returns whether this URN is considered valid

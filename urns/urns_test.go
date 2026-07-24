@@ -119,6 +119,16 @@ func TestNormalize(t *testing.T) {
 		{"tel:mtn", "tel:mtn"},
 		{"tel:+12345678901234567890", "tel:+12345678901234567890"},
 
+		// numbers with leading zeros in their national significant number re-parse to their stable form
+		{"tel:+82011290", "tel:+8211290"},
+
+		// structurally invalid URNs are left as they are
+		{"tel:", "tel:"},
+		{"xxxx", "xxxx"},
+
+		// even if trimming produces a structurally invalid URN, re-normalizing leaves it as is
+		{"tel: ", "tel:"},
+
 		// twitter handles remove @
 		{"twitter: @jimmyJO", "twitter:jimmyjo"},
 		{"twitterid:12345#jimmyJO", "twitterid:12345#jimmyJO"},
