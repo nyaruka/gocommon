@@ -52,3 +52,33 @@ func TestSendWithRetries(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 9, len(sender.Logs()))
 }
+
+func TestSendWithCancelledContext(t *testing.T) {
+	msg := smtpx.NewMessage([]string{"bob@nyaruka.com"}, "Updates", "Have a great weekend", "")
+	c := smtpx.NewClient("mail.temba.io", 255, "leah", "pass123", "updates@temba.io")
+	retries := smtpx.NewFixedRetries(time.Millisecond*100, time.Millisecond*100)
+
+	// a sender which errors with retriable errors
+	sender := smtpx.NewMockSender(
+		errors.New("421 Service not available, closing transmission channel"),
+		errors.New("421 Service not available, closing transmission channel"),
+	)
+	smtpx.SetSender(sender)
+
+	// context which expires during the first retry backoff
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+
+	// send returns the last send error without further attempts
+	err := smtpx.Send(ctx, c, msg, retries)
+	assert.EqualError(t, err, "421 Service not available, closing transmission channel")
+	assert.Equal(t, 1, len(sender.Logs()))
+
+	// a sender whose context is dead before the first attempt never sends
+	sender = smtpx.NewMockSender(errors.New("421 Service not available, closing transmission channel"))
+	smtpx.SetSender(sender)
+
+	err = smtpx.Send(ctx, c, msg, retries)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, 0, len(sender.Logs()))
+}

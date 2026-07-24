@@ -23,6 +23,9 @@ func (s *MockSender) Logs() []string {
 }
 
 func (s *MockSender) Send(ctx context.Context, c *Client, m *Message) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(s.errs) == 0 {
 		panic(fmt.Errorf("missing mock for send number %d", len(s.logs)))
 	}

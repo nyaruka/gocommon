@@ -84,9 +84,11 @@ func (c *Client) Send(ctx context.Context, m *Message) error {
 	}
 
 	// use implicit SSL/TLS on port 465, otherwise opportunistic STARTTLS
-	opts := []mail.Option{mail.WithPort(c.port), mail.WithTLSPolicy(mail.TLSOpportunistic)}
+	opts := []mail.Option{mail.WithPort(c.port)}
 	if c.port == 465 {
 		opts = append(opts, mail.WithSSL())
+	} else {
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSOpportunistic))
 	}
 	if c.username != "" {
 		opts = append(opts, mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover), mail.WithUsername(c.username), mail.WithPassword(c.password))
