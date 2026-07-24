@@ -1,3 +1,8 @@
+v1.91.1 (2026-07-24)
+-------------------------
+ * Fix data race in syncx.Batcher between queuing and batch processing
+ * Make dynamo and elastic spool/writer tests deterministic
+
 v1.91.0 (2026-07-24)
 -------------------------
  * Add smtpx package for sending email via SMTP (moved from goflow but rewritten to use wneessen/go-mail)
