@@ -1,6 +1,7 @@
 package smtpx
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -21,7 +22,10 @@ func (s *MockSender) Logs() []string {
 	return s.logs
 }
 
-func (s *MockSender) Send(c *Client, m *Message) error {
+func (s *MockSender) Send(ctx context.Context, c *Client, m *Message) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(s.errs) == 0 {
 		panic(fmt.Errorf("missing mock for send number %d", len(s.logs)))
 	}

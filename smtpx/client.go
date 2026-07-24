@@ -1,12 +1,13 @@
 package smtpx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 
-	"github.com/Shopify/gomail"
+	"github.com/wneessen/go-mail"
 )
 
 // Client is an SMTP client
@@ -67,17 +68,35 @@ func NewClientFromURL(connectionURL string) (*Client, error) {
 }
 
 // Send sends the given message
-func (c *Client) Send(m *Message) error {
+func (c *Client) Send(ctx context.Context, m *Message) error {
 	// create MIME message
-	mm := gomail.NewMessage()
-	mm.SetHeader("From", c.from)
-	mm.SetHeader("To", m.recipients...)
-	mm.SetHeader("Subject", m.subject)
-	mm.SetBody("text/plain", m.text)
+	mm := mail.NewMsg()
+	if err := mm.From(c.from); err != nil {
+		return fmt.Errorf("invalid from address: %w", err)
+	}
+	if err := mm.To(m.recipients...); err != nil {
+		return fmt.Errorf("invalid recipient: %w", err)
+	}
+	mm.Subject(m.subject)
+	mm.SetBodyString(mail.TypeTextPlain, m.text)
 	if m.html != "" {
-		mm.AddAlternative("text/html", m.html)
+		mm.AddAlternativeString(mail.TypeTextHTML, m.html)
 	}
 
-	d := gomail.NewDialer(c.host, c.port, c.username, c.password)
-	return d.DialAndSend(mm)
+	// use implicit SSL/TLS on port 465, otherwise opportunistic STARTTLS
+	opts := []mail.Option{mail.WithPort(c.port)}
+	if c.port == 465 {
+		opts = append(opts, mail.WithSSL())
+	} else {
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSOpportunistic))
+	}
+	if c.username != "" {
+		opts = append(opts, mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover), mail.WithUsername(c.username), mail.WithPassword(c.password))
+	}
+
+	d, err := mail.NewClient(c.host, opts...)
+	if err != nil {
+		return fmt.Errorf("error creating mail client: %w", err)
+	}
+	return d.DialAndSendWithContext(ctx, mm)
 }

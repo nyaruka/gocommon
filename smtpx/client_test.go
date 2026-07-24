@@ -1,9 +1,17 @@
 package smtpx
 
 import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wneessen/go-mail"
 )
 
 func TestNewClientFromURL(t *testing.T) {
@@ -35,4 +43,70 @@ func TestNewClientFromURL(t *testing.T) {
 	assert.Equal(t, "leah@nyaruka.com", s.username)
 	assert.Equal(t, "pass123!", s.password)
 	assert.Equal(t, "Leah <updates@temba.io>", s.from)
+}
+
+// starts a minimal SMTP server on a random port which rejects MAIL commands with the given response
+func newRejectingSMTPServer(t *testing.T, mailResponse string) int {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { l.Close() })
+
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		fmt.Fprint(conn, "220 test ESMTP\r\n")
+		br := bufio.NewReader(conn)
+		for {
+			line, err := br.ReadString('\n')
+			if err != nil {
+				return
+			}
+			cmd := strings.ToUpper(strings.TrimSpace(line))
+			switch {
+			case strings.HasPrefix(cmd, "EHLO"), strings.HasPrefix(cmd, "HELO"):
+				fmt.Fprint(conn, "250 hello\r\n")
+			case strings.HasPrefix(cmd, "MAIL"):
+				fmt.Fprint(conn, mailResponse+"\r\n")
+			case strings.HasPrefix(cmd, "QUIT"):
+				fmt.Fprint(conn, "221 bye\r\n")
+				return
+			default:
+				fmt.Fprint(conn, "250 OK\r\n")
+			}
+		}
+	}()
+
+	return l.Addr().(*net.TCPAddr).Port
+}
+
+func TestClientSendErrors(t *testing.T) {
+	tcs := []struct {
+		mailResponse string
+		code         int
+		shouldRetry  bool
+	}{
+		{"421 Service not available, closing transmission channel", 421, true},
+		{"550 Requested action not taken: mailbox unavailable", 550, false},
+	}
+
+	for _, tc := range tcs {
+		port := newRejectingSMTPServer(t, tc.mailResponse)
+
+		c := NewClient("127.0.0.1", port, "", "", "updates@temba.io")
+		err := c.Send(context.Background(), NewMessage([]string{"bob@nyaruka.com"}, "Updates", "Hello", ""))
+		require.Error(t, err)
+
+		// error should be a go-mail send error wrapping the server response...
+		var sendErr *mail.SendError
+		require.True(t, errors.As(err, &sendErr))
+		assert.Equal(t, tc.code, sendErr.ErrorCode())
+
+		// .. and thus retryable or not based on its code rather than its message
+		assert.Equal(t, tc.code, extractCode(err))
+		assert.Equal(t, tc.shouldRetry, DefaultShouldRetry(err))
+	}
 }

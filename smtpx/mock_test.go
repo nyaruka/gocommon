@@ -1,6 +1,7 @@
 package smtpx_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,6 +11,8 @@ import (
 )
 
 func TestMockSender(t *testing.T) {
+	ctx := context.Background()
+
 	defer smtpx.SetSender(smtpx.DefaultSender)
 
 	// a sender which succeeds
@@ -21,9 +24,9 @@ func TestMockSender(t *testing.T) {
 	msg1 := smtpx.NewMessage([]string{"bob@nyaruka.com", "jim@nyaruka.com"}, "Updates", "Have a great week", "<p>Have a great week</p>")
 	msg2 := smtpx.NewMessage([]string{"bob@nyaruka.com", "jim@nyaruka.com"}, "Updates", "Have a great weekend", "")
 
-	err := smtpx.Send(c, msg1, nil)
+	err := smtpx.Send(ctx, c, msg1, nil)
 	assert.NoError(t, err)
-	err = smtpx.Send(c, msg2, nil)
+	err = smtpx.Send(ctx, c, msg2, nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -35,14 +38,14 @@ func TestMockSender(t *testing.T) {
 	sender = smtpx.NewMockSender(errors.New("oops can't send"), errors.New("421 Service not available, closing transmission channel"))
 	smtpx.SetSender(sender)
 
-	err = smtpx.Send(c, msg1, nil)
+	err = smtpx.Send(ctx, c, msg1, nil)
 	assert.EqualError(t, err, "oops can't send")
 	assert.Equal(t, 1, len(sender.Logs()))
 
-	err = smtpx.Send(c, msg2, nil)
+	err = smtpx.Send(ctx, c, msg2, nil)
 	assert.EqualError(t, err, "421 Service not available, closing transmission channel")
 	assert.Equal(t, 2, len(sender.Logs()))
 
 	// we panic if we run out of mocks
-	assert.PanicsWithError(t, "missing mock for send number 2", func() { smtpx.Send(c, msg2, nil) })
+	assert.PanicsWithError(t, "missing mock for send number 2", func() { smtpx.Send(ctx, c, msg2, nil) })
 }
