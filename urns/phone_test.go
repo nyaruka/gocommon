@@ -96,6 +96,13 @@ func TestParseNumber(t *testing.T) {
 		{"PRIZES", "RW", false, false, "", "not a possible number"},
 		{"PRIZES", "RW", true, false, "", "not a possible number"},
 		{"PRIZES", "RW", true, true, "prizes", ""},
+
+		// numbers with leading zeros in their national significant number parse to their stable form, i.e. the form
+		// that re-parses to itself, so that parsing is idempotent
+		{"+82011290", "", false, false, "+8211290", ""},
+		{"880003147120", "US", false, false, "+8803147120", ""},
+		{"087043843093", "KR", false, false, "+8243843093", ""},
+		{"090883344803", "BR", false, false, "+55883344803", ""},
 	}
 
 	for i, tc := range testCases {
@@ -108,6 +115,12 @@ func TestParseNumber(t *testing.T) {
 		} else {
 			if assert.NoError(t, err, "%d: unexpected error for %s, %s", i, tc.input, tc.country) {
 				assert.Equal(t, tc.expectedNum, num, "%d: URN mismatch for %s, %s", i, tc.input, tc.country)
+
+				// check parsing is idempotent
+				num2, err := urns.ParseNumber(num, tc.country, tc.allowShort, tc.allowSenderID)
+				if assert.NoError(t, err, "%d: unexpected error re-parsing %s", i, num) {
+					assert.Equal(t, num, num2, "%d: re-parse mismatch for %s", i, num)
+				}
 			}
 		}
 	}

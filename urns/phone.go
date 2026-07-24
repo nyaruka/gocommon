@@ -55,7 +55,9 @@ func parsePossibleNumber(input string, country i18n.Country, allowShort, allowSe
 	// check to see if we have a possible number
 	if err == nil {
 		if phonenumbers.IsPossibleNumberWithReason(parsed) == phonenumbers.IS_POSSIBLE {
-			return phonenumbers.Format(parsed, phonenumbers.E164), nil
+			if e164, ok := formatE164(parsed); ok {
+				return e164, nil
+			}
 		}
 	}
 
@@ -64,7 +66,9 @@ func parsePossibleNumber(input string, country i18n.Country, allowShort, allowSe
 		parsedWithPlus, err := phonenumbers.Parse("+"+input, string(country))
 		if err == nil {
 			if phonenumbers.IsPossibleNumberWithReason(parsedWithPlus) == phonenumbers.IS_POSSIBLE {
-				return phonenumbers.Format(parsedWithPlus, phonenumbers.E164), nil
+				if e164, ok := formatE164(parsedWithPlus); ok {
+					return e164, nil
+				}
 			}
 		}
 	}
@@ -88,6 +92,27 @@ func parsePossibleNumber(input string, country i18n.Country, allowShort, allowSe
 	}
 
 	return "", ErrNotNumber
+}
+
+// formats a number as E164, re-parsing the result to check it's stable (i.e. re-parses to itself), because numbers
+// with leading zeros in their national significant number can format to an E164 form that re-parses differently,
+// e.g. +82011290 re-parses with the 0 stripped as a national prefix, giving +8211290. Numbers that don't stabilize
+// within a few attempts are rejected.
+func formatE164(parsed *phonenumbers.PhoneNumber) (string, bool) {
+	e164 := phonenumbers.Format(parsed, phonenumbers.E164)
+
+	for range 3 {
+		reparsed, err := phonenumbers.Parse(e164, "")
+		if err != nil || phonenumbers.IsPossibleNumberWithReason(reparsed) != phonenumbers.IS_POSSIBLE {
+			return "", false
+		}
+		reformatted := phonenumbers.Format(reparsed, phonenumbers.E164)
+		if reformatted == e164 {
+			return e164, true
+		}
+		e164 = reformatted
+	}
+	return "", false
 }
 
 // ToLocalPhone converts a phone URN to a local phone number.. without any leading zeros. Kinda weird but used by
