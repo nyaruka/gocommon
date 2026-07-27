@@ -1,3 +1,7 @@
+v1.92.0 (2026-07-27)
+-------------------------
+ * Rename queues.Fair to FairV3 and add FairV2, the non-leasing implementation removed from vkutil
+
 v1.91.1 (2026-07-24)
 -------------------------
  * Fix data race in syncx.Batcher between queuing and batch processing
