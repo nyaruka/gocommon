@@ -11,7 +11,7 @@ import (
 	valkey "github.com/gomodule/redigo/redis"
 )
 
-// Fair implements a fair queue where tasks are distributed evenly across owners, and tasks are leased to consumers
+// FairV3 implements a fair queue where tasks are distributed evenly across owners, and tasks are leased to consumers
 // so that tasks whose consumers die can be redelivered.
 //
 // A queue with base key "foo" and owners "owner1" and "owner2" will have the following keys:
@@ -36,25 +36,25 @@ import (
 //
 // Note: it would be nice if owner queues could use distict hash tags and so live on different nodes in a cluster, but
 // our push and pop scripts require atomic changes to the queued/active sets and the task lists.
-type Fair struct {
+type FairV3 struct {
 	keyBase           string
 	maxActivePerOwner int           // max number of active tasks per owner
 	lease             time.Duration // how long a popped task remains in-flight before it can be redelivered
 	maxAttempts       int           // max number of times a task can be delivered before it is moved to the dead list
 }
 
-// NewFair creates a new fair queue with the given key base.
-func NewFair(keyBase string, maxActivePerOwner int, lease time.Duration, maxAttempts int) *Fair {
-	return &Fair{keyBase: keyBase, maxActivePerOwner: maxActivePerOwner, lease: lease, maxAttempts: maxAttempts}
+// NewFairV3 creates a new fair queue with the given key base.
+func NewFairV3(keyBase string, maxActivePerOwner int, lease time.Duration, maxAttempts int) *FairV3 {
+	return &FairV3{keyBase: keyBase, maxActivePerOwner: maxActivePerOwner, lease: lease, maxAttempts: maxAttempts}
 }
 
-//go:embed lua/fair_push.lua
-var luaFairPush string
-var scriptFairPush = valkey.NewScript(4, luaFairPush)
+//go:embed lua/fair3_push.lua
+var luaFair3Push string
+var scriptFair3Push = valkey.NewScript(4, luaFair3Push)
 
 // Push adds the passed in task to our queue for execution. Owner IDs must not contain '|' as it's used as a
 // separator in the in-flight records.
-func (q *Fair) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, priority bool, task []byte) (TaskID, error) {
+func (q *FairV3) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, priority bool, task []byte) (TaskID, error) {
 	if strings.ContainsRune(string(owner), '|') {
 		return "", fmt.Errorf("owner ID cannot contain '|': %s", owner)
 	}
@@ -69,7 +69,7 @@ func (q *Fair) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, priority
 
 	queueKeys := q.queueKeys(owner)
 
-	_, err := scriptFairPush.DoContext(ctx, vc, q.queuedKey(), q.activeKey(), queueKeys[0], queueKeys[1], owner, priority, payload.Bytes())
+	_, err := scriptFair3Push.DoContext(ctx, vc, q.queuedKey(), q.activeKey(), queueKeys[0], queueKeys[1], owner, priority, payload.Bytes())
 	if err != nil {
 		return "", fmt.Errorf("error pushing task for owner %s: %w", owner, err)
 	}
@@ -84,16 +84,16 @@ type PoppedTask struct {
 	Task     []byte
 }
 
-//go:embed lua/fair_pop.lua
-var luaFairPop string
-var scriptFairPop = valkey.NewScript(7, luaFairPop)
+//go:embed lua/fair3_pop.lua
+var luaFair3Pop string
+var scriptFair3Pop = valkey.NewScript(7, luaFair3Pop)
 
 // Pop pops the next task off our queue, prioritizing redelivery of in-flight tasks whose leases have expired.
 // Returns nil if there are no tasks to pop.
-func (q *Fair) Pop(ctx context.Context, vc valkey.Conn) (*PoppedTask, error) {
+func (q *FairV3) Pop(ctx context.Context, vc valkey.Conn) (*PoppedTask, error) {
 	for {
 		now := timeNow()
-		reply, err := scriptFairPop.DoContext(ctx, vc,
+		reply, err := scriptFair3Pop.DoContext(ctx, vc,
 			q.queuedKey(), q.activeKey(), q.pausedKey(), q.tempKey(), q.inflightKey(), q.expiresKey(), q.deadKey(),
 			q.keyBase, q.maxActivePerOwner, now.UnixMilli(), now.Add(q.lease).UnixMilli(), q.maxAttempts,
 		)
@@ -123,44 +123,44 @@ func (q *Fair) Pop(ctx context.Context, vc valkey.Conn) (*PoppedTask, error) {
 	}
 }
 
-//go:embed lua/fair_done.lua
-var luaFairDone string
-var scriptFairDone = valkey.NewScript(3, luaFairDone)
+//go:embed lua/fair3_done.lua
+var luaFair3Done string
+var scriptFair3Done = valkey.NewScript(3, luaFair3Done)
 
 // Done marks the passed in task as complete, releasing its lease. Callers must call this for every task they pop in
 // order to maintain fair distribution across owners. Calling it for a task whose lease already expired is a no-op.
-func (q *Fair) Done(ctx context.Context, vc valkey.Conn, id TaskID) error {
-	_, err := scriptFairDone.DoContext(ctx, vc, q.activeKey(), q.inflightKey(), q.expiresKey(), string(id))
+func (q *FairV3) Done(ctx context.Context, vc valkey.Conn, id TaskID) error {
+	_, err := scriptFair3Done.DoContext(ctx, vc, q.activeKey(), q.inflightKey(), q.expiresKey(), string(id))
 	if err != nil {
 		return fmt.Errorf("error marking task %s done: %w", id, err)
 	}
 	return nil
 }
 
-//go:embed lua/fair_extend.lua
-var luaFairExtend string
-var scriptFairExtend = valkey.NewScript(2, luaFairExtend)
+//go:embed lua/fair3_extend.lua
+var luaFair3Extend string
+var scriptFair3Extend = valkey.NewScript(2, luaFair3Extend)
 
 // Extend renews the lease on the given in-flight task for the given duration from now. Consumers holding tasks for
 // longer than the queue's lease duration should call this periodically to prevent redelivery. The attempts value
 // from the delivery acts as a fence: if the task's lease already expired and it was redelivered to another consumer,
 // the lease is not extended and false is returned.
-func (q *Fair) Extend(ctx context.Context, vc valkey.Conn, id TaskID, attempts int, dur time.Duration) (bool, error) {
-	extended, err := valkey.Int(scriptFairExtend.DoContext(ctx, vc, q.expiresKey(), q.inflightKey(), timeNow().Add(dur).UnixMilli(), string(id), attempts))
+func (q *FairV3) Extend(ctx context.Context, vc valkey.Conn, id TaskID, attempts int, dur time.Duration) (bool, error) {
+	extended, err := valkey.Int(scriptFair3Extend.DoContext(ctx, vc, q.expiresKey(), q.inflightKey(), timeNow().Add(dur).UnixMilli(), string(id), attempts))
 	if err != nil {
 		return false, fmt.Errorf("error extending lease for task %s: %w", id, err)
 	}
 	return extended == 1, nil
 }
 
-//go:embed lua/fair_reconcile.lua
-var luaFairReconcile string
-var scriptFairReconcile = valkey.NewScript(2, luaFairReconcile)
+//go:embed lua/fair3_reconcile.lua
+var luaFair3Reconcile string
+var scriptFair3Reconcile = valkey.NewScript(2, luaFair3Reconcile)
 
 // Reconcile rebuilds the active counts from the in-flight records, healing any drift such as counts left behind by
 // consumer processes which died. Consumers should call this periodically.
-func (q *Fair) Reconcile(ctx context.Context, vc valkey.Conn) error {
-	_, err := scriptFairReconcile.DoContext(ctx, vc, q.activeKey(), q.inflightKey())
+func (q *FairV3) Reconcile(ctx context.Context, vc valkey.Conn) error {
+	_, err := scriptFair3Reconcile.DoContext(ctx, vc, q.activeKey(), q.inflightKey())
 	if err != nil {
 		return fmt.Errorf("error reconciling active counts: %w", err)
 	}
@@ -168,19 +168,19 @@ func (q *Fair) Reconcile(ctx context.Context, vc valkey.Conn) error {
 }
 
 // Pause marks the given owner as paused, disabling processing of their tasks
-func (q *Fair) Pause(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
+func (q *FairV3) Pause(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
 	_, err := valkey.DoContext(vc, ctx, "SADD", q.pausedKey(), owner)
 	return err
 }
 
 // Resume unmarks the given owner as paused, re-enabling processing of their tasks
-func (q *Fair) Resume(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
+func (q *FairV3) Resume(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
 	_, err := valkey.DoContext(vc, ctx, "SREM", q.pausedKey(), owner)
 	return err
 }
 
 // Paused returns the list of owners marked as paused
-func (q *Fair) Paused(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
+func (q *FairV3) Paused(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
 	strs, err := valkey.Strings(valkey.DoContext(vc, ctx, "SMEMBERS", q.pausedKey()))
 	if err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func (q *Fair) Paused(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
 }
 
 // Queued returns the list of owners with queued tasks
-func (q *Fair) Queued(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
+func (q *FairV3) Queued(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
 	strs, err := valkey.Strings(valkey.DoContext(vc, ctx, "ZRANGE", q.queuedKey(), 0, -1))
 	if err != nil {
 		return nil, err
@@ -210,7 +210,7 @@ func (q *Fair) Queued(ctx context.Context, vc valkey.Conn) ([]OwnerID, error) {
 }
 
 // Size returns the number of queued tasks for the given owner
-func (q *Fair) Size(ctx context.Context, vc valkey.Conn, owner OwnerID) (int, error) {
+func (q *FairV3) Size(ctx context.Context, vc valkey.Conn, owner OwnerID) (int, error) {
 	queueKeys := q.queueKeys(owner)
 
 	vc.Send("MULTI")
@@ -224,12 +224,12 @@ func (q *Fair) Size(ctx context.Context, vc valkey.Conn, owner OwnerID) (int, er
 	return counts[0] + counts[1], nil
 }
 
-//go:embed lua/fair_dump.lua
-var luaFairDump string
-var scriptFairDump = valkey.NewScript(5, luaFairDump)
+//go:embed lua/fair3_dump.lua
+var luaFair3Dump string
+var scriptFair3Dump = valkey.NewScript(5, luaFair3Dump)
 
-func (q *Fair) Dump(ctx context.Context, vc valkey.Conn) ([]byte, error) {
-	dump, err := valkey.Bytes(scriptFairDump.DoContext(ctx, vc, q.queuedKey(), q.activeKey(), q.pausedKey(), q.inflightKey(), q.deadKey()))
+func (q *FairV3) Dump(ctx context.Context, vc valkey.Conn) ([]byte, error) {
+	dump, err := valkey.Bytes(scriptFair3Dump.DoContext(ctx, vc, q.queuedKey(), q.activeKey(), q.pausedKey(), q.inflightKey(), q.deadKey()))
 	if err != nil {
 		return nil, fmt.Errorf("error dumping queue state: %w", err)
 	}
@@ -237,35 +237,35 @@ func (q *Fair) Dump(ctx context.Context, vc valkey.Conn) ([]byte, error) {
 	return dump, nil
 }
 
-func (q *Fair) queuedKey() string {
+func (q *FairV3) queuedKey() string {
 	return fmt.Sprintf("{%s}:queued", q.keyBase)
 }
 
-func (q *Fair) activeKey() string {
+func (q *FairV3) activeKey() string {
 	return fmt.Sprintf("{%s}:active", q.keyBase)
 }
 
-func (q *Fair) pausedKey() string {
+func (q *FairV3) pausedKey() string {
 	return fmt.Sprintf("{%s}:paused", q.keyBase)
 }
 
-func (q *Fair) inflightKey() string {
+func (q *FairV3) inflightKey() string {
 	return fmt.Sprintf("{%s}:inflight", q.keyBase)
 }
 
-func (q *Fair) expiresKey() string {
+func (q *FairV3) expiresKey() string {
 	return fmt.Sprintf("{%s}:expires", q.keyBase)
 }
 
-func (q *Fair) deadKey() string {
+func (q *FairV3) deadKey() string {
 	return fmt.Sprintf("{%s}:dead", q.keyBase)
 }
 
-func (q *Fair) tempKey() string {
+func (q *FairV3) tempKey() string {
 	return fmt.Sprintf("{%s}:temp", q.keyBase)
 }
 
-func (q *Fair) queueKeys(owner OwnerID) [2]string {
+func (q *FairV3) queueKeys(owner OwnerID) [2]string {
 	return [2]string{
 		fmt.Sprintf("{%s}:o:%s/0", q.keyBase, owner),
 		fmt.Sprintf("{%s}:o:%s/1", q.keyBase, owner),
