@@ -1,3 +1,7 @@
+v1.92.1 (2026-08-06)
+-------------------------
+ * Update dependencies
+
 v1.92.0 (2026-07-27)
 -------------------------
  * Rename queues.Fair to FairV3 and add FairV2, the non-leasing implementation removed from vkutil
