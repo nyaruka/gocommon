@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestMain exports the standard AWS_* env vars so the SDK default credential chain resolves against localstack.
+// TestMain exports the standard AWS_* env vars so the SDK default credential chain resolves against dynamodb-local.
 func TestMain(m *testing.M) {
 	os.Setenv("AWS_ACCESS_KEY_ID", "root")
 	os.Setenv("AWS_SECRET_ACCESS_KEY", "tembatemba")
