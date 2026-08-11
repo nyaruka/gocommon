@@ -23,7 +23,7 @@ func TestSpool(t *testing.T) {
 	uuids.SetGenerator(uuids.NewSeededGenerator(1234, dates.NewSequentialNow(time.Date(2025, 7, 25, 12, 0, 0, 0, time.UTC), time.Second)))
 	defer uuids.SetGenerator(uuids.DefaultGenerator)
 
-	client, err := dynamo.NewClient(ctx, "http://localstack:4566")
+	client, err := dynamo.NewClient(ctx, "http://dynamodb:8000")
 	require.NoError(t, err)
 
 	defer dyntest.Drop(t, client, "TestSpool")
@@ -72,7 +72,7 @@ func TestSpool(t *testing.T) {
 func TestSpoolMixedTableFile(t *testing.T) {
 	ctx := t.Context()
 
-	client, err := dynamo.NewClient(ctx, "http://localstack:4566")
+	client, err := dynamo.NewClient(ctx, "http://dynamodb:8000")
 	require.NoError(t, err)
 
 	defer dyntest.Drop(t, client, "TestSpoolMixed1")
