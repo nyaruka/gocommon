@@ -63,9 +63,9 @@ func TestLocal(t *testing.T) {
 	// test 100 threads trying to get the same value simultaneously
 	wg := sync.WaitGroup{}
 	getZ := func() {
-		v, err = cache.GetOrFetch(ctx, "z")
-		assert.NoError(t, err)
-		assert.Equal(t, "Z/1", v)
+		vZ, errZ := cache.GetOrFetch(ctx, "z")
+		assert.NoError(t, errZ)
+		assert.Equal(t, "Z/1", vZ)
 		wg.Done()
 	}
 
@@ -84,17 +84,17 @@ func TestLocal(t *testing.T) {
 	var tFast, tSlow time.Duration
 
 	go func() {
-		v, err = cache.GetOrFetch(ctx, "slow")
+		vSlow, errSlow := cache.GetOrFetch(ctx, "slow")
 		tSlow = time.Since(t0)
-		assert.NoError(t, err)
-		assert.Equal(t, "SLOW/1", v)
+		assert.NoError(t, errSlow)
+		assert.Equal(t, "SLOW/1", vSlow)
 		wg.Done()
 	}()
 	go func() {
-		v, err = cache.GetOrFetch(ctx, "fast")
+		vFast, errFast := cache.GetOrFetch(ctx, "fast")
 		tFast = time.Since(t0)
-		assert.NoError(t, err)
-		assert.Equal(t, "FAST/1", v)
+		assert.NoError(t, errFast)
+		assert.Equal(t, "FAST/1", vFast)
 		wg.Done()
 	}()
 
