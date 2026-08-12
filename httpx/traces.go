@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -140,6 +141,13 @@ func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, erro
 	t.mutex.Lock()
 	t.traces = append(t.traces, trace)
 	t.mutex.Unlock()
+
+	// also record into the per-call collector carried by the request context, if there is one, so that a caller
+	// sharing this transport can pick out the traces of just its own call
+	if c := traceCollectorFromContext(request.Context()); c != nil {
+		c.add(trace)
+	}
+
 	defer func() { trace.EndTime = dates.Now() }()
 
 	response, err := t.inner.RoundTrip(request)
@@ -180,6 +188,64 @@ func (t *TracesTransport) Traces() []*Trace {
 }
 
 var _ http.RoundTripper = (*TracesTransport)(nil)
+
+type traceCollectorKey struct{}
+
+// TraceCollector accumulates the traces of the requests made under a particular context. It is safe for concurrent
+// use by multiple goroutines.
+type TraceCollector struct {
+	mutex  sync.Mutex
+	traces []*Trace
+}
+
+// WithTraceCollector returns a copy of ctx carrying a fresh TraceCollector, along with that collector. Any request
+// made with the returned context through a transport wrapped by WithTraces records its trace into the collector.
+//
+// This is how a caller captures the traces of just its own call while the client, and the tracing transport on it,
+// are shared - so the tracing can be installed once when the client is built rather than assembled per call. It also
+// works when the request is issued by code the caller doesn't control, such as a vendor SDK given the client at
+// construction: pass the context into the SDK call and the traces come back here.
+//
+//	client := &http.Client{Transport: httpx.WithTraces(base)} // once
+//
+//	ctx, traces := httpx.WithTraceCollector(ctx)              // per call
+//	resp, err := client.Do(req.WithContext(ctx))
+//	trace := traces.Last()
+func WithTraceCollector(ctx context.Context) (context.Context, *TraceCollector) {
+	c := &TraceCollector{}
+	return context.WithValue(ctx, traceCollectorKey{}, c), c
+}
+
+// traceCollectorFromContext returns the collector carried in ctx, or nil if none was installed.
+func traceCollectorFromContext(ctx context.Context) *TraceCollector {
+	c, _ := ctx.Value(traceCollectorKey{}).(*TraceCollector)
+	return c
+}
+
+func (c *TraceCollector) add(t *Trace) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.traces = append(c.traces, t)
+}
+
+// Traces returns a snapshot of the traces collected so far, in the order the requests were made.
+func (c *TraceCollector) Traces() []*Trace {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return slices.Clone(c.traces)
+}
+
+// Last returns the most recently started trace, or nil if none were collected. Where a request was redirected that's
+// the final hop, which is usually the only one worth logging - the earlier hops being the 3xx responses that led to
+// it. A nil return means no request reached the tracing transport at all.
+func (c *TraceCollector) Last() *Trace {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if len(c.traces) == 0 {
+		return nil
+	}
+	return c.traces[len(c.traces)-1]
+}
 
 // errReader is an io.Reader that always returns its error, used to replay a body read failure to the caller
 type errReader struct{ err error }
