@@ -17,7 +17,6 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/gomodule/redigo v1.9.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/lib/pq v1.12.3
 	github.com/nyaruka/null/v3 v3.0.0
