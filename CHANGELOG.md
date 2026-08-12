@@ -1,3 +1,8 @@
+v1.93.0 (2026-08-12)
+-------------------------
+ * Add svclogs package
+ * Add context-scoped trace collection to httpx
+
 v1.92.1 (2026-08-06)
 -------------------------
  * Update dependencies
