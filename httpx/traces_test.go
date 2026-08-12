@@ -3,6 +3,7 @@ package httpx_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -210,4 +211,127 @@ func TestNonUTF8Response(t *testing.T) {
 	sanitized := trace.SanitizedResponse("...")
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 2\r\nX-Badness: �(\r\n\r\n...", sanitized)
 	assert.True(t, utf8.Valid([]byte(sanitized)))
+}
+
+// roundTripFunc adapts a function to an http.RoundTripper for tests.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestTraceCollector(t *testing.T) {
+	const url = "https://example.com/thing"
+
+	// the tracing transport is installed once, on a shared client
+	client := &http.Client{Transport: httpx.WithTraces(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+		url: {httpx.NewMockResponse(200, nil, []byte("hello")), httpx.NewMockResponse(200, nil, []byte("again"))},
+	}))}
+
+	// a call made with a collector in its context can pick out its own trace
+	ctx, traces := httpx.WithTraceCollector(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	require.Len(t, traces.Traces(), 1)
+	require.NotNil(t, traces.Last())
+	assert.Equal(t, []byte("hello"), traces.Last().ResponseBody)
+
+	// a second call gets its own collector, unpolluted by the first
+	ctx2, traces2 := httpx.WithTraceCollector(context.Background())
+	req2, _ := http.NewRequestWithContext(ctx2, "GET", url, nil)
+	_, err = client.Do(req2)
+	require.NoError(t, err)
+
+	assert.Len(t, traces.Traces(), 1, "first collector should not see the second call")
+	require.Len(t, traces2.Traces(), 1)
+	assert.Equal(t, []byte("again"), traces2.Last().ResponseBody)
+
+	// a redirect records every hop, and Last is the final one
+	redirectClient := &http.Client{Transport: httpx.WithTraces(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+		"https://example.com/redirect": {httpx.NewMockResponse(302, map[string]string{"Location": url}, nil)},
+		url:                            {httpx.NewMockResponse(200, nil, []byte("final"))},
+	}))}
+	ctx3, traces3 := httpx.WithTraceCollector(context.Background())
+	req3, _ := http.NewRequestWithContext(ctx3, "GET", "https://example.com/redirect", nil)
+	_, err = redirectClient.Do(req3)
+	require.NoError(t, err)
+
+	assert.Len(t, traces3.Traces(), 2)
+	assert.Equal(t, 200, traces3.Last().Response.StatusCode)
+	assert.Equal(t, []byte("final"), traces3.Last().ResponseBody)
+
+	// requests made without a collector still work, and are still recorded by the transport itself
+	tracer := httpx.WithTraces(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+		url: {httpx.NewMockResponse(200, nil, []byte("solo"))},
+	}))
+	req4, _ := http.NewRequest("GET", url, nil)
+	_, err = (&http.Client{Transport: tracer}).Do(req4)
+	require.NoError(t, err)
+	assert.Len(t, tracer.Traces(), 1)
+
+	// an empty collector reports no traces rather than panicking
+	_, empty := httpx.WithTraceCollector(context.Background())
+	assert.Empty(t, empty.Traces())
+	assert.Nil(t, empty.Last())
+}
+
+func TestTraceCollectorConcurrent(t *testing.T) {
+	client := &http.Client{Transport: httpx.WithTraces(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{Status: "200 OK", StatusCode: 200, Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1,
+			Header: make(http.Header), Body: io.NopCloser(bytes.NewReader([]byte(r.URL.Path)))}, nil
+	}))}
+
+	// each concurrent caller must see exactly its own trace, not those of the calls racing alongside it
+	wg := sync.WaitGroup{}
+	for i := range 50 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+
+			ctx, traces := httpx.WithTraceCollector(context.Background())
+			path := fmt.Sprintf("/req-%d", i)
+			req, _ := http.NewRequestWithContext(ctx, "GET", "https://example.com"+path, nil)
+			_, err := client.Do(req)
+
+			assert.NoError(t, err)
+			if assert.Len(t, traces.Traces(), 1) {
+				assert.Equal(t, []byte(path), traces.Last().ResponseBody)
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestTraceCollectorWithRetries(t *testing.T) {
+	// a retrier composed inside the tracer reports its retries on the collected trace
+	client := &http.Client{Transport: httpx.WithTraces(httpx.WithRetries(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+		"https://example.com/thing": {httpx.NewMockResponse(502, nil, nil), httpx.NewMockResponse(200, nil, []byte("ok"))},
+	}), httpx.NewFixedRetries(time.Millisecond)))}
+
+	ctx, traces := httpx.WithTraceCollector(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://example.com/thing", nil)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	require.Len(t, traces.Traces(), 1)
+	assert.Equal(t, 1, traces.Last().Retries)
+	assert.Equal(t, []byte("ok"), traces.Last().ResponseBody)
+}
+
+func TestTraceCollectorReadLimit(t *testing.T) {
+	// the read limit stays a transport concern, composed inside the tracer on the client
+	client := &http.Client{Transport: httpx.WithTraces(httpx.WithReadLimit(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+		"https://example.com/big": {httpx.NewMockResponse(200, nil, bytes.Repeat([]byte("x"), 100))},
+	}), 10))}
+
+	ctx, traces := httpx.WithTraceCollector(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://example.com/big", nil)
+	resp, err := client.Do(req)
+	require.NoError(t, err) // the limit is enforced when the body is read, not by Do
+
+	_, err = io.ReadAll(resp.Body)
+	assert.ErrorIs(t, err, httpx.ErrResponseSize)
+	require.NotNil(t, traces.Last())
 }
