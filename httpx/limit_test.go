@@ -66,7 +66,8 @@ func TestBodyLimitTransport(t *testing.T) {
 	// composed inside WithTraces, the limit bounds the body before it's buffered, so the caller reading the
 	// handed-back body sees ErrResponseSize rather than WithTraces silently buffering the whole thing
 	tracing := httpx.WithTraces(httpx.WithReadLimit(http.DefaultTransport, 4))
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	tracingCtx, _ := httpx.WithTraceCollector(ctx)
+	request, err = httpx.NewRequest(tracingCtx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err = tracing.RoundTrip(request)
 	require.NoError(t, err)

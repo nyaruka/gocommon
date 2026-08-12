@@ -98,27 +98,39 @@ func replaceNullChars(b []byte) []byte {
 	return bytes.ReplaceAll(b, []byte{0}, []byte(`�`))
 }
 
-// TracesTransport is an http.RoundTripper which captures a Trace of each request and response, delegating to an
-// inner transport. The response body is buffered so that it remains readable by the caller. It is safe for
-// concurrent use by multiple goroutines, as the http.RoundTripper contract requires.
-type TracesTransport struct {
-	inner  http.RoundTripper
-	mutex  sync.Mutex
-	traces []*Trace
+// tracesTransport is an http.RoundTripper which captures a Trace of each request and response into the
+// TraceCollector carried by that request's context, delegating to an inner transport. The response body is buffered
+// so that it remains readable by the caller. It holds no state of its own and is safe for concurrent use by multiple
+// goroutines, as the http.RoundTripper contract requires.
+type tracesTransport struct {
+	inner http.RoundTripper
 }
 
-// WithTraces wraps an http.RoundTripper so that each request and response is captured as a *Trace, retrievable via
-// Traces(). The response body is buffered so it remains readable by the caller, and the full body that was read is
-// captured into the trace. To bound how many bytes are read from an untrusted endpoint, wrap the inner transport with
-// WithReadLimit, e.g. WithTraces(WithReadLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
-func WithTraces(inner http.RoundTripper) *TracesTransport {
+// WithTraces wraps an http.RoundTripper so that each request whose context carries a TraceCollector (see
+// WithTraceCollector) has its request and response captured into that collector as a *Trace. The response body is
+// buffered so it remains readable by the caller, and the full body that was read is captured into the trace. To
+// bound how many bytes are read from an untrusted endpoint, wrap the inner transport with WithReadLimit, e.g.
+// WithTraces(WithReadLimit(inner, n)). If inner is nil then http.DefaultTransport is used.
+//
+// The transport accumulates nothing, so it belongs on the client when the client is built - including a long-lived
+// client shared across many calls, and one handed to a vendor SDK that will make the requests itself. A request
+// whose context carries no collector is passed straight through, untraced and with its body left unbuffered: nobody
+// asked for that call's trace, so none is taken and none of tracing's cost is paid.
+func WithTraces(inner http.RoundTripper) http.RoundTripper {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	return &TracesTransport{inner: inner}
+	return &tracesTransport{inner: inner}
 }
 
-func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+func (t *tracesTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	collector := traceCollectorFromContext(request.Context())
+
+	// nobody asked for this call's trace, so take none
+	if collector == nil {
+		return t.inner.RoundTrip(request)
+	}
+
 	requestTrace, err := httputil.DumpRequestOut(request, true)
 	if err != nil {
 		// the http.RoundTripper contract requires the request body to be closed even on error paths
@@ -138,16 +150,12 @@ func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, erro
 		RequestTrace: requestTrace,
 		StartTime:    dates.Now(),
 	}
-	t.mutex.Lock()
-	t.traces = append(t.traces, trace)
-	t.mutex.Unlock()
 
-	// also record into the per-call collector carried by the request context, if there is one, so that a caller
-	// sharing this transport can pick out the traces of just its own call
-	if c := traceCollectorFromContext(request.Context()); c != nil {
-		c.add(trace)
-	}
-
+	// hand the trace to the collector only once every field has been written. Deferring it (registered first, so it
+	// runs last) publishes it on every exit path, and the collector's lock then gives a reader in another goroutine
+	// the happens-before it needs - whereas publishing up front would expose a trace still being filled in, which
+	// only a collector that is never shared could get away with reading.
+	defer collector.add(trace)
 	defer func() { trace.EndTime = dates.Now() }()
 
 	response, err := t.inner.RoundTrip(request)
@@ -180,19 +188,16 @@ func (t *TracesTransport) RoundTrip(request *http.Request) (*http.Response, erro
 	return response, nil
 }
 
-// Traces returns a snapshot of the traces captured so far
-func (t *TracesTransport) Traces() []*Trace {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	return slices.Clone(t.traces)
-}
-
-var _ http.RoundTripper = (*TracesTransport)(nil)
+var _ http.RoundTripper = (*tracesTransport)(nil)
 
 type traceCollectorKey struct{}
 
-// TraceCollector accumulates the traces of the requests made under a particular context. It is safe for concurrent
-// use by multiple goroutines.
+// TraceCollector accumulates the traces of the requests made under a particular context. A trace appears here once
+// its request has completed, not while it is in flight, so what a reader sees is always fully written.
+//
+// It is safe for concurrent use by multiple goroutines. Note though that a context passed to several goroutines
+// gives them one shared collector: Traces() is then the union of what they all did, and Last() is simply the most
+// recent of those, not the caller's own. Where each caller needs its own traces, each needs its own collector.
 type TraceCollector struct {
 	mutex  sync.Mutex
 	traces []*Trace
@@ -235,9 +240,9 @@ func (c *TraceCollector) Traces() []*Trace {
 	return slices.Clone(c.traces)
 }
 
-// Last returns the most recently started trace, or nil if none were collected. Where a request was redirected that's
-// the final hop, which is usually the only one worth logging - the earlier hops being the 3xx responses that led to
-// it. A nil return means no request reached the tracing transport at all.
+// Last returns the most recently completed trace, or nil if none were collected. Where a request was redirected
+// that's the final hop, which is usually the only one worth logging - the earlier hops being the 3xx responses that
+// led to it. A nil return means no request reached the tracing transport at all.
 func (c *TraceCollector) Last() *Trace {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

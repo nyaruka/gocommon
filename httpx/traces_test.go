@@ -28,7 +28,8 @@ func TestTracesTransport(t *testing.T) {
 
 	tt := httpx.WithTraces(http.DefaultTransport)
 
-	request, err := httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	traceCtx, traces := httpx.WithTraceCollector(ctx)
+	request, err := httpx.NewRequest(traceCtx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err := tt.RoundTrip(request)
 	require.NoError(t, err)
@@ -38,9 +39,9 @@ func TestTracesTransport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{ "ok": "true" }`, string(body))
 
-	// and a complete trace was captured
-	require.Len(t, tt.Traces(), 1)
-	trace := tt.Traces()[0]
+	// and a complete trace was captured into the collector
+	require.Len(t, traces.Traces(), 1)
+	trace := traces.Traces()[0]
 	assert.Equal(t, "GET /?cmd=success HTTP/1.1\r\nHost: 127.0.0.1:52026\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Wed, 11 Apr 2018 18:24:30 GMT\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, `{ "ok": "true" }`, string(trace.ResponseBody))
@@ -48,18 +49,29 @@ func TestTracesTransport(t *testing.T) {
 	assert.Equal(t, time.Date(2019, 10, 7, 15, 21, 31, 123456789, time.UTC), trace.EndTime)
 	assert.Equal(t, 0, trace.Retries)
 
-	// a second request accumulates another trace
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	// a second request under the same collector adds another trace
+	request, err = httpx.NewRequest(traceCtx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
 	require.NoError(t, err)
 	io.ReadAll(resp.Body)
-	assert.Len(t, tt.Traces(), 2)
+	assert.Len(t, traces.Traces(), 2)
+
+	// a request with no collector on its context is passed through untraced
+	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	require.NoError(t, err)
+	resp, err = tt.RoundTrip(request)
+	require.NoError(t, err)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, `{ "ok": "true" }`, string(body))
+	assert.Len(t, traces.Traces(), 2, "untraced request must not reach the earlier collector")
 
 	// the inner transport still sees the request body after DumpRequestOut has consumed and restored it
 	capturer := &bodyCapturingTransport{}
 	tt = httpx.WithTraces(capturer)
-	request, err = httpx.NewRequest(ctx, "POST", "https://temba.io", bytes.NewReader([]byte("hello body")), nil)
+	capturerCtx, _ := httpx.WithTraceCollector(ctx)
+	request, err = httpx.NewRequest(capturerCtx, "POST", "https://temba.io", bytes.NewReader([]byte("hello body")), nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
 	require.NoError(t, err)
@@ -70,20 +82,22 @@ func TestTracesTransport(t *testing.T) {
 		"https://temba.io": {httpx.MockConnectionError},
 	})
 	tt = httpx.WithTraces(inner)
-	request, err = httpx.NewRequest(ctx, "GET", "https://temba.io", nil, nil)
+	errCtx, errTraces := httpx.WithTraceCollector(ctx)
+	request, err = httpx.NewRequest(errCtx, "GET", "https://temba.io", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
 	assert.EqualError(t, err, "unable to connect to server")
 	assert.Nil(t, resp)
-	require.Len(t, tt.Traces(), 1)
-	assert.NotNil(t, tt.Traces()[0].RequestTrace)
-	assert.Nil(t, tt.Traces()[0].Response)
-	assert.Nil(t, tt.Traces()[0].ResponseBody)
+	require.Len(t, errTraces.Traces(), 1)
+	assert.NotNil(t, errTraces.Last().RequestTrace)
+	assert.Nil(t, errTraces.Last().Response)
+	assert.Nil(t, errTraces.Last().ResponseBody)
 
 	// a nil inner transport falls back to http.DefaultTransport
 	tt = httpx.WithTraces(nil)
 	assert.NotNil(t, tt)
-	request, err = httpx.NewRequest(ctx, "GET", server.URL+"?cmd=success", nil, nil)
+	nilCtx, _ := httpx.WithTraceCollector(ctx)
+	request, err = httpx.NewRequest(nilCtx, "GET", server.URL+"?cmd=success", nil, nil)
 	require.NoError(t, err)
 	resp, err = tt.RoundTrip(request)
 	require.NoError(t, err)
@@ -110,21 +124,22 @@ func TestTracesTransportConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			request, _ := http.NewRequest("GET", server.URL+"?cmd=success", nil)
+
+			ctx, traces := httpx.WithTraceCollector(context.Background())
+			request, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"?cmd=success", nil)
 			resp, err := tt.RoundTrip(request)
 			if assert.NoError(t, err) {
 				io.ReadAll(resp.Body)
 				resp.Body.Close()
 			}
+			assert.Len(t, traces.Traces(), 1) // each goroutine sees only its own
 		}()
 	}
 	wg.Wait()
-
-	assert.Len(t, tt.Traces(), 20)
 }
 
 func TestTraceSizes(t *testing.T) {
-	ctx := context.Background()
+	ctx, traces := httpx.WithTraceCollector(context.Background())
 
 	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {
@@ -139,7 +154,7 @@ func TestTraceSizes(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 
-	trace := tt.Traces()[0]
+	trace := traces.Last()
 	assert.Equal(t, len(trace.RequestTrace), trace.RequestSize())
 	assert.Equal(t, len(trace.ResponseTrace)+12, trace.ResponseSize())
 
@@ -158,7 +173,7 @@ func TestTraceSizes(t *testing.T) {
 }
 
 func TestNonUTF8Request(t *testing.T) {
-	ctx := context.Background()
+	ctx, traces := httpx.WithTraceCollector(context.Background())
 
 	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {
@@ -173,7 +188,7 @@ func TestNonUTF8Request(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 
-	trace := tt.Traces()[0]
+	trace := traces.Last()
 	assert.Equal(t, "GET / HTTP/1.1\r\nHost: temba.io\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 2\r\nX-Badness: \xc3(\r\nAccept-Encoding: gzip\r\n\r\n\xc3(", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n", string(trace.ResponseTrace))
 	assert.False(t, utf8.Valid(trace.RequestTrace))
@@ -186,7 +201,7 @@ func TestNonUTF8Request(t *testing.T) {
 }
 
 func TestNonUTF8Response(t *testing.T) {
-	ctx := context.Background()
+	ctx, traces := httpx.WithTraceCollector(context.Background())
 
 	tt := httpx.WithTraces(httpx.WithMocks(http.DefaultTransport, map[string][]*httpx.MockResponse{
 		"https://temba.io": {
@@ -201,7 +216,7 @@ func TestNonUTF8Response(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 
-	trace := tt.Traces()[0]
+	trace := traces.Last()
 	assert.Equal(t, "GET / HTTP/1.1\r\nHost: temba.io\r\nUser-Agent: Go-http-client/1.1\r\nAccept-Encoding: gzip\r\n\r\n", string(trace.RequestTrace))
 	assert.Equal(t, "HTTP/1.0 200 OK\r\nContent-Length: 2\r\nX-Badness: \xc3(\r\n\r\n", string(trace.ResponseTrace))
 	assert.Equal(t, []byte{'\xc3', '\x28'}, trace.ResponseBody)
@@ -261,14 +276,17 @@ func TestTraceCollector(t *testing.T) {
 	assert.Equal(t, 200, traces3.Last().Response.StatusCode)
 	assert.Equal(t, []byte("final"), traces3.Last().ResponseBody)
 
-	// requests made without a collector still work, and are still recorded by the transport itself
-	tracer := httpx.WithTraces(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
+	// a request with no collector on its context is passed straight through - it still succeeds and its body is
+	// still readable, it just isn't traced and nothing is retained anywhere
+	soloClient := &http.Client{Transport: httpx.WithTraces(httpx.WithMocks(nil, map[string][]*httpx.MockResponse{
 		url: {httpx.NewMockResponse(200, nil, []byte("solo"))},
-	}))
+	}))}
 	req4, _ := http.NewRequest("GET", url, nil)
-	_, err = (&http.Client{Transport: tracer}).Do(req4)
+	resp, err = soloClient.Do(req4)
 	require.NoError(t, err)
-	assert.Len(t, tracer.Traces(), 1)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("solo"), body)
 
 	// an empty collector reports no traces rather than panicking
 	_, empty := httpx.WithTraceCollector(context.Background())
@@ -334,4 +352,53 @@ func TestTraceCollectorReadLimit(t *testing.T) {
 	_, err = io.ReadAll(resp.Body)
 	assert.ErrorIs(t, err, httpx.ErrResponseSize)
 	require.NotNil(t, traces.Last())
+}
+
+func TestTraceCollectorSharedContext(t *testing.T) {
+	// a transport slow enough that one request is still in flight while the other goroutine reads
+	client := &http.Client{Transport: httpx.WithTraces(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		time.Sleep(20 * time.Millisecond)
+		return &http.Response{Status: "200 OK", StatusCode: 200, Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1,
+			Header: make(http.Header), Body: io.NopCloser(bytes.NewReader([]byte(r.URL.Path)))}, nil
+	}))}
+
+	// a context handed to several goroutines gives them one shared collector
+	ctx, traces := httpx.WithTraceCollector(context.Background())
+
+	wg := sync.WaitGroup{}
+	for i := range 4 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			req, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://example.com/req-%d", i), nil)
+			resp, err := client.Do(req)
+			if assert.NoError(t, err) {
+				io.Copy(io.Discard, resp.Body)
+			}
+		}(i)
+	}
+
+	// meanwhile read the collector continuously - traces are only published once fully written, so under -race
+	// this must not catch a RoundTrip mid-write
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 100 {
+			for _, tr := range traces.Traces() {
+				_, _, _ = tr.Response, tr.ResponseBody, tr.EndTime
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+
+	wg.Wait()
+
+	// every goroutine's trace lands in the shared collector, each one complete
+	all := traces.Traces()
+	require.Len(t, all, 4)
+	for _, tr := range all {
+		assert.NotNil(t, tr.Response)
+		assert.Equal(t, []byte(tr.Request.URL.Path), tr.ResponseBody)
+		assert.False(t, tr.EndTime.IsZero())
+	}
 }
