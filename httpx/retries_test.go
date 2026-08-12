@@ -271,7 +271,8 @@ func TestWithRetriesAndTraces(t *testing.T) {
 
 	// WithTraces(WithRetries(inner)) captures a single trace of the final attempt, with the retry count surfaced
 	tt := httpx.WithTraces(httpx.WithRetries(inner, retries))
-	req, err := httpx.NewRequest(ctx, "GET", "http://temba.io/", nil, nil)
+	traceCtx, traces := httpx.WithTraceCollector(ctx)
+	req, err := httpx.NewRequest(traceCtx, "GET", "http://temba.io/", nil, nil)
 	require.NoError(t, err)
 	resp, err := tt.RoundTrip(req)
 	require.NoError(t, err)
@@ -281,8 +282,8 @@ func TestWithRetriesAndTraces(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ok", string(body))
 
-	require.Len(t, tt.Traces(), 1)
-	trace := tt.Traces()[0]
+	require.Len(t, traces.Traces(), 1)
+	trace := traces.Last()
 	assert.Equal(t, 200, trace.Response.StatusCode)
 	assert.Equal(t, "ok", string(trace.ResponseBody))
 	assert.Equal(t, 2, trace.Retries)

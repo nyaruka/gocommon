@@ -139,7 +139,7 @@ func WithRetries(inner http.RoundTripper, retries *RetryConfig) http.RoundTrippe
 }
 
 func (t *retryTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	// an outer TracesTransport may have installed a counter for us to report retries through
+	// an outer traces transport may have installed a counter for us to report retries through
 	count := retryCountFromContext(request.Context())
 
 	retry := 0
@@ -214,8 +214,8 @@ func wait(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// retryCountKey is the unexported context key under which a retry counter is carried so that an outer TracesTransport
-// can recover how many retries an inner retryTransport performed. See WithRetries.
+// retryCountKey is the unexported context key under which a retry counter is carried so that an outer traces
+// transport can recover how many retries an inner retryTransport performed. See WithRetries.
 type retryCountKey struct{}
 
 // contextWithRetryCount returns a copy of ctx carrying a fresh retry counter, along with that counter. An outer

@@ -27,11 +27,11 @@ func TestLogs(t *testing.T) {
 
 	// trace makes the given request through the tracing transport and returns the captured trace
 	trace := func(req *http.Request) *httpx.Trace {
-		resp, err := tt.RoundTrip(req)
+		ctx, traces := httpx.WithTraceCollector(req.Context())
+		resp, err := tt.RoundTrip(req.WithContext(ctx))
 		require.NoError(t, err)
 		resp.Body.Close()
-		traces := tt.Traces()
-		return traces[len(traces)-1]
+		return traces.Last()
 	}
 
 	req1, err := httpx.NewRequest(
