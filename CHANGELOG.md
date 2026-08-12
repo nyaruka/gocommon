@@ -1,3 +1,8 @@
+v1.93.1 (2026-08-12)
+-------------------------
+ * Make httpx.WithTraces record into context collectors only, with no accumulating list
+ * Remove websocket support from httpx
+
 v1.93.0 (2026-08-12)
 -------------------------
  * Add svclogs package
