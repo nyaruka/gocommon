@@ -1,6 +1,7 @@
 package dynamo_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 	"time"
@@ -34,7 +35,10 @@ func TestItem(t *testing.T) {
 
 	marshaled1, err := json.Marshal(item1)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"PK":"user#123","SK":"metadata","OrgID":42,"TTL":"2030-01-01T12:00:00Z","Data":{"bar":30,"type":"test"},"DataGZ":"H4sIAAAAAAAA/6pWSsvPV7JSykjNyclX0lEqqSxIVbJSKkktLlGq5QIEAAD///G5VPQeAAAA","Src":"archives"}`, string(marshaled1))
+
+	// exact gzip output varies between go versions so compare against the actual compressed bytes
+	dataGZ64 := base64.StdEncoding.EncodeToString(dataGZ)
+	assert.Equal(t, `{"PK":"user#123","SK":"metadata","OrgID":42,"TTL":"2030-01-01T12:00:00Z","Data":{"bar":30,"type":"test"},"DataGZ":"`+dataGZ64+`","Src":"archives"}`, string(marshaled1))
 
 	dyMap1, err := attributevalue.MarshalMap(item1)
 	assert.NoError(t, err)
