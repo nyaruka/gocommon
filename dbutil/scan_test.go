@@ -60,7 +60,8 @@ func TestScanJSON(t *testing.T) {
 	require.True(t, rows.Next())
 
 	err = dbutil.ScanAndValidateJSON(rows, f)
-	assert.EqualError(t, err, `error scanning row JSON: sql: Scan error on column index 0, name "id": unsupported Scan, storing driver.Value type int64 into type *json.RawMessage`)
+	// go 1.27+ reports the destination type as *jsontext.Value rather than *json.RawMessage
+	assert.ErrorContains(t, err, `error scanning row JSON: sql: Scan error on column index 0, name "id": unsupported Scan, storing driver.Value type int64 into type *`)
 
 	// error if we can't marshal into the struct
 	rows = queryRows(`SELECT ROW_TO_JSON(r) FROM (SELECT f.uuid as uuid, f.name AS age FROM foo f WHERE id = 1) r`)
