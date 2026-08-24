@@ -41,9 +41,14 @@ func TestSpool(t *testing.T) {
 	err = spool.Start()
 	require.NoError(t, err)
 
-	err = spool.Add("TestSpool", []map[string]types.AttributeValue{item1, item2})
+	err = spool.Add("TestSpool", []types.WriteRequest{
+		{PutRequest: &types.PutRequest{Item: item1}},
+		{PutRequest: &types.PutRequest{Item: item2}},
+	})
 	assert.NoError(t, err)
-	err = spool.Add("TestSpool", []map[string]types.AttributeValue{item3})
+	err = spool.Add("TestSpool", []types.WriteRequest{
+		{PutRequest: &types.PutRequest{Item: item3}},
+	})
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, spool.Size())
@@ -91,7 +96,7 @@ func TestSpoolDeletes(t *testing.T) {
 	require.NoError(t, spool.Start())
 
 	// add a mixed batch of a put and a delete
-	err = spool.AddWrites("TestSpoolDeletes", []types.WriteRequest{
+	err = spool.Add("TestSpoolDeletes", []types.WriteRequest{
 		{PutRequest: &types.PutRequest{Item: item2}},
 		{DeleteRequest: &types.DeleteRequest{Key: key1}},
 	})

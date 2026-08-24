@@ -87,17 +87,8 @@ func (s *Spool) Stop() {
 	s.spool.Stop()
 }
 
-// Add writes items to be put in the given table to a new spool file.
-func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error {
-	batch := make([]*spooled, len(items))
-	for i, item := range items {
-		batch[i] = &spooled{table: table, item: item}
-	}
-	return s.spool.Add(batch)
-}
-
-// AddWrites writes put and delete requests destined for the given table to a new spool file.
-func (s *Spool) AddWrites(table string, requests []types.WriteRequest) error {
+// Add writes put and delete requests destined for the given table to a new spool file.
+func (s *Spool) Add(table string, requests []types.WriteRequest) error {
 	batch := make([]*spooled, len(requests))
 	for i, req := range requests {
 		batch[i] = spooledFromRequest(table, req)

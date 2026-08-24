@@ -136,7 +136,7 @@ func (w *Writer) flush(batch []*writable) {
 	w.numWritten.Add(int64(len(items) - len(unprocessed)))
 
 	if len(unprocessed) > 0 {
-		if err := w.spool.AddWrites(w.table, unprocessed); err != nil {
+		if err := w.spool.Add(w.table, unprocessed); err != nil {
 			slog.Error("error writing unprocessed items to spool", "count", len(unprocessed), "error", err)
 		}
 

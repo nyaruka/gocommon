@@ -1,6 +1,7 @@
 package dynamo_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -75,18 +76,12 @@ func TestPutAndGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, obj)
 
-	unprocessed, err := dynamo.BatchPutItem(ctx, client, "TestPutAndGet", []*dynamo.Item{})
-	assert.NoError(t, err)
-	assert.Equal(t, []*dynamo.Item{}, unprocessed)
-
-	unprocessed, err = dynamo.BatchPutItem(ctx, client, "TestPutAndGet", []*dynamo.Item{
-		{Key: dynamo.Key{PK: "BATCH1", SK: "S1"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 1"}},
-		{Key: dynamo.Key{PK: "BATCH2", SK: "S2"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 2"}},
-		{Key: dynamo.Key{PK: "BATCH3", SK: "S3"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 3"}},
-		{Key: dynamo.Key{PK: "BATCH4", SK: "S4"}, OrgID: 1, Data: map[string]any{"name": "Batch Item 4"}},
-	})
-	assert.NoError(t, err)
-	assert.Empty(t, unprocessed)
+	for i := 1; i <= 4; i++ {
+		err = dynamo.PutItem(ctx, client, "TestPutAndGet", &dynamo.Item{
+			Key: dynamo.Key{PK: fmt.Sprintf("BATCH%d", i), SK: fmt.Sprintf("S%d", i)}, OrgID: 1, Data: map[string]any{"name": fmt.Sprintf("Batch Item %d", i)},
+		})
+		assert.NoError(t, err)
+	}
 
 	dyntest.AssertCount(t, client, "TestPutAndGet", 6)
 
