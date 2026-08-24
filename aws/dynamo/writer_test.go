@@ -95,3 +95,94 @@ func TestWriter(t *testing.T) {
 	writer.Stop()
 	spool.Stop()
 }
+
+func TestWriterDeletes(t *testing.T) {
+	ctx := t.Context()
+
+	client, err := dynamo.NewClient(ctx, "http://dynamodb:8000")
+	require.NoError(t, err)
+
+	createTestTable(t, client, "TestWriterDeletes")
+
+	spool := dynamo.NewSpool(client, filepath.Join(t.TempDir(), "spool"), 30*time.Second)
+	require.NoError(t, spool.Start())
+
+	writer := dynamo.NewWriter(client, "TestWriterDeletes", time.Minute, 10, spool)
+	writer.Start()
+
+	for i := range 5 {
+		_, err := writer.Queue(&Thing{ID: i, Name: fmt.Sprintf("Item %d", i)})
+		assert.NoError(t, err)
+	}
+
+	writer.Flush()
+
+	dyntest.AssertCount(t, client, "TestWriterDeletes", 5)
+
+	// queue deletes of two existing items
+	rem, err := writer.QueueDelete(dynamo.Key{PK: "test", SK: "item0"})
+	assert.NoError(t, err)
+	assert.NotZero(t, rem)
+	_, err = writer.QueueDelete(dynamo.Key{PK: "test", SK: "item1"})
+	assert.NoError(t, err)
+
+	// and in the same batch, a put then a delete of the same key (delete queued later wins)...
+	_, err = writer.Queue(&Thing{ID: 2, Name: "Item 2 v2"})
+	assert.NoError(t, err)
+	_, err = writer.QueueDelete(dynamo.Key{PK: "test", SK: "item2"})
+	assert.NoError(t, err)
+
+	// ... and a delete then a put of the same key (put queued later wins)
+	_, err = writer.QueueDelete(dynamo.Key{PK: "test", SK: "item3"})
+	assert.NoError(t, err)
+	_, err = writer.Queue(&Thing{ID: 3, Name: "Item 3 v2"})
+	assert.NoError(t, err)
+
+	writer.Flush()
+
+	numWritten, numSpooled := writer.Stats()
+	assert.Equal(t, int64(9), numWritten) // 5 puts + 3 deletes + 1 put after deduping
+	assert.Equal(t, int64(0), numSpooled)
+
+	dyntest.AssertCount(t, client, "TestWriterDeletes", 2)
+
+	item, err := dynamo.GetItem(ctx, client, "TestWriterDeletes", dynamo.Key{PK: "test", SK: "item2"})
+	require.NoError(t, err)
+	assert.Nil(t, item)
+
+	item, err = dynamo.GetItem(ctx, client, "TestWriterDeletes", dynamo.Key{PK: "test", SK: "item3"})
+	require.NoError(t, err)
+	require.NotNil(t, item)
+	assert.Equal(t, "Item 3 v2", item.Data["Name"])
+
+	// break writing by dropping the table and check that a failed delete is spooled
+	dyntest.Drop(t, client, "TestWriterDeletes")
+
+	_, err = writer.QueueDelete(dynamo.Key{PK: "test", SK: "item4"})
+	assert.NoError(t, err)
+
+	writer.Flush()
+
+	numWritten, numSpooled = writer.Stats()
+	assert.Equal(t, int64(9), numWritten)
+	assert.Equal(t, int64(1), numSpooled)
+	assert.Equal(t, 1, spool.Size())
+
+	writer.Stop()
+
+	// recreate the table with item4 still in it and check that flushing the spool replays the delete
+	createTestTable(t, client, "TestWriterDeletes")
+	defer dyntest.Drop(t, client, "TestWriterDeletes")
+
+	err = dynamo.PutItem(ctx, client, "TestWriterDeletes", &dynamo.Item{Key: dynamo.Key{PK: "test", SK: "item4"}, OrgID: 1, Data: map[string]any{"Name": "Item 4"}})
+	require.NoError(t, err)
+
+	require.NoError(t, spool.Flush())
+	assert.Equal(t, 0, spool.Size())
+
+	item, err = dynamo.GetItem(ctx, client, "TestWriterDeletes", dynamo.Key{PK: "test", SK: "item4"})
+	require.NoError(t, err)
+	assert.Nil(t, item)
+
+	spool.Stop()
+}

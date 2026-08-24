@@ -12,16 +12,33 @@ import (
 	"github.com/nyaruka/gocommon/spools"
 )
 
-// spooled is a DynamoDB item and the table it's destined for.
+// spooled is a DynamoDB write (a put or a delete) and the table it's destined for.
 type spooled struct {
-	table string
-	item  map[string]types.AttributeValue
+	table  string
+	item   map[string]types.AttributeValue // item attrs for a put, key attrs for a delete
+	delete bool
 }
 
-// spooledJSON is the serialized form of a spooled item.
+func (s *spooled) request() types.WriteRequest {
+	if s.delete {
+		return types.WriteRequest{DeleteRequest: &types.DeleteRequest{Key: s.item}}
+	}
+	return types.WriteRequest{PutRequest: &types.PutRequest{Item: s.item}}
+}
+
+func spooledFromRequest(table string, req types.WriteRequest) *spooled {
+	if req.DeleteRequest != nil {
+		return &spooled{table: table, item: req.DeleteRequest.Key, delete: true}
+	}
+	return &spooled{table: table, item: req.PutRequest.Item}
+}
+
+// spooledJSON is the serialized form of a spooled write. The delete marker is omitted for puts so files written by
+// older versions (which only spooled puts) read back correctly.
 type spooledJSON struct {
-	Table string          `json:"table"`
-	Item  json.RawMessage `json:"item"`
+	Table  string          `json:"table"`
+	Item   json.RawMessage `json:"item"`
+	Delete bool            `json:"delete,omitempty"`
 }
 
 func marshalSpooled(s *spooled) ([]byte, error) {
@@ -29,7 +46,7 @@ func marshalSpooled(s *spooled) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling item: %w", err)
 	}
-	return json.Marshal(&spooledJSON{Table: s.table, Item: item})
+	return json.Marshal(&spooledJSON{Table: s.table, Item: item, Delete: s.delete})
 }
 
 func unmarshalSpooled(data []byte) (*spooled, error) {
@@ -41,12 +58,13 @@ func unmarshalSpooled(data []byte) (*spooled, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling item: %w", err)
 	}
-	return &spooled{table: sj.Table, item: item}, nil
+	return &spooled{table: sj.Table, item: item, delete: sj.Delete}, nil
 }
 
-// Spool writes DynamoDB items to local files and periodically retries putting them in DynamoDB.
+// Spool writes DynamoDB writes (puts and deletes) to local files and periodically retries them against DynamoDB.
 //
-// Flushing is at-least-once so items may be re-put after a crash - see [spools.Spool].
+// Flushing is at-least-once so writes may be replayed after a crash - see [spools.Spool]. Note this means a replayed
+// put can resurrect an item deleted since it was spooled, and a replayed delete can remove an item recreated since.
 type Spool struct {
 	client *dynamodb.Client
 	spool  *spools.Spool[*spooled]
@@ -69,11 +87,11 @@ func (s *Spool) Stop() {
 	s.spool.Stop()
 }
 
-// Add writes items destined for the given table to a new spool file.
-func (s *Spool) Add(table string, items []map[string]types.AttributeValue) error {
-	batch := make([]*spooled, len(items))
-	for i, item := range items {
-		batch[i] = &spooled{table: table, item: item}
+// Add writes put and delete requests destined for the given table to a new spool file.
+func (s *Spool) Add(table string, requests []types.WriteRequest) error {
+	batch := make([]*spooled, len(requests))
+	for i, req := range requests {
+		batch[i] = spooledFromRequest(table, req)
 	}
 	return s.spool.Add(batch)
 }
@@ -95,24 +113,24 @@ func (s *Spool) Delete() error {
 
 func (s *Spool) flushBatch(ctx context.Context, batch []*spooled) ([]*spooled, error) {
 	// group by table preserving order - though in practice a spool file is written from a single writer batch so all
-	// of its items are for the same table
+	// of its writes are for the same table
 	tables := make([]string, 0, 1)
-	byTable := make(map[string][]map[string]types.AttributeValue, 1)
+	byTable := make(map[string][]types.WriteRequest, 1)
 	for _, sp := range batch {
 		if _, seen := byTable[sp.table]; !seen {
 			tables = append(tables, sp.table)
 		}
-		byTable[sp.table] = append(byTable[sp.table], sp.item)
+		byTable[sp.table] = append(byTable[sp.table], sp.request())
 	}
 
 	var failed []*spooled
 	for _, table := range tables {
-		unprocessed, err := batchPutItem(ctx, s.client, table, byTable[table])
+		unprocessed, err := batchWriteItem(ctx, s.client, table, byTable[table])
 		if err != nil {
 			return nil, err
 		}
-		for _, item := range unprocessed {
-			failed = append(failed, &spooled{table: table, item: item})
+		for _, req := range unprocessed {
+			failed = append(failed, spooledFromRequest(table, req))
 		}
 	}
 	return failed, nil
