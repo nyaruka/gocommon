@@ -69,6 +69,92 @@ func TestSpool(t *testing.T) {
 	assert.Equal(t, "Thing 1", obj.Data["name"])
 }
 
+func TestSpoolDeletes(t *testing.T) {
+	ctx := t.Context()
+
+	client, err := dynamo.NewClient(ctx, "http://dynamodb:8000")
+	require.NoError(t, err)
+
+	defer dyntest.Drop(t, client, "TestSpoolDeletes")
+
+	createTestTable(t, client, "TestSpoolDeletes")
+
+	err = dynamo.PutItem(ctx, client, "TestSpoolDeletes", &dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}})
+	require.NoError(t, err)
+
+	item2, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P22", SK: "SBB"}, OrgID: 1, Data: map[string]any{"name": "Thing 2"}})
+	key1, _ := attributevalue.MarshalMap(dynamo.Key{PK: "P11", SK: "SAA"})
+
+	dir := filepath.Join(t.TempDir(), "spool")
+
+	spool := dynamo.NewSpool(client, dir, 30*time.Second)
+	require.NoError(t, spool.Start())
+
+	// add a mixed batch of a put and a delete
+	err = spool.AddWrites("TestSpoolDeletes", []types.WriteRequest{
+		{PutRequest: &types.PutRequest{Item: item2}},
+		{DeleteRequest: &types.DeleteRequest{Key: key1}},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, spool.Size())
+
+	spool.Stop()
+
+	// start a new spool to verify deletes survive a round trip through the file format
+	spool = dynamo.NewSpool(client, dir, 30*time.Second)
+	require.NoError(t, spool.Start())
+	defer spool.Stop()
+
+	assert.Equal(t, 2, spool.Size())
+
+	require.NoError(t, spool.Flush())
+	assert.Equal(t, 0, spool.Size())
+
+	// the put happened and the delete removed thing 1
+	obj, err := dynamo.GetItem(ctx, client, "TestSpoolDeletes", dynamo.Key{PK: "P22", SK: "SBB"})
+	require.NoError(t, err)
+	require.NotNil(t, obj)
+	assert.Equal(t, "Thing 2", obj.Data["name"])
+
+	obj, err = dynamo.GetItem(ctx, client, "TestSpoolDeletes", dynamo.Key{PK: "P11", SK: "SAA"})
+	require.NoError(t, err)
+	assert.Nil(t, obj)
+}
+
+func TestSpoolOldFormatFile(t *testing.T) {
+	ctx := t.Context()
+
+	client, err := dynamo.NewClient(ctx, "http://dynamodb:8000")
+	require.NoError(t, err)
+
+	defer dyntest.Drop(t, client, "TestSpoolOldFormat")
+
+	createTestTable(t, client, "TestSpoolOldFormat")
+
+	// hand-craft a spool file in the pre-delete format (no "delete" field) to check it still reads as puts
+	dir := filepath.Join(t.TempDir(), "spool")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+
+	item1, _ := attributevalue.MarshalMap(&dynamo.Item{Key: dynamo.Key{PK: "P11", SK: "SAA"}, OrgID: 1, Data: map[string]any{"name": "Thing 1"}})
+	line1, _ := attributevalue.MarshalMapJSON(item1)
+	content := fmt.Sprintf("{\"table\":\"TestSpoolOldFormat\",\"item\":%s}\n", line1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "old#1.jsonl"), []byte(content), 0644))
+
+	spool := dynamo.NewSpool(client, dir, 30*time.Second)
+	require.NoError(t, spool.Start())
+	defer spool.Stop()
+
+	assert.Equal(t, 1, spool.Size())
+
+	require.NoError(t, spool.Flush())
+	assert.Equal(t, 0, spool.Size())
+
+	obj, err := dynamo.GetItem(ctx, client, "TestSpoolOldFormat", dynamo.Key{PK: "P11", SK: "SAA"})
+	require.NoError(t, err)
+	require.NotNil(t, obj)
+	assert.Equal(t, "Thing 1", obj.Data["name"])
+}
+
 func TestSpoolMixedTableFile(t *testing.T) {
 	ctx := t.Context()
 

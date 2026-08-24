@@ -161,18 +161,14 @@ func batchPutItem(ctx context.Context, c *dynamodb.Client, table string, items [
 		writeRequests = append(writeRequests, types.WriteRequest{PutRequest: &types.PutRequest{Item: item}})
 	}
 
-	resp, err := c.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]types.WriteRequest{
-			table: writeRequests,
-		},
-	})
+	unprocessedRequests, err := batchWriteItem(ctx, c, table, writeRequests)
 	if err != nil {
-		return nil, fmt.Errorf("error batch writing items to table %s: %w", table, err)
+		return nil, err
 	}
 
 	var unprocessed []map[string]types.AttributeValue
 
-	if unprocessedRequests, exists := resp.UnprocessedItems[table]; exists {
+	if len(unprocessedRequests) > 0 {
 		unprocessed = make([]map[string]types.AttributeValue, 0, len(unprocessedRequests))
 
 		for _, req := range unprocessedRequests {
@@ -181,4 +177,22 @@ func batchPutItem(ctx context.Context, c *dynamodb.Client, table string, items [
 	}
 
 	return unprocessed, nil
+}
+
+// performs a mix of puts and deletes against the table (max 25 requests, no two requests for the same key)
+func batchWriteItem(ctx context.Context, c *dynamodb.Client, table string, requests []types.WriteRequest) ([]types.WriteRequest, error) {
+	if len(requests) == 0 {
+		return nil, nil
+	}
+
+	resp, err := c.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
+			table: requests,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error batch writing items to table %s: %w", table, err)
+	}
+
+	return resp.UnprocessedItems[table], nil
 }
