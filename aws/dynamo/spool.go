@@ -63,8 +63,8 @@ func unmarshalSpooled(data []byte) (*spooled, error) {
 
 // Spool writes DynamoDB writes (puts and deletes) to local files and periodically retries them against DynamoDB.
 //
-// Flushing is at-least-once so writes may be replayed after a crash - see [spools.Spool]. Note this means a spooled
-// put replayed after a later successful delete of the same key can resurrect the item.
+// Flushing is at-least-once so writes may be replayed after a crash - see [spools.Spool]. Note this means a replayed
+// put can resurrect an item deleted since it was spooled, and a replayed delete can remove an item recreated since.
 type Spool struct {
 	client *dynamodb.Client
 	spool  *spools.Spool[*spooled]
