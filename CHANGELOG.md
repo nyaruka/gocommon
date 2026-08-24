@@ -1,3 +1,9 @@
+v1.94.0 (2026-08-24)
+-------------------------
+ * Add delete support to dynamo Writer and Spool
+ * Test against go 1.26 and 1.27 in CI and update module go version to 1.26
+ * Fix data race in cache tests and enable -race in CI
+
 v1.93.1 (2026-08-12)
 -------------------------
  * Make httpx.WithTraces record into context collectors only, with no accumulating list
