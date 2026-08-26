@@ -1,6 +1,7 @@
 package random_test
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -74,7 +75,17 @@ func TestSecureString(t *testing.T) {
 
 	assert.Panics(t, func() { random.SecureString(10, []rune("")) })
 	assert.Panics(t, func() { random.SecureString(10, []rune(strings.Repeat("x", 257))) })
+
+	// a source that can't be read from is a broken test setup, so we panic rather than return a weak secret
+	random.SetSecureSource(failingSource{})
+
+	assert.Panics(t, func() { random.SecureString(10, base64Chars) })
 }
+
+// a source that always fails, to test that SecureString panics rather than returning a partial string
+type failingSource struct{}
+
+func (failingSource) Read(p []byte) (int, error) { return 0, errors.New("source unavailable") }
 
 func TestSecureStringConcurrency(t *testing.T) {
 	defer random.SetSecureSource(random.DefaultSecureSource)
