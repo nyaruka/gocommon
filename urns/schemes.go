@@ -15,7 +15,7 @@ var viberRegex = regexp.MustCompile(`^[a-zA-Z0-9_=/+]{1,24}$`)
 var lineRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,36}$`)
 var phoneRegex = regexp.MustCompile(`^((\+[0-9]{7,15})|([a-z0-9]{1,64}))$`) // E164 or short code or sender ID
 var twitterHandleRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{1,15}$`)
-var webchatRegex = regexp.MustCompile(`^[a-zA-Z0-9]{24}(:[^\s@]+@[^\s@]+)?$`)
+var webchatRegex = regexp.MustCompile(`^[a-zA-Z0-9]{24}$`)
 var whatsAppBSUIDRegex = regexp.MustCompile(`^[A-Z]{2}\.[a-zA-Z0-9]{1,128}$`)
 
 const (
