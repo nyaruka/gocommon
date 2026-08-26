@@ -1,3 +1,7 @@
+v1.94.1 (2026-08-26)
+-------------------------
+ * Restrict webchat URN paths to 24 alphanumeric chars
+
 v1.94.0 (2026-08-24)
 -------------------------
  * Add delete support to dynamo Writer and Spool
