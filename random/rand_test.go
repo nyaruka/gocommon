@@ -1,6 +1,7 @@
 package random_test
 
 import (
+	"strings"
 	"sync"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRand(t *testing.T) {
@@ -23,6 +25,62 @@ func TestRand(t *testing.T) {
 
 	assert.Equal(t, "lJ4ZfHEr25", random.String(10, []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")))
 	assert.Equal(t, "zzzaaz!aaz", random.String(10, []rune("a!z")))
+}
+
+func TestSecureString(t *testing.T) {
+	defer random.SetSecureSource(random.DefaultSecureSource)
+
+	base64Chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+
+	// with a seeded source, output is deterministic so it can be used in snapshots
+	random.SetSecureSource(random.NewSeededSource(1234))
+
+	assert.Equal(t, "ViueeFXROP", random.SecureString(10, base64Chars))
+	assert.Equal(t, "4ELiwUJ1aY", random.SecureString(10, base64Chars))
+
+	// and is repeatable from the same seed
+	random.SetSecureSource(random.NewSeededSource(1234))
+
+	assert.Equal(t, "ViueeFXROP", random.SecureString(10, base64Chars))
+
+	// with the default source we can only assert shape
+	random.SetSecureSource(random.DefaultSecureSource)
+
+	assert.Equal(t, "", random.SecureString(0, base64Chars))
+
+	seen := make(map[string]bool, 1000)
+	for range 1000 {
+		s := random.SecureString(20, base64Chars)
+
+		require.Len(t, s, 20)
+		require.False(t, seen[s], "returned duplicate string %s", s)
+		seen[s] = true
+
+		for _, c := range s {
+			require.True(t, strings.ContainsRune(string(base64Chars), c), "unexpected character %c", c)
+		}
+	}
+
+	// alphabets whose size doesn't divide 256 are still unbiased because we discard biased values
+	counts := make(map[rune]int, 3)
+	for range 30000 {
+		for _, c := range random.SecureString(1, []rune("abc")) {
+			counts[c]++
+		}
+	}
+	for _, c := range []rune("abc") {
+		assert.InEpsilon(t, 10000, counts[c], 0.1, "unbalanced distribution for %c", c)
+	}
+
+	assert.Panics(t, func() { random.SecureString(10, []rune("")) })
+	assert.Panics(t, func() { random.SecureString(10, []rune(strings.Repeat("x", 257))) })
+}
+
+func TestSecureStringConcurrency(t *testing.T) {
+	defer random.SetSecureSource(random.DefaultSecureSource)
+	random.SetSecureSource(random.NewSeededSource(1234))
+
+	runConcurrently(10000, func(int) { random.SecureString(10, []rune("abcdef")) })
 }
 
 func TestRandConcurrency(t *testing.T) {
