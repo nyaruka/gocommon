@@ -26,6 +26,11 @@ func TestRand(t *testing.T) {
 
 	assert.Equal(t, "lJ4ZfHEr25", random.String(10, []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")))
 	assert.Equal(t, "zzzaaz!aaz", random.String(10, []rune("a!z")))
+
+	// unlike SecureString, String isn't limited to alphabets that fit in a byte
+	assert.Len(t, random.String(10, []rune(strings.Repeat("x", 300))), 10)
+
+	assert.Panics(t, func() { random.String(10, []rune("")) })
 }
 
 func TestSecureString(t *testing.T) {
@@ -74,6 +79,8 @@ func TestSecureString(t *testing.T) {
 	}
 
 	assert.Panics(t, func() { random.SecureString(10, []rune("")) })
+
+	// SecureString draws bytes, so it can't index into an alphabet larger than 256
 	assert.Panics(t, func() { random.SecureString(10, []rune(strings.Repeat("x", 257))) })
 
 	// a source that can't be read from is a broken test setup, so we panic rather than return a weak secret

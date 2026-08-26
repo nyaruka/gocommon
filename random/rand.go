@@ -44,8 +44,10 @@ func Decimal() decimal.Decimal {
 	return decimal.NewFromFloat(Float64())
 }
 
-// String returns a string of length n composed of random characters from chars.
+// String returns a string of length n composed of random characters from chars. Panics if chars is empty.
 func String(n int, chars []rune) string {
+	validateChars(chars)
+
 	r := make([]rune, n)
 	for i := range r {
 		r[i] = chars[IntN(len(chars))]
@@ -93,9 +95,12 @@ func (s *seededSource) Read(p []byte) (int, error) {
 // secure source of randomness. Use this rather than String() for tokens, passwords and other secrets. Panics if chars
 // doesn't contain between 1 and 256 characters.
 func SecureString(n int, chars []rune) string {
+	validateChars(chars)
+
+	// unlike String() we read bytes rather than integers, so we can't index into a larger alphabet
 	k := len(chars)
-	if k < 1 || k > 256 {
-		panic("chars must contain between 1 and 256 characters")
+	if k > 256 {
+		panic("chars must not contain more than 256 characters")
 	}
 
 	// a byte only maps evenly onto k characters below the largest multiple of k that fits in a byte, so to avoid
@@ -122,4 +127,11 @@ func SecureString(n int, chars []rune) string {
 	}
 
 	return string(r)
+}
+
+// panics if chars isn't usable as an alphabet
+func validateChars(chars []rune) {
+	if len(chars) == 0 {
+		panic("chars must not be empty")
+	}
 }
