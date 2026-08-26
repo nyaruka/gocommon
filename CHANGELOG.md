@@ -1,3 +1,7 @@
+v1.94.2 (2026-08-26)
+-------------------------
+ * Add random.SecureString for generating secrets from crypto/rand
+
 v1.94.1 (2026-08-26)
 -------------------------
  * Restrict webchat URN paths to 24 alphanumeric chars
