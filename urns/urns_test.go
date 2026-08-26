@@ -289,7 +289,7 @@ func TestValidate(t *testing.T) {
 		{urns.URN("ext:" + strings.Repeat("%", 67)), "path component too long"}, // escapes to 201 chars
 
 		{"webchat:aA3456789012345678901234", ""},
-		{"webchat:aA3456789012345678901234:bob@nyaruka.com", ""},
+		{"webchat:aA3456789012345678901234:bob@nyaruka.com", "invalid path component"},
 		{"webchat:1234567890123456789", "invalid path component"},
 		{"webchat:12345678901234567890123$", "invalid path component"},
 		{"webchat:aA3456789012345678901234:@@$", "invalid path component"},
