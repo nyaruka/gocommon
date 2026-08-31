@@ -19,15 +19,15 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/lib/pq v1.12.3
-	github.com/nyaruka/null/v3 v3.0.0
-	github.com/nyaruka/phonenumbers/v2 v2.0.7
+	github.com/nyaruka/null/v3 v3.1.0
+	github.com/nyaruka/phonenumbers/v2 v2.0.11
 	github.com/nyaruka/vkutil v0.22.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vinovest/sqlx v1.7.2
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/sync v0.22.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 )
 
 require (
@@ -63,7 +63,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
