@@ -1,3 +1,7 @@
+v1.94.3 (2026-08-31)
+-------------------------
+ * Update phonenumbers to v2.0.11 and null to v3.1.0
+
 v1.94.2 (2026-08-26)
 -------------------------
  * Add random.SecureString for generating secrets from crypto/rand
