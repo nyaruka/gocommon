@@ -161,4 +161,14 @@ func TestLocalWithCapacity(t *testing.T) {
 		c.GetOrFetch(ctx, fmt.Sprintf("flood-%d", i))
 	}
 	assert.Equal(t, 3, c.Len())
+
+	// whereas a zero capacity means no bound at all
+	u := cache.NewLocal(func(ctx context.Context, k string) (string, error) {
+		return "v" + k, nil
+	}, time.Minute, 0)
+
+	for i := range 10000 {
+		u.GetOrFetch(ctx, fmt.Sprintf("flood-%d", i))
+	}
+	assert.Equal(t, 10000, u.Len())
 }
