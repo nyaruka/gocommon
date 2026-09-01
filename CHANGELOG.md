@@ -1,3 +1,7 @@
+v1.94.4 (2026-09-01)
+-------------------------
+ * Add capacity argument to cache.NewLocal to bound a cache by evicting least recently used items (non-positive means unbounded)
+
 v1.94.3 (2026-08-31)
 -------------------------
  * Update phonenumbers to v2.0.11 and null to v3.1.0
