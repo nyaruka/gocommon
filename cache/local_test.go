@@ -139,6 +139,8 @@ func TestLocalWithCapacity(t *testing.T) {
 	c := cache.NewLocal(func(ctx context.Context, k string) (string, error) {
 		return "v" + k, nil
 	}, time.Minute, 3)
+	c.Start()
+	defer c.Stop()
 
 	for _, k := range []string{"a", "b", "c"} {
 		c.GetOrFetch(ctx, k)
@@ -162,13 +164,19 @@ func TestLocalWithCapacity(t *testing.T) {
 	}
 	assert.Equal(t, 3, c.Len())
 
-	// whereas a zero capacity means no bound at all
-	u := cache.NewLocal(func(ctx context.Context, k string) (string, error) {
-		return "v" + k, nil
-	}, time.Minute, 0)
+	// whereas a zero capacity means no bound at all, and so does a negative one - it must not wrap round to
+	// a capacity so large it bounds nothing
+	for _, capacity := range []int{0, -1} {
+		u := cache.NewLocal(func(ctx context.Context, k string) (string, error) {
+			return "v" + k, nil
+		}, time.Minute, capacity)
+		u.Start()
 
-	for i := range 10000 {
-		u.GetOrFetch(ctx, fmt.Sprintf("flood-%d", i))
+		for i := range 10000 {
+			u.GetOrFetch(ctx, fmt.Sprintf("flood-%d", i))
+		}
+		assert.Equal(t, 10000, u.Len(), "capacity %d should leave the cache unbounded", capacity)
+
+		u.Stop()
 	}
-	assert.Equal(t, 10000, u.Len())
 }
