@@ -20,12 +20,16 @@ type Local[K comparable, V any] struct {
 // Fetcher is a function which can fetch an item which doesn't yet exist in the cache.
 type Fetcher[K comparable, V any] func(context.Context, K) (V, error)
 
-// NewLocal creates a new in-memory cache.
-func NewLocal[K comparable, V any](fetch Fetcher[K, V], ttl time.Duration) *Local[K, V] {
+// NewLocal creates a new in-memory cache. A non-zero capacity bounds it to that many items, evicting the
+// least recently used to make room for a new one - use it where the set of keys is decided by something we
+// don't control, so the cache can't grow without limit. Size it well above the working set, as a capacity
+// below the number of keys in real use turns every eviction into a refetch.
+func NewLocal[K comparable, V any](fetch Fetcher[K, V], ttl time.Duration, capacity int) *Local[K, V] {
 	return &Local[K, V]{
 		cache: ttlcache.New[K, V](
 			ttlcache.WithTTL[K, V](ttl),
 			ttlcache.WithDisableTouchOnHit[K, V](),
+			ttlcache.WithCapacity[K, V](uint64(capacity)),
 		),
 		fetch: fetch,
 	}

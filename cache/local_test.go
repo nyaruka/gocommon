@@ -33,7 +33,7 @@ func TestLocal(t *testing.T) {
 		}
 		return fmt.Sprintf("%s/%d", strings.ToUpper(k), fc), nil
 	}
-	cache := cache.NewLocal[string, string](fetch, time.Second)
+	cache := cache.NewLocal[string, string](fetch, time.Second, 0)
 	cache.Start()
 
 	assert.Equal(t, "", cache.Get("x"))
@@ -131,4 +131,34 @@ func TestLocal(t *testing.T) {
 	assert.Equal(t, 0, cache.Len())
 
 	cache.Stop()
+}
+
+func TestLocalWithCapacity(t *testing.T) {
+	ctx := context.Background()
+
+	c := cache.NewLocal(func(ctx context.Context, k string) (string, error) {
+		return "v" + k, nil
+	}, time.Minute, 3)
+
+	for _, k := range []string{"a", "b", "c"} {
+		c.GetOrFetch(ctx, k)
+	}
+	assert.Equal(t, 3, c.Len())
+
+	// reading an item makes it the most recently used, even though reads don't extend its TTL
+	assert.Equal(t, "va", c.Get("a"))
+
+	// so making room for a new item evicts "b" rather than "a"
+	c.GetOrFetch(ctx, "d")
+	assert.Equal(t, 3, c.Len())
+	assert.Equal(t, "va", c.Get("a"))
+	assert.Equal(t, "", c.Get("b"))
+	assert.Equal(t, "vc", c.Get("c"))
+	assert.Equal(t, "vd", c.Get("d"))
+
+	// which means keys we never see again can't grow the cache past its capacity
+	for i := range 10000 {
+		c.GetOrFetch(ctx, fmt.Sprintf("flood-%d", i))
+	}
+	assert.Equal(t, 3, c.Len())
 }
