@@ -20,7 +20,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/nyaruka/null/v3 v3.1.0
 	github.com/nyaruka/phonenumbers/v2 v2.0.11
-	github.com/nyaruka/vkutil v0.22.0
+	github.com/nyaruka/vkutil v0.24.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vinovest/sqlx v1.7.2
