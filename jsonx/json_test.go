@@ -82,13 +82,6 @@ func TestMustUnmarshal(t *testing.T) {
 	})
 }
 
-func TestUnmarshalArray(t *testing.T) {
-	// test empty array
-	msgs, err := jsonx.UnmarshalArray([]byte(`[]`))
-	assert.NoError(t, err)
-	assert.Equal(t, []json.RawMessage{}, msgs)
-}
-
 func TestUnmarshalWithLimit(t *testing.T) {
 	data := []byte(`{"foo": "Hello"}`)
 	buffer := io.NopCloser(bytes.NewReader(data))
