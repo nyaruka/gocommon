@@ -14,7 +14,6 @@ import (
 //
 // Note that mutexes are not removed from the map when they are unlocked. Therefore the underlying map of mutexes can
 // grow indefinitely.
-//
 type KeyMutex struct {
 	mutexes sync.Map
 }

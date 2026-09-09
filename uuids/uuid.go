@@ -6,8 +6,8 @@ import (
 	"math/rand/v2"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/nyaruka/gocommon/dates"
 	"github.com/nyaruka/gocommon/random"
 )
@@ -31,17 +31,17 @@ type Generator interface {
 	NextV7() UUID
 }
 
-// defaultGenerator generates a random v4 UUID using a 3rd party library
+// defaultGenerator generates random UUIDs using the standard library
 type defaultGenerator struct{}
 
 // NextV4 returns the next v4 UUID
 func (g defaultGenerator) NextV4() UUID {
-	return must(uuid.NewRandom())
+	return UUID(uuid.NewV4().String())
 }
 
 // NextV7 returns the next v7 UUID
 func (g defaultGenerator) NextV7() UUID {
-	return must(uuid.NewV7())
+	return UUID(uuid.NewV7().String())
 }
 
 // DefaultGenerator is the default generator for calls to NewUUID
@@ -53,7 +53,7 @@ func SetGenerator(generator Generator) {
 	currentGenerator = generator
 }
 
-// adapts a math/rand/v2 generator to io.Reader for use with uuid.NewRandomFromReader
+// adapts a math/rand/v2 generator to a byte source for the random parts of UUIDs
 type randReader struct {
 	rnd *rand.Rand
 }
@@ -82,12 +82,19 @@ func NewSeededGenerator(seed int64, now dates.NowFunc) Generator {
 
 // NextV4 returns the next v4 UUID
 func (g *seededGenerator) NextV4() UUID {
-	return must(uuid.NewRandomFromReader(g.rnd))
+	var u uuid.UUID
+	g.rnd.Read(u[:])
+
+	u[6] = (u[6] & 0x0F) | 0x40 // version 4
+	u[8] = (u[8] & 0x3F) | 0x80 // variant 10
+
+	return UUID(u.String())
 }
 
 // NextV7 returns the next v7 UUID
 func (g *seededGenerator) NextV7() UUID {
-	u := uuid.Must(uuid.NewRandomFromReader(g.rnd))
+	var u uuid.UUID
+	g.rnd.Read(u[:])
 
 	nano := g.now().UnixNano()
 	t := nano / 1_000_000
@@ -101,8 +108,9 @@ func (g *seededGenerator) NextV7() UUID {
 	u[5] = byte(t)
 	u[6] = 0x70 | (0x0F & byte(s>>8))
 	u[7] = byte(s)
+	u[8] = (u[8] & 0x3F) | 0x80 // variant 10
 
-	return must(u, nil)
+	return UUID(u.String())
 }
 
 // V7Time extracts the timestamp from a v7 UUID. Returns an error if the UUID is invalid or not v7.
@@ -120,8 +128,4 @@ func V7Time(u UUID) (time.Time, error) {
 	ms := int64(b[0])<<40 | int64(b[1])<<32 | int64(b[2])<<24 | int64(b[3])<<16 | int64(b[4])<<8 | int64(b[5])
 
 	return time.UnixMilli(ms).UTC(), nil
-}
-
-func must(u uuid.UUID, err error) UUID {
-	return UUID(uuid.Must(u, err).String())
 }
