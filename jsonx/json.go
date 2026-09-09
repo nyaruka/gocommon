@@ -52,12 +52,14 @@ func Unmarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v, compatOptions)
 }
 
-// UnmarshalWithLimit unmarshals from the given reader with a limit on how many bytes can be read
+// UnmarshalWithLimit unmarshals from the given reader with a limit on how many bytes can be read. The reader is
+// always closed, and if unmarshaling succeeded, an error closing it is returned.
 func UnmarshalWithLimit(reader io.ReadCloser, v any, limit int64) error {
-	if err := json.UnmarshalRead(io.LimitReader(reader, limit), v, compatOptions); err != nil {
-		return err
+	err := json.UnmarshalRead(io.LimitReader(reader, limit), v, compatOptions)
+	if cerr := reader.Close(); err == nil {
+		err = cerr
 	}
-	return reader.Close()
+	return err
 }
 
 // MustUnmarshal unmarshals the given JSON, panicking on an error

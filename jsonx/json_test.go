@@ -82,9 +82,19 @@ func TestMustUnmarshal(t *testing.T) {
 	})
 }
 
+type trackedReadCloser struct {
+	io.Reader
+	closed bool
+}
+
+func (t *trackedReadCloser) Close() error {
+	t.closed = true
+	return nil
+}
+
 func TestUnmarshalWithLimit(t *testing.T) {
 	data := []byte(`{"foo": "Hello"}`)
-	buffer := io.NopCloser(bytes.NewReader(data))
+	buffer := &trackedReadCloser{Reader: bytes.NewReader(data)}
 
 	// try with sufficiently large limit
 	s := &struct {
@@ -93,14 +103,16 @@ func TestUnmarshalWithLimit(t *testing.T) {
 	err := jsonx.UnmarshalWithLimit(buffer, s, 1000)
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello", s.Foo)
+	assert.True(t, buffer.closed)
 
 	// try with limit that's smaller than the input
-	buffer = io.NopCloser(bytes.NewReader(data))
+	buffer = &trackedReadCloser{Reader: bytes.NewReader(data)}
 	s = &struct {
 		Foo string `json:"foo"`
 	}{}
 	err = jsonx.UnmarshalWithLimit(buffer, s, 5)
 	assert.EqualError(t, err, "unexpected end of JSON input")
+	assert.True(t, buffer.closed) // closed on the error path too
 }
 
 func TestDecodeGeneric(t *testing.T) {
