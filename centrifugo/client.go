@@ -61,7 +61,7 @@ func (c *client) Publish(ctx context.Context, pubs ...*Publication) error {
 	}
 	for i, reply := range replies {
 		if reply.Error != nil {
-			return fmt.Errorf("error publishing to channel %s: %w", pubs[i].Channel, reply.Error)
+			return fmt.Errorf("error publishing to channel %s: %w", pubs[i].Channel, *reply.Error)
 		}
 	}
 	return nil
