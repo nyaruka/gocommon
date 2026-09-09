@@ -1,3 +1,9 @@
+v1.95.0 (2026-09-09)
+-------------------------
+ * Update to go 1.27 and use the std lib uuid package instead of github.com/google/uuid
+ * Fix wrapping of gocent.Error pointers which defeats errors.Is
+ * Update to vkutil v0.24.0 so each test binary claims its own valkey database
+
 v1.94.4 (2026-09-01)
 -------------------------
  * Add capacity argument to cache.NewLocal to bound a cache by evicting least recently used items (non-positive means unbounded)
