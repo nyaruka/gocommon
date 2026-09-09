@@ -103,7 +103,7 @@ func TestBulk(t *testing.T) {
 	defer deleteTestIndex(t, testClient, "test-strict")
 
 	numWritten, retryable, err = elastic.Bulk(ctx, testClient, []*elastic.Document{
-		{Index: "test-strict", ID: "1", Routing: "org1", Body: []byte(`{"name": "Item 1"}`)},               // ok
+		{Index: "test-strict", ID: "1", Routing: "org1", Body: []byte(`{"name": "Item 1"}`)},                // ok
 		{Index: "test-strict", ID: "2", Routing: "org1", Body: []byte(`{"name": "Item 2", "extra": true}`)}, // strict mapping violation
 	})
 	assert.NoError(t, err)

@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"uuid"
 
 	valkey "github.com/gomodule/redigo/redis"
-	"github.com/google/uuid"
 	"github.com/nyaruka/gocommon/queues"
 	"github.com/nyaruka/vkutil/assertvk"
 	"github.com/stretchr/testify/assert"
@@ -538,7 +538,7 @@ func TestFairV3Concurrency(t *testing.T) {
 
 			for range numTasks / 5 {
 				owner := queues.OwnerID(fmt.Sprintf("owner%d", rand.IntN(5)+1)) // five possible owners (1...5)
-				task := []byte(uuid.Must(uuid.NewV7()).String())
+				task := []byte(uuid.NewV7().String())
 				_, err := q.Push(ctx, vc, owner, false, task)
 				assert.NoError(t, err, "Producer %d failed to push task for owner %s", i, owner)
 
@@ -635,7 +635,7 @@ func TestFairV3ConcurrencyWithKills(t *testing.T) {
 
 			for range numTasks / 5 {
 				owner := queues.OwnerID(fmt.Sprintf("owner%d", rand.IntN(5)+1))
-				task := []byte(uuid.Must(uuid.NewV7()).String())
+				task := []byte(uuid.NewV7().String())
 				_, err := q.Push(ctx, vc, owner, false, task)
 				assert.NoError(t, err, "Producer %d failed to push task for owner %s", i, owner)
 

@@ -2,8 +2,7 @@ package queues
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // TaskID is the unique identifier for a task in the queue.
@@ -16,7 +15,7 @@ type OwnerID string
 var newTaskID func() TaskID = defaultNewTaskID
 
 func defaultNewTaskID() TaskID {
-	return TaskID(uuid.Must(uuid.NewV7()).String())
+	return TaskID(uuid.NewV7().String())
 }
 
 // timeNow can be overridden in tests to control lease expiry

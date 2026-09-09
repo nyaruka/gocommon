@@ -22,7 +22,7 @@ const (
 
 // Document is a document to be indexed in or deleted from Elasticsearch.
 type Document struct {
-	Action  Action          `json:"action,omitempty"`  // defaults to index
+	Action  Action          `json:"action,omitempty"` // defaults to index
 	Index   string          `json:"index"`
 	ID      string          `json:"id"`
 	Routing string          `json:"routing"`
