@@ -5,6 +5,7 @@ import (
 	jsonv1 "encoding/json"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"errors"
 	"io"
 )
 
@@ -69,11 +70,24 @@ func MustUnmarshal(data []byte, v any) {
 	}
 }
 
+// v2 has no UseNumber option so this is its replacement: intercepts numbers being decoded into any values
+var genericNumbers = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v *any) error {
+	if dec.PeekKind() == '0' { // i.e. a number
+		val, err := dec.ReadValue()
+		if err != nil {
+			return err
+		}
+		*v = jsonv1.Number(val)
+		return nil
+	}
+	return errors.ErrUnsupported // not a number, use default handling
+}))
+
 // DecodeGeneric decodes the given JSON as a generic map or slice, preserving number precision by decoding numbers as
-// json.Number. There's no v2 equivalent of UseNumber so this remains on the v1 API.
+// json.Number. Like a v1 decoder, and unlike Unmarshal, it ignores anything after the first JSON value.
 func DecodeGeneric(data []byte) (any, error) {
 	var asGeneric any
-	decoder := jsonv1.NewDecoder(bytes.NewBuffer(data))
-	decoder.UseNumber()
-	return asGeneric, decoder.Decode(&asGeneric)
+	decoder := jsontext.NewDecoder(bytes.NewReader(data), compatOptions)
+	err := json.UnmarshalDecode(decoder, &asGeneric, compatOptions, genericNumbers)
+	return asGeneric, err
 }

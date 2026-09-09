@@ -136,4 +136,14 @@ func TestDecodeGeneric(t *testing.T) {
 	asSlice := vals.([]any)
 	assert.Equal(t, map[string]any{"foo": json.Number("123")}, asSlice[0])
 	assert.Equal(t, map[string]any{"foo": json.Number("456")}, asSlice[1])
+
+	// numbers too big for a float64 keep their precision
+	vals, err = jsonx.DecodeGeneric([]byte(`{"big": 9007199254740993}`))
+	assert.NoError(t, err)
+	assert.Equal(t, json.Number("9007199254740993"), vals.(map[string]any)["big"])
+
+	// anything after the first JSON value is ignored
+	vals, err = jsonx.DecodeGeneric([]byte(`{"foo": 1} xxx`))
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{"foo": json.Number("1")}, vals)
 }
