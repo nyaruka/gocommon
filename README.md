@@ -1,4 +1,4 @@
-# 🧰 Gocommon 
+![Gocommon](.github/banner.svg)
 
 [![Build Status](https://github.com/nyaruka/gocommon/workflows/CI/badge.svg)](https://github.com/nyaruka/gocommon/actions?query=workflow%3ACI)
 
