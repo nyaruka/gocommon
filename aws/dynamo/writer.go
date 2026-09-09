@@ -16,8 +16,16 @@ import (
 )
 
 type writable struct {
-	key   Key
-	attrs map[string]types.AttributeValue
+	key    Key
+	attrs  map[string]types.AttributeValue // item attrs for a put, key attrs for a delete
+	delete bool
+}
+
+func (w *writable) request() types.WriteRequest {
+	if w.delete {
+		return types.WriteRequest{DeleteRequest: &types.DeleteRequest{Key: w.attrs}}
+	}
+	return types.WriteRequest{PutRequest: &types.PutRequest{Item: w.attrs}}
 }
 
 // Writer provides buffered writes to a DynamoDB table using a batcher. If writes fail, they are added to the given
@@ -64,7 +72,18 @@ func (w *Writer) Queue(i ItemMarshaler) (int, error) {
 		return 0, fmt.Errorf("error marshaling attribute values: %w", err)
 	}
 
-	return w.batcher.Queue(&writable{item.Key, attrs}), nil
+	return w.batcher.Queue(&writable{key: item.Key, attrs: attrs}), nil
+}
+
+// QueueDelete queues a delete of the item with the given key and will block if the buffer is full.
+// Returns the remaining free capacity (batch + buffer).
+func (w *Writer) QueueDelete(key Key) (int, error) {
+	attrs, err := attributevalue.MarshalMap(key)
+	if err != nil {
+		return 0, fmt.Errorf("error marshaling key: %w", err)
+	}
+
+	return w.batcher.Queue(&writable{key: key, attrs: attrs, delete: true}), nil
 }
 
 // Stop stops the writer and flushes any remaining items
@@ -97,13 +116,20 @@ func (w *Writer) flush(batch []*writable) {
 	// detached background context: this must run to completion even during batcher drain on shutdown
 	ctx := context.Background()
 
+	// dedupe to one operation per key - required by BatchWriteItem and gives last-write-wins semantics when a put
+	// and delete for the same key are queued in the same batch
 	items := w.dedupe(batch)
 
-	unprocessed, err := batchPutItem(ctx, w.client, w.table, items)
+	requests := make([]types.WriteRequest, len(items))
+	for i, item := range items {
+		requests[i] = item.request()
+	}
+
+	unprocessed, err := batchWriteItem(ctx, w.client, w.table, requests)
 	if err != nil {
 		slog.Error("error writing batch to dynamo", "count", len(batch), "error", err)
 		if unprocessed == nil {
-			unprocessed = items
+			unprocessed = requests
 		}
 	}
 
@@ -118,11 +144,11 @@ func (w *Writer) flush(batch []*writable) {
 	}
 }
 
-func (w *Writer) dedupe(batch []*writable) []map[string]types.AttributeValue {
+func (w *Writer) dedupe(batch []*writable) []*writable {
 	seen := make(map[string]bool, len(batch))
-	out := make([]map[string]types.AttributeValue, 0, len(batch))
+	out := make([]*writable, 0, len(batch))
 
-	// iterate from end to start so we prefer the latest item for a given key
+	// iterate from end to start so we prefer the latest operation for a given key
 	for i := len(batch) - 1; i >= 0; i-- {
 		item := batch[i]
 		key := item.key.String()
@@ -132,7 +158,7 @@ func (w *Writer) dedupe(batch []*writable) []map[string]types.AttributeValue {
 		}
 
 		seen[key] = true
-		out = append(out, item.attrs)
+		out = append(out, item)
 	}
 
 	// restore original ordering of the kept items

@@ -3,7 +3,7 @@ package uuids
 import (
 	"encoding/hex"
 	"fmt"
-	"math/rand/v2"
+	"io"
 	"strings"
 	"time"
 	"uuid"
@@ -53,37 +53,22 @@ func SetGenerator(generator Generator) {
 	currentGenerator = generator
 }
 
-// adapts a math/rand/v2 generator to a byte source for the random parts of UUIDs
-type randReader struct {
-	rnd *rand.Rand
-}
-
-func (r randReader) Read(p []byte) (int, error) {
-	for i := 0; i < len(p); i += 8 {
-		v := r.rnd.Uint64()
-		for j := 0; j < 8 && i+j < len(p); j++ {
-			p[i+j] = byte(v >> (8 * j))
-		}
-	}
-	return len(p), nil
-}
-
 // generates a seedable random v4 UUID using math/rand/v2
 type seededGenerator struct {
-	rnd randReader
+	rnd io.Reader
 	now dates.NowFunc
 }
 
 // NewSeededGenerator creates a new UUID generator that uses the given seed for the random component and the time source
 // for the time component (only applies to v7)
 func NewSeededGenerator(seed int64, now dates.NowFunc) Generator {
-	return &seededGenerator{rnd: randReader{random.NewSeededGenerator(seed)}, now: now}
+	return &seededGenerator{rnd: random.NewSeededSource(seed), now: now}
 }
 
 // NextV4 returns the next v4 UUID
 func (g *seededGenerator) NextV4() UUID {
 	var u uuid.UUID
-	g.rnd.Read(u[:])
+	io.ReadFull(g.rnd, u[:]) // seeded source always fills and never errors
 
 	u[6] = (u[6] & 0x0F) | 0x40 // version 4
 	u[8] = (u[8] & 0x3F) | 0x80 // variant 10
@@ -94,7 +79,7 @@ func (g *seededGenerator) NextV4() UUID {
 // NextV7 returns the next v7 UUID
 func (g *seededGenerator) NextV7() UUID {
 	var u uuid.UUID
-	g.rnd.Read(u[:])
+	io.ReadFull(g.rnd, u[:]) // seeded source always fills and never errors
 
 	nano := g.now().UnixNano()
 	t := nano / 1_000_000

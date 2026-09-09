@@ -1,3 +1,25 @@
+v1.94.4 (2026-09-01)
+-------------------------
+ * Add capacity argument to cache.NewLocal to bound a cache by evicting least recently used items (non-positive means unbounded)
+
+v1.94.3 (2026-08-31)
+-------------------------
+ * Update phonenumbers to v2.0.11 and null to v3.1.0
+
+v1.94.2 (2026-08-26)
+-------------------------
+ * Add random.SecureString for generating secrets from crypto/rand
+
+v1.94.1 (2026-08-26)
+-------------------------
+ * Restrict webchat URN paths to 24 alphanumeric chars
+
+v1.94.0 (2026-08-24)
+-------------------------
+ * Add delete support to dynamo Writer and Spool
+ * Test against go 1.26 and 1.27 in CI and update module go version to 1.26
+ * Fix data race in cache tests and enable -race in CI
+
 v1.93.1 (2026-08-12)
 -------------------------
  * Make httpx.WithTraces record into context collectors only, with no accumulating list
