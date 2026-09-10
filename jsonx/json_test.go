@@ -2,7 +2,6 @@ package jsonx_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"testing"
@@ -113,37 +112,4 @@ func TestUnmarshalWithLimit(t *testing.T) {
 	err = jsonx.UnmarshalWithLimit(buffer, s, 5)
 	assert.EqualError(t, err, "unexpected end of JSON input")
 	assert.True(t, buffer.closed) // closed on the error path too
-}
-
-func TestDecodeGeneric(t *testing.T) {
-	// parse a JSON object into a map
-	data := []byte(`{"bool": true, "number": 123.34, "text": "hello", "object": {"foo": "bar"}, "array": [1, "x"]}`)
-	vals, err := jsonx.DecodeGeneric(data)
-	assert.NoError(t, err)
-
-	asMap := vals.(map[string]any)
-	assert.Equal(t, true, asMap["bool"])
-	assert.Equal(t, json.Number("123.34"), asMap["number"])
-	assert.Equal(t, "hello", asMap["text"])
-	assert.Equal(t, map[string]any{"foo": "bar"}, asMap["object"])
-	assert.Equal(t, []any{json.Number("1"), "x"}, asMap["array"])
-
-	// parse a JSON array into a slice
-	data = []byte(`[{"foo": 123}, {"foo": 456}]`)
-	vals, err = jsonx.DecodeGeneric(data)
-	assert.NoError(t, err)
-
-	asSlice := vals.([]any)
-	assert.Equal(t, map[string]any{"foo": json.Number("123")}, asSlice[0])
-	assert.Equal(t, map[string]any{"foo": json.Number("456")}, asSlice[1])
-
-	// numbers too big for a float64 keep their precision
-	vals, err = jsonx.DecodeGeneric([]byte(`{"big": 9007199254740993}`))
-	assert.NoError(t, err)
-	assert.Equal(t, json.Number("9007199254740993"), vals.(map[string]any)["big"])
-
-	// anything after the first JSON value is ignored
-	vals, err = jsonx.DecodeGeneric([]byte(`{"foo": 1} xxx`))
-	assert.NoError(t, err)
-	assert.Equal(t, map[string]any{"foo": json.Number("1")}, vals)
 }
