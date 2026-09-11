@@ -1,28 +1,34 @@
 package jsonx
 
 import (
-	"bytes"
-	"encoding/json"
+	jsonv1 "encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"io"
 )
 
+// options passed to all marshaling and unmarshaling calls: v1 semantics (so struct tags and leniency behave as they
+// always have) except for HTML escaping which this package has always disabled. As our apps are audited for v2's
+// stricter defaults and changed tag semantics, options can be removed here until this is empty.
+var compatOptions = json.JoinOptions(jsonv1.DefaultOptionsV1(), jsontext.EscapeForHTML(false))
+
 // Marshal marshals the given object to JSON
 func Marshal(v any) ([]byte, error) {
-	return marshal(v, "")
+	return json.Marshal(v, compatOptions)
 }
 
 // MarshalPretty marshals the given object to pretty JSON
 func MarshalPretty(v any) ([]byte, error) {
-	return marshal(v, "    ")
+	return json.Marshal(v, compatOptions, jsontext.WithIndent("    "))
 }
 
 // MarshalMerged marshals the properties of two objects as one object
 func MarshalMerged(v1 any, v2 any) ([]byte, error) {
-	b1, err := marshal(v1, "")
+	b1, err := Marshal(v1)
 	if err != nil {
 		return nil, err
 	}
-	b2, err := marshal(v2, "")
+	b2, err := Marshal(v2)
 	if err != nil {
 		return nil, err
 	}
@@ -33,64 +39,31 @@ func MarshalMerged(v1 any, v2 any) ([]byte, error) {
 
 // MustMarshal marshals the given object to JSON, panicking on an error
 func MustMarshal(v any) []byte {
-	data, err := marshal(v, "")
+	data, err := Marshal(v)
 	if err != nil {
 		panic(err)
 	}
 	return data
 }
 
-func marshal(v any, indent string) ([]byte, error) {
-	buffer := &bytes.Buffer{}
-	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false) // see https://github.com/golang/go/issues/8592
-	encoder.SetIndent("", indent)
-
-	err := encoder.Encode(v)
-	if err != nil {
-		return nil, err
-	}
-
-	// don't include the final \n that .Encode() adds
-	data := buffer.Bytes()
-	return data[0 : len(data)-1], nil
-}
-
-// Unmarshal is just a shortcut for json.Unmarshal so all calls can be made via the jsonx package
+// Unmarshal unmarshals the given JSON into the given object
 func Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
+	return json.Unmarshal(data, v, compatOptions)
 }
 
-// UnmarshalArray unmarshals an array of objects from the given JSON
-func UnmarshalArray(data []byte) ([]json.RawMessage, error) {
-	var items []json.RawMessage
-	err := Unmarshal(data, &items)
-	return items, err
-}
-
-// UnmarshalWithLimit unmarsmals a struct with a limit on how many bytes can be read from the given reader
-func UnmarshalWithLimit(reader io.ReadCloser, s any, limit int64) error {
-	body, err := io.ReadAll(io.LimitReader(reader, limit))
-	if err != nil {
-		return err
+// UnmarshalWithLimit unmarshals from the given reader with a limit on how many bytes can be read. The reader is
+// always closed, and if unmarshaling succeeded, an error closing it is returned.
+func UnmarshalWithLimit(reader io.ReadCloser, v any, limit int64) error {
+	err := json.UnmarshalRead(io.LimitReader(reader, limit), v, compatOptions)
+	if cerr := reader.Close(); err == nil {
+		err = cerr
 	}
-	if err := reader.Close(); err != nil {
-		return err
-	}
-	return Unmarshal(body, &s)
+	return err
 }
 
 // MustUnmarshal unmarshals the given JSON, panicking on an error
 func MustUnmarshal(data []byte, v any) {
-	if err := json.Unmarshal(data, v); err != nil {
+	if err := Unmarshal(data, v); err != nil {
 		panic(err)
 	}
-}
-
-// DecodeGeneric decodes the given JSON as a generic map or slice
-func DecodeGeneric(data []byte) (any, error) {
-	var asGeneric any
-	decoder := json.NewDecoder(bytes.NewBuffer(data))
-	decoder.UseNumber()
-	return asGeneric, decoder.Decode(&asGeneric)
 }
