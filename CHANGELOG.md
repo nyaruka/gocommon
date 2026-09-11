@@ -1,3 +1,9 @@
+v1.95.1 (2026-09-11)
+-------------------------
+ * Rework jsonx on encoding/json/v2 with options pinning v1 semantics
+ * Remove jsonx.DecodeGeneric and unused jsonx.UnmarshalArray
+ * Make jsonx.UnmarshalWithLimit stream from its reader and always close it
+
 v1.95.0 (2026-09-09)
 -------------------------
  * Update to go 1.27 and use the std lib uuid package instead of github.com/google/uuid
