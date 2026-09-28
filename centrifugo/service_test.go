@@ -12,16 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// creates a pool to the standard valkey test database, flushed before each test
-func testValkeyPool(t *testing.T) *valkey.Pool {
-	vk := assertvk.TestDB()
-	t.Cleanup(func() { vk.Close() })
-
-	assertvk.FlushDB()
-
-	return vk
-}
-
 func setSubscribed(t *testing.T, vk *valkey.Pool, channel string) {
 	vc := vk.Get()
 	defer vc.Close()
@@ -32,7 +22,7 @@ func setSubscribed(t *testing.T, vk *valkey.Pool, channel string) {
 func TestServiceSubscribed(t *testing.T) {
 	ctx := t.Context()
 
-	vk := testValkeyPool(t)
+	vk := assertvk.ClaimDB(t).Pool()
 	svc := centrifugo.NewService(centrifugo.NewMockClient(), vk)
 
 	// zero channels is a no-op
@@ -57,7 +47,7 @@ func TestServiceSubscribed(t *testing.T) {
 func TestServicePublish(t *testing.T) {
 	ctx := t.Context()
 
-	vk := testValkeyPool(t)
+	vk := assertvk.ClaimDB(t).Pool()
 	mock := centrifugo.NewMockClient()
 	svc := centrifugo.NewService(mock, vk)
 

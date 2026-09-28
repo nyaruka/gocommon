@@ -20,7 +20,7 @@ import (
 
 func TestFairV2(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
 
@@ -30,8 +30,6 @@ func TestFairV2(t *testing.T) {
 		return queues.TaskID(fmt.Sprintf("01980000-0000-7000-8000-%012d", numIDs))
 	})
 	defer queues.SetNewTaskID(nil)
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV2("test", 3)
 
@@ -217,11 +215,9 @@ func TestFairV2(t *testing.T) {
 }
 
 func TestFairV2TaskPayloads(t *testing.T) {
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV2("test", 2)
 
@@ -234,11 +230,9 @@ func TestFairV2TaskPayloads(t *testing.T) {
 
 func TestFairV2MaxActivePerOwner(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV2("test", 2)
 
@@ -257,11 +251,9 @@ func TestFairV2MaxActivePerOwner(t *testing.T) {
 
 func TestFairV2Concurrency(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV2("test", 5) // one owner can only occupy 5 of the 10 consumers at a time
 

@@ -20,7 +20,7 @@ import (
 
 func TestFairV3(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
 
@@ -30,8 +30,6 @@ func TestFairV3(t *testing.T) {
 		return queues.TaskID(fmt.Sprintf("01980000-0000-7000-8000-%012d", numIDs))
 	})
 	defer queues.SetNewTaskID(nil)
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV3("test", 3, time.Minute*5, 3)
 
@@ -225,11 +223,9 @@ func TestFairV3(t *testing.T) {
 }
 
 func TestFairV3TaskPayloads(t *testing.T) {
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV3("test", 2, time.Minute*5, 3)
 
@@ -246,11 +242,9 @@ func TestFairV3TaskPayloads(t *testing.T) {
 
 func TestFairV3MaxActivePerOwner(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV3("test", 2, time.Minute*5, 3)
 
@@ -269,11 +263,9 @@ func TestFairV3MaxActivePerOwner(t *testing.T) {
 
 func TestFairV3LeaseExpiry(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 	now := base
@@ -318,11 +310,9 @@ func TestFairV3LeaseExpiry(t *testing.T) {
 
 func TestFairV3DeadLetter(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 	now := base
@@ -360,11 +350,9 @@ func TestFairV3DeadLetter(t *testing.T) {
 
 func TestFairV3PausedLease(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 	now := base
@@ -404,11 +392,9 @@ func TestFairV3PausedLease(t *testing.T) {
 
 func TestFairV3Extend(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	base := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 	now := base
@@ -460,11 +446,9 @@ func TestFairV3Extend(t *testing.T) {
 
 func TestFairV3Reconcile(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV3("test", 3, time.Minute*5, 3)
 
@@ -493,11 +477,9 @@ func TestFairV3Reconcile(t *testing.T) {
 
 func TestFairV3Concurrency(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	q := queues.NewFairV3("test", 5, time.Minute*5, 3) // one owner can only occupy 5 of the 10 consumers at a time
 
@@ -606,11 +588,9 @@ func TestFairV3Concurrency(t *testing.T) {
 
 func TestFairV3ConcurrencyWithKills(t *testing.T) {
 	ctx := t.Context()
-	vp := assertvk.TestDB()
+	vp := assertvk.ClaimDB(t).Pool()
 	vc := vp.Get()
 	defer vc.Close()
-
-	defer assertvk.FlushDB()
 
 	// short lease (real time) so tasks abandoned by killed consumers are redelivered quickly, and enough
 	// attempts that repeated kills of the same task never dead-letter it
