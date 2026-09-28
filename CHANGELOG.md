@@ -1,3 +1,8 @@
+v1.96.0 (2026-09-28)
+-------------------------
+ * Run tests against SeaweedFS instead of localstack for S3, gating CI on its health check
+ * Coordinate test valkey database claims through database 16
+
 v1.95.1 (2026-09-11)
 -------------------------
  * Rework jsonx on encoding/json/v2 with options pinning v1 semantics
