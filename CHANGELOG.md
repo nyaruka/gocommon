@@ -1,3 +1,7 @@
+v1.96.1 (2026-09-28)
+-------------------------
+ * Update to vkutil v0.26.0 and claim a valkey database per test
+
 v1.96.0 (2026-09-28)
 -------------------------
  * Run tests against SeaweedFS instead of localstack for S3, gating CI on its health check
