@@ -1,1003 +1,769 @@
-v1.96.1 (2026-09-28)
--------------------------
+## v1.96.1 (2026-09-28)
  * Update to vkutil v0.26.0 and claim a valkey database per test
 
-v1.96.0 (2026-09-28)
--------------------------
+## v1.96.0 (2026-09-28)
  * Run tests against SeaweedFS instead of localstack for S3, gating CI on its health check
  * Coordinate test valkey database claims through database 16
 
-v1.95.1 (2026-09-11)
--------------------------
+## v1.95.1 (2026-09-11)
  * Rework jsonx on encoding/json/v2 with options pinning v1 semantics
  * Remove jsonx.DecodeGeneric and unused jsonx.UnmarshalArray
  * Make jsonx.UnmarshalWithLimit stream from its reader and always close it
 
-v1.95.0 (2026-09-09)
--------------------------
+## v1.95.0 (2026-09-09)
  * Update to go 1.27 and use the std lib uuid package instead of github.com/google/uuid
  * Fix wrapping of gocent.Error pointers which defeats errors.Is
  * Update to vkutil v0.24.0 so each test binary claims its own valkey database
 
-v1.94.4 (2026-09-01)
--------------------------
+## v1.94.4 (2026-09-01)
  * Add capacity argument to cache.NewLocal to bound a cache by evicting least recently used items (non-positive means unbounded)
 
-v1.94.3 (2026-08-31)
--------------------------
+## v1.94.3 (2026-08-31)
  * Update phonenumbers to v2.0.11 and null to v3.1.0
 
-v1.94.2 (2026-08-26)
--------------------------
+## v1.94.2 (2026-08-26)
  * Add random.SecureString for generating secrets from crypto/rand
 
-v1.94.1 (2026-08-26)
--------------------------
+## v1.94.1 (2026-08-26)
  * Restrict webchat URN paths to 24 alphanumeric chars
 
-v1.94.0 (2026-08-24)
--------------------------
+## v1.94.0 (2026-08-24)
  * Add delete support to dynamo Writer and Spool
  * Test against go 1.26 and 1.27 in CI and update module go version to 1.26
  * Fix data race in cache tests and enable -race in CI
 
-v1.93.1 (2026-08-12)
--------------------------
+## v1.93.1 (2026-08-12)
  * Make httpx.WithTraces record into context collectors only, with no accumulating list
  * Remove websocket support from httpx
 
-v1.93.0 (2026-08-12)
--------------------------
+## v1.93.0 (2026-08-12)
  * Add svclogs package
  * Add context-scoped trace collection to httpx
 
-v1.92.1 (2026-08-06)
--------------------------
+## v1.92.1 (2026-08-06)
  * Update dependencies
 
-v1.92.0 (2026-07-27)
--------------------------
+## v1.92.0 (2026-07-27)
  * Rename queues.Fair to FairV3 and add FairV2, the non-leasing implementation removed from vkutil
 
-v1.91.1 (2026-07-24)
--------------------------
+## v1.91.1 (2026-07-24)
  * Fix data race in syncx.Batcher between queuing and batch processing
  * Make dynamo and elastic spool/writer tests deterministic
 
-v1.91.0 (2026-07-24)
--------------------------
+## v1.91.0 (2026-07-24)
  * Add smtpx package for sending email via SMTP (moved from goflow but rewritten to use wneessen/go-mail)
  * Make phone parsing idempotent by only returning E164 values that re-parse to themselves
 
-v1.90.1 (2026-07-23)
--------------------------
+## v1.90.1 (2026-07-23)
  * Limit URN paths to 200 chars (measured in escaped form) so identities always fit in 255 char storage
 
-v1.90.0 (2026-07-22)
--------------------------
+## v1.90.0 (2026-07-22)
  * Add request/response size tracking to httpx traces and logs
 
-v1.89.7 (2026-07-17)
--------------------------
+## v1.89.7 (2026-07-17)
  * Harden input handling against panics and unbounded allocation
 
-v1.89.6 (2026-07-17)
--------------------------
+## v1.89.6 (2026-07-17)
  * Migrate from math/rand to math/rand/v2
 
-v1.89.5 (2026-07-15)
--------------------------
+## v1.89.5 (2026-07-15)
  * Update phonenumbers to v2.0.4
 
-v1.89.4 (2026-07-09)
--------------------------
+## v1.89.4 (2026-07-09)
  * Update dependencies
  * Remove unused analytics package
 
-v1.89.3 (2026-07-07)
--------------------------
+## v1.89.3 (2026-07-07)
  * Expose resolved region as field on s3x.Service
 
-v1.89.2 (2026-07-07)
--------------------------
+## v1.89.2 (2026-07-07)
  * Resolve region for virtual-host URLs from SDK config in s3x.NewService
 
-v1.89.1 (2026-07-07)
--------------------------
+## v1.89.1 (2026-07-07)
  * Restore elastic.Spool type alias for symmetry with dynamo.Spool
 
-v1.89.0 (2026-07-07)
--------------------------
+## v1.89.0 (2026-07-07)
  * Rename spool package to spools for consistency with other packages
  * Rework Fair queue to lease tasks to consumers
  * Add queues package (moved from vkutil)
 
-v1.88.0 (2026-07-07)
--------------------------
+## v1.88.0 (2026-07-07)
  * Extract generic file-backed spool package used by dynamo and elastic spools
 
-v1.87.0 (2026-07-07)
--------------------------
+## v1.87.0 (2026-07-07)
  * Accept business-scoped user IDs as WhatsApp URNs
 
-v1.86.2 (2026-07-06)
--------------------------
+## v1.86.2 (2026-07-06)
  * Verify spool directory is writable on start, not just present
 
-v1.86.1 (2026-07-03)
--------------------------
+## v1.86.1 (2026-07-03)
  * Marshal centrifugo publication data at send time
 
-v1.86.0 (2026-07-03)
--------------------------
+## v1.86.0 (2026-07-03)
  * Add centrifugo.Service which layers channel subscriber tracking on a client
 
-v1.85.0 (2026-07-02)
--------------------------
+## v1.85.0 (2026-07-02)
  * Add centrifugo package with Client interface, gocent-based client and mock client for testing
 
-v1.84.1 (2026-07-01)
--------------------------
+## v1.84.1 (2026-07-01)
  * Update dependencies
 
-v1.84.0 (2026-07-01)
--------------------------
+## v1.84.0 (2026-07-01)
  * aws: resolve credentials and region from the SDK default chain
  * dynamo/elastic: use real contexts for spool and writer flushes
 
-v1.83.0 (2026-06-04)
--------------------------
+## v1.83.0 (2026-06-04)
  * httpx: remove deprecated request-bundling API in favour of transports
 
-v1.82.0 (2026-06-04)
--------------------------
+## v1.82.0 (2026-06-04)
  * Update to phonenumbers v2.0.0-rc1
 
-v1.81.4 (2026-06-03)
--------------------------
+## v1.81.4 (2026-06-03)
  * httpx: add composable WithRetries transport
 
-v1.81.3 (2026-06-03)
--------------------------
+## v1.81.3 (2026-06-03)
  * httpx: remove maxBodyBytes parameter from WithTracing
  * httpx.. renames
 
-v1.81.2 (2026-06-02)
--------------------------
+## v1.81.2 (2026-06-02)
  * httpx: add WithBodyLimit transport to bound response body reads
 
-v1.81.1 (2026-06-02)
--------------------------
+## v1.81.1 (2026-06-02)
  * Replace deprecated golang.org/x/net/context with stdlib context
 
-v1.81.0 (2026-06-02)
--------------------------
+## v1.81.0 (2026-06-02)
  * httpx.WithAccessContorl, httpx.WithTracing and httpx.WithMocking
 
-v1.80.1 (2026-05-25)
--------------------------
+## v1.80.1 (2026-05-25)
  * Fix AccessConfig matching IPv4 hosts against IPv6 nets
 
-v1.80.0 (2026-04-28)
--------------------------
+## v1.80.0 (2026-04-28)
  * Update go-elasticsearch to v9
 
-v1.79.0 (2026-04-22)
--------------------------
+## v1.79.0 (2026-04-22)
  * Support delete actions in elastic writer
 
-v1.78.1 (2026-03-31)
--------------------------
+## v1.78.1 (2026-03-31)
  * Update phonenumbers
  * Bump valkey from 8.0 to 8.1 in CI
 
-v1.78.0 (2026-03-27)
--------------------------
+## v1.78.0 (2026-03-27)
  * Add BSUID for WhatsApp BSUID
 
-v1.77.0 (2026-03-24)
--------------------------
+## v1.77.0 (2026-03-24)
  * Remove OpenSearch (osearch) package
 
-v1.76.3 (2026-03-23)
--------------------------
+## v1.76.3 (2026-03-23)
  * Add uuids.V7Time util to extract timestamp from v7 UUIDs
 
-v1.76.2 (2026-03-17)
--------------------------
+## v1.76.2 (2026-03-17)
  * Allow passing usernae/password to elastic client
 
-v1.76.1 (2026-03-17)
--------------------------
+## v1.76.1 (2026-03-17)
  * Use elasticsearch TypedClient for typed bulk API and structured responses
 
-v1.76.0 (2026-03-17)
--------------------------
+## v1.76.0 (2026-03-17)
  * Update dependencies including phonenumbers
  * Add Elasticsearch writer and spool support to elastic package
 
-v1.75.8 (2026-03-10)
--------------------------
+## v1.75.8 (2026-03-10)
  * Spool all failed opensearch writes, not just retryable ones
 
-v1.75.7 (2026-03-05)
--------------------------
+## v1.75.7 (2026-03-05)
  * Add WhatsApp BSUID support to URN validation
 
-v1.75.6 (2026-03-03)
--------------------------
+## v1.75.6 (2026-03-03)
  * Add version support to osearch.Document
 
-v1.75.5 (2026-02-25)
--------------------------
+## v1.75.5 (2026-02-25)
  * Change osearch.Document to include ID and routing
 
-v1.75.4 (2026-02-24)
--------------------------
+## v1.75.4 (2026-02-24)
  * Update os_search writer to support changing index names and remove support for time series data
 
-v1.75.3 (2026-02-23)
--------------------------
+## v1.75.3 (2026-02-23)
  * Add BatchGetItem helper for DynamoDB
 
-v1.75.2 (2026-02-23)
--------------------------
+## v1.75.2 (2026-02-23)
  * Refresh dynamo and osearch spool sizes when flushing
 
-v1.75.1 (2026-02-17)
--------------------------
+## v1.75.1 (2026-02-17)
  * Add Client() method to Writer structs in both dynamo and osearch packages
 
-v1.75.0 (2026-02-17)
--------------------------
+## v1.75.0 (2026-02-17)
  * Add writer and spool for OpenSearch
  * Add Src to DynamoDB item format
  * Add devcontainer configuration
 
-v1.74.0 (2025-12-03)
--------------------------
+## v1.74.0 (2025-12-03)
  * Switch to localstack
 
-v1.73.0 (2025-11-14)
--------------------------
+## v1.73.0 (2025-11-14)
  * Higher level DynamoDB support code
 
-v1.72.1 (2025-11-13)
--------------------------
+## v1.72.1 (2025-11-13)
  * Add support for de-duping to Dynamo writer
 
-v1.72.0 (2025-11-12)
--------------------------
+## v1.72.0 (2025-11-12)
  * Bump go and update deps
  * Remove never used Discord URN scheme
 
-v1.71.0 (2025-10-13)
--------------------------
+## v1.71.0 (2025-10-13)
  * Revert pgx switch until there's an easier way to force UTC time
 
-v1.70.1 (2025-10-13)
--------------------------
+## v1.70.1 (2025-10-13)
  * Remove dbutil.StringArray as we'll keep using lib/pq array types for now
 
-v1.70.0 (2025-10-13)
--------------------------
+## v1.70.0 (2025-10-13)
  * Add dbutil.StringArray
  * Switch from lib/pq to jackc/pgx/stdlib
 
-v1.69.0 (2025-10-09)
--------------------------
+## v1.69.0 (2025-10-09)
  * Switch to vinovest/sqlx fork of jmoiron/sqlx
 
-v1.68.8 (2025-09-26)
--------------------------
+## v1.68.8 (2025-09-26)
  * Fix assert marshaling with empty set, map etc
 
-v1.68.7 (2025-09-26)
--------------------------
+## v1.68.7 (2025-09-26)
  * Allow DB assertions to have labels
 
-v1.68.6 (2025-09-26)
--------------------------
+## v1.68.6 (2025-09-26)
  * Rework assertdb.Assert and add Actual method to support snapshot updating
 
-v1.68.5 (2025-09-24)
--------------------------
+## v1.68.5 (2025-09-24)
  * Fix marshaling of assertdb.Assert when returns is nil
 
-v1.68.4 (2025-09-23)
--------------------------
+## v1.68.4 (2025-09-23)
  * Allow db asserts where returns=null
 
-v1.68.3 (2025-09-17)
--------------------------
+## v1.68.3 (2025-09-17)
  * Use official minio container
 
-v1.68.2 (2025-09-17)
--------------------------
+## v1.68.2 (2025-09-17)
  * Add tests of tests and rename Assert.Run to Assert.Check
 
-v1.68.1 (2025-09-16)
--------------------------
+## v1.68.1 (2025-09-16)
  * Add msgAndArgs param to Assert.Run
 
-v1.68.0 (2025-09-16)
--------------------------
+## v1.68.0 (2025-09-16)
  * Add assertdb.Assert for use in .json files
 
-v1.67.9 (2025-09-16)
--------------------------
+## v1.67.9 (2025-09-16)
  * Add TesetQuery.Slice and some tests
 
-v1.67.8 (2025-09-16)
--------------------------
+## v1.67.8 (2025-09-16)
  * Fix test
 
-v1.67.7 (2025-09-16)
--------------------------
+## v1.67.7 (2025-09-16)
  * Tweak assertdb functions to simplify expected values to their underlying kinds
 
-v1.67.6 (2025-09-16)
--------------------------
+## v1.67.6 (2025-09-16)
  * Add assertdb.TestQuery.Map
 
-v1.67.5 (2025-09-10)
--------------------------
+## v1.67.5 (2025-09-10)
  * Tweak dyntest.ScanAll to always return non-nil slice
 
-v1.67.4 (2025-09-10)
--------------------------
+## v1.67.4 (2025-09-10)
  * Fix unmarshaling in dyntest.ScanAll
  * Test against go 1.25 and newer versions of postgres and valkey
 
-v1.67.3 (2025-08-11)
--------------------------
+## v1.67.3 (2025-08-11)
  * Update deps including phonenumbers
  * Add dyntest.ScanAll
 
-v1.67.2 (2025-08-05)
--------------------------
+## v1.67.2 (2025-08-05)
  * Add flag to dyntest.CreateTables to determine if existing tables should be deleted
 
-v1.67.1 (2025-08-05)
--------------------------
+## v1.67.1 (2025-08-05)
  * Tweak error message
 
-v1.67.0 (2025-08-05)
--------------------------
+## v1.67.0 (2025-08-05)
  * Add Batcher.Flush and Writer.Flush
  * Rename Writer.Write to .Queue for clarity
 
-v1.66.1 (2025-08-04)
--------------------------
+## v1.66.1 (2025-08-04)
  * Rework stopping writers and spools to be synchronous
 
-v1.66.0 (2025-08-04)
--------------------------
+## v1.66.0 (2025-08-04)
  * Update deps
  * For Batcher, Writer and Spool, apss WaitGroup via start method instead of constructor
  * Update to go 1.24 and use t.Context() in tests
 
-v1.65.4 (2025-07-30)
--------------------------
+## v1.65.4 (2025-07-30)
  * Move testing-only functions for DynsamoDB into new dyntest package
 
-v1.65.3 (2025-07-30)
--------------------------
+## v1.65.3 (2025-07-30)
  * Tweak dynamo.Test to allow passing multiple table names
 
-v1.65.2 (2025-07-30)
--------------------------
+## v1.65.2 (2025-07-30)
  * Add Writer.Table() method
 
-v1.65.1 (2025-07-29)
--------------------------
+## v1.65.1 (2025-07-29)
  * Fix dynamo.GetItem when item not found
 
-v1.65.0 (2025-07-29)
--------------------------
+## v1.65.0 (2025-07-29)
  * Replace dynamo.Table with generic funcs and new dynamo.Writer and dynamo.Spool types
 
-v1.64.1 (2025-06-04)
--------------------------
+## v1.64.1 (2025-06-04)
  * Update to null library v3
 
-v1.64.0 (2025-06-03)
--------------------------
+## v1.64.0 (2025-06-03)
  * Add dynamo.Table.Purge and .Count methods for testing
 
-v1.63.2 (2025-05-27)
--------------------------
+## v1.63.2 (2025-05-27)
  * Separate dynamodb client construction from table construction
 
-v1.63.1 (2025-05-27)
--------------------------
+## v1.63.1 (2025-05-27)
  * Add dynamo.NewClient
 
-v1.63.0 (2025-05-27)
--------------------------
+## v1.63.0 (2025-05-27)
  * Rework dynamodb service into a table specific utility
 
-v1.62.1 (2025-04-29)
--------------------------
+## v1.62.1 (2025-04-29)
  * Allow http.MockRequestor to be used as a round tripper
 
-v1.62.0 (2025-04-25)
--------------------------
+## v1.62.0 (2025-04-25)
  * Update dependencies
  * Update locale data for dates
 
-v1.61.1 (2025-03-28)
--------------------------
+## v1.61.1 (2025-03-28)
  * httpx should use requetss with context
  * Update dependencies
  * Remove no longer used batching/queuing functionality from cloudwatch service
 
-v1.60.5 (2024-12-16)
--------------------------
+## v1.60.5 (2024-12-16)
  * CloudwatchService.Stop should wait for batcher
 
-v1.60.4 (2024-12-16)
--------------------------
+## v1.60.4 (2024-12-16)
  * Add utils funcs for creating metrics data
 
-v1.60.3 (2024-12-13)
--------------------------
+## v1.60.3 (2024-12-13)
  * Add special handling deployment=test in cloudwatch service
 
-v1.60.2 (2024-12-13)
--------------------------
+## v1.60.2 (2024-12-13)
  * For dev deployments, cloudwatch service should just log to console
 
-v1.60.1 (2024-12-12)
--------------------------
+## v1.60.1 (2024-12-12)
  * Make batch queue processing optional on cloudwatch service
 
-v1.60.0 (2024-12-12)
--------------------------
+## v1.60.0 (2024-12-12)
  * Add cloudwatch service with support for batching metric data
 
-v1.59.3 (2024-11-29)
--------------------------
+## v1.59.3 (2024-11-29)
  * Update deps
  * i18n.DeriveCountryFromTel shouldn't return non-country codes like '001'
 
-v1.59.2 (2024-11-12)
--------------------------
+## v1.59.2 (2024-11-12)
  * Update deps
 
-v1.59.1 (2024-09-25)
--------------------------
+## v1.59.1 (2024-09-25)
  * Add elastic.MatchAll shortcut
 
-v1.59.0 (2024-09-16)
--------------------------
+## v1.59.0 (2024-09-16)
  * Update to go 1.23
  * Add basic get/put operations to dynamo service
 
-v1.58.0 (2024-08-22)
--------------------------
+## v1.58.0 (2024-08-22)
  * Add basic dynamodb service
  * Move s3x package into aws folder
  * Update to aws-sdk-go-v2
  * Test against go 1.23
 
-v1.57.1 (2024-08-02)
--------------------------
+## v1.57.1 (2024-08-02)
  * Replace uuids.IsV4 and uuids.IsV7 with uuids.Is and uuids.Version
  * Simplify mocking of now and make sequential now func thread safe
 
-v1.57.0 (2024-08-01)
--------------------------
+## v1.57.0 (2024-08-01)
  * Add support for V7 UUIDs
  * Switch to google's UUID library
  * Remove no longer used storage package
 
-v1.56.4 (2024-07-29)
--------------------------
+## v1.56.4 (2024-07-29)
  * Tweak s3x.BatchPut to make number of workers an arg instead of a const
 
-v1.56.3 (2024-07-29)
--------------------------
+## v1.56.3 (2024-07-29)
  * Add BatchPut and EmptyBucket functions to S3Service
 
-v1.56.2 (2024-07-26)
--------------------------
+## v1.56.2 (2024-07-26)
  * Fix s3x URL generation to not mangle slashes
 
-v1.56.1 (2024-07-26)
--------------------------
+## v1.56.1 (2024-07-26)
  * Tweak s3x.Service to make it easier to support minio
 
-v1.56.0 (2024-07-26)
--------------------------
+## v1.56.0 (2024-07-26)
  * Add new s3x package to replace storage
  * Update go to 1.22
 
-v1.55.8 (2024-07-15)
--------------------------
+## v1.55.8 (2024-07-15)
  * Update deps
  * Fix misuses of json.RawMessage
 
-v1.55.7 (2024-07-03)
--------------------------
+## v1.55.7 (2024-07-03)
  * Tweak dbutil.ScanJSON to work with sql.Row as well as sql.Rows
 
-v1.55.6 (2024-07-01)
--------------------------
+## v1.55.6 (2024-07-01)
  * Update deps
 
-v1.55.5 (2024-06-03)
--------------------------
+## v1.55.5 (2024-06-03)
  * Fix test
 
-v1.55.4 (2024-06-03)
--------------------------
+## v1.55.4 (2024-06-03)
  * Update date data from go-locales
 
-v1.55.3 (2024-05-27)
--------------------------
+## v1.55.3 (2024-05-27)
  * Update deps
 
-v1.55.2 (2024-05-22)
--------------------------
+## v1.55.2 (2024-05-22)
  * Update elastic query DSL syntax
 
-v1.55.1 (2024-05-20)
--------------------------
+## v1.55.1 (2024-05-20)
  * Use std library for errors
 
-v1.55.0 (2024-05-20)
--------------------------
+## v1.55.0 (2024-05-20)
  * Move elastic utils from goflow
 
-v1.54.9 (2024-05-09)
--------------------------
+## v1.54.9 (2024-05-09)
  * Allow sender id phone URNs
 
-v1.54.8 (2024-05-09)
--------------------------
+## v1.54.8 (2024-05-09)
  * Ensure that new URNs are normalized and change signaure of urns.NewFromParts to take url.Values
 
-v1.54.7 (2024-05-09)
--------------------------
+## v1.54.7 (2024-05-09)
  * Always trim whitespace on all parts of new URNs
 
-v1.54.6 (2024-05-08)
--------------------------
+## v1.54.6 (2024-05-08)
  * Tweak urns.ParseNumber so addition of a + is a fallback
 
-v1.54.5 (2024-05-08)
--------------------------
+## v1.54.5 (2024-05-08)
  * Phone URN normalization should re-parse
  * Add arg to urns.ParseNumber to determine if it allows short codes
 
-v1.54.4 (2024-05-08)
--------------------------
+## v1.54.4 (2024-05-08)
  * Make phone parsing stricter
 
-v1.54.3 (2024-05-07)
--------------------------
+## v1.54.3 (2024-05-07)
  * Tweak urns.NewFromParts so scheme is a string and export the urns.Schemes slice instead of exposing via function
 
-v1.54.2 (2024-05-07)
--------------------------
+## v1.54.2 (2024-05-07)
  * Bring back auto adding of + to sufficiently long phone numbers when parsing URNs
 
-v1.54.1 (2024-05-07)
--------------------------
+## v1.54.1 (2024-05-07)
  * Add names to schemes and make urns.Schemes() return full Scheme objects
 
-v1.54.0 (2024-05-07)
--------------------------
+## v1.54.0 (2024-05-07)
  * Update deps
  * Test with both go 1.21 and 1.22
  * Refactor urns package
 
-v1.53.2 (2024-03-28)
--------------------------
+## v1.53.2 (2024-03-28)
  * assertdb assert methods should return bool
 
-v1.53.1 (2024-03-14)
--------------------------
+## v1.53.1 (2024-03-14)
  * Update to latest phonenumbers / protobuf
 
-v1.53.0 (2024-03-01)
--------------------------
+## v1.53.0 (2024-03-01)
  * Update to chi v5
 
-v1.52.4 (2024-02-12)
--------------------------
+## v1.52.4 (2024-02-12)
  * Allow mocked URL matching to be glob based
 
-v1.52.3 (2024-01-25)
--------------------------
+## v1.52.3 (2024-01-25)
  * Allow any comparable type for cache.Local keys
 
-v1.52.2 (2024-01-24)
--------------------------
+## v1.52.2 (2024-01-24)
  * Add a non-fetching Get, a Set and a Clear method to cache.Local
 
-v1.52.1 (2024-01-24)
--------------------------
+## v1.52.1 (2024-01-24)
  * Rename cache.Cache to cache.Local for clarity
 
-v1.52.0 (2024-01-24)
--------------------------
+## v1.52.0 (2024-01-24)
  * Add generic cache based on ttlcache and x/sync/singleflight
  * Add email component to webchat URNs
 
-v1.51.2 (2024-01-15)
--------------------------
+## v1.51.2 (2024-01-15)
  * Panic if trying to close or start and already closed socket
  * Fix controlled closing of websockets
 
-v1.51.1 (2024-01-12)
--------------------------
+## v1.51.1 (2024-01-12)
  * Allow cross site requests to websockets
 
-v1.51.0 (2024-01-12)
--------------------------
+## v1.51.0 (2024-01-12)
  * Add websocket functionality to httpx
 
-v1.50.0 (2024-01-10)
--------------------------
+## v1.50.0 (2024-01-10)
  * Rework support for webchat URNs, drop unused teams URNs
  * Bump golang.org/x/crypto from 0.16.0 to 0.17.0
 
-v1.42.7 (2023-12-12)
--------------------------
+## v1.42.7 (2023-12-12)
  * Update deps
 
-v1.42.6 (2023-11-24)
--------------------------
+## v1.42.6 (2023-11-24)
  * Update to latest phonenumbers
 
-v1.42.5 (2023-11-20)
--------------------------
+## v1.42.5 (2023-11-20)
  * Update deps
 
-v1.42.4 (2023-11-13)
--------------------------
+## v1.42.4 (2023-11-13)
  * Tweak stringsx.Skeleton
 
-v1.42.3 (2023-11-08)
--------------------------
+## v1.42.3 (2023-11-08)
  * Update phonenumbers
 
-v1.42.2 (2023-10-30)
--------------------------
+## v1.42.2 (2023-10-30)
  * Add httpx.ParseNetworks util function
 
-v1.42.1 (2023-10-28)
--------------------------
+## v1.42.1 (2023-10-28)
  * Use error constants for some httpx error cases
 
-v1.42.0 (2023-10-12)
--------------------------
+## v1.42.0 (2023-10-12)
  * Update to go 1.21 and update deps
 
-v1.41.3 (2023-09-19)
--------------------------
+## v1.41.3 (2023-09-19)
  * Add dbutil.ScanAllJSON
 
-v1.41.2 (2023-09-11)
--------------------------
+## v1.41.2 (2023-09-11)
  * Allow creating query errors without an error to wrap
 
-v1.41.1 (2023-09-04)
--------------------------
+## v1.41.1 (2023-09-04)
  * Use i18n.Locale for date formatting
 
-v1.41.0 (2023-09-04)
--------------------------
+## v1.41.0 (2023-09-04)
  * Move some locales code from goflow/envs
 
-v1.40.0 (2023-08-31)
--------------------------
+## v1.40.0 (2023-08-31)
  * Rework syncx.Batcher so that it flushes a batch without waiting if it has enough items
 
-v1.39.1 (2023-08-28)
--------------------------
+## v1.39.1 (2023-08-28)
  * Rename dbutil.Queryer to BulkQueryer for clarity
 
-v1.39.0 (2023-08-28)
--------------------------
+## v1.39.0 (2023-08-28)
  * Use any instead of interface{}
  * Add dbutil.ScanAllSlice and ScanAllMap
  * Test on go 1.21
 
-v1.38.2 (2023-08-09)
--------------------------
+## v1.38.2 (2023-08-09)
  * Revert validator dep upgrade
 
-v1.38.1 (2023-08-09)
--------------------------
+## v1.38.1 (2023-08-09)
  * Update deps including phonenumbers
 
-v1.38.0 (2023-08-07)
--------------------------
+## v1.38.0 (2023-08-07)
  * Add confusables implementation to stringsx
 
-v1.37.0 (2023-07-20)
--------------------------
+## v1.37.0 (2023-07-20)
  * Storage paths shouldn't need to start with slash
 
-v1.36.0 (2023-06-30)
--------------------------
+## v1.36.0 (2023-06-30)
  * Add syncx.Batcher
  * Use services for github CI
 
-v1.35.0 (2023-02-18)
--------------------------
+## v1.35.0 (2023-02-18)
  * bump golang.org/x/net from 0.5.0 to 0.7.0
  * Update to latest phonenumbers
  * Remove null value support functions now that nyaruka/null has been updated
 
-v1.34.1 (2023-01-31)
--------------------------
+## v1.34.1 (2023-01-31)
  * Update dependencies including phonenumbers
 
-v1.34.0 (2023-01-26)
--------------------------
+## v1.34.0 (2023-01-26)
  * Add util functions for working with nullable string types
 
-v1.33.1 (2022-11-28)
--------------------------
+## v1.33.1 (2022-11-28)
  * Update deps
 
-v1.33.0 (2022-11-18)
--------------------------
+## v1.33.0 (2022-11-18)
  * Add util function dbutil.ToValidUTF8
 
-v1.32.2
-----------
+## v1.32.2 (2022-10-31)
  * Fix passing ACL to S3 puts
 
-v1.32.1
-----------
+## v1.32.1 (2022-10-27)
  * Update deps including phonenumbers
 
-v1.32.0
-----------
+## v1.32.0 (2022-10-13)
  * Storage types should have object permissions/acl set via constructor
 
-v1.31.0
-----------
+## v1.31.0 (2022-10-05)
  * Update httpx.DetectContentType to also return extension
  * Allow mock requestors to ignore localhost requests
 
-v1.30.2
-----------
+## v1.30.2 (2022-09-30)
  * MockRequestor should log requests
 
-v1.30.1
-----------
+## v1.30.1 (2022-09-26)
  * Time for an HTTP trace should include reading the entire body
 
-v1.30.0
-----------
+## v1.30.0 (2022-09-09)
  * Use go 1.19
  * Fix linter warnings
  * Add httpx.BasicAuth util
 
-v1.29.0
-----------
+## v1.29.0 (2022-08-26)
  * Add SantizedRequest to httpx.Trace to match SanitizedResponse
 
-v1.28.2
-----------
+## v1.28.2 (2022-08-22)
  * Strip more headers from reconstructed requests
 
-v1.28.1
-----------
+## v1.28.1 (2022-08-20)
  * Fix cloning of request bodies passed to httpx.NewRecorder
 
-v1.28.0
-----------
+## v1.28.0 (2022-08-19)
  * Give httpx.Recorder the option to try to reconstruct the original request
 
-v1.27.0
-----------
+## v1.27.0 (2022-08-17)
  * Simplify httpx.Recorder so it always dumps request first
 
-v1.26.0
-----------
+## v1.26.0 (2022-08-12)
  * Use pointers to httpx.MockResponse
  * Add HTTP Log support to httpx
 
-v1.25.0
-----------
+## v1.25.0 (2022-08-04)
  * Tweak httpx.NewMockResponse to take a byte slice
 
-v1.24.1
-----------
+## v1.24.1 (2022-08-02)
  * Tweak syncx naming and comments
 
-v1.24.0
-----------
+## v1.24.0 (2022-08-02)
  * Allow use of AWS credential chain for S3 storage
 
-v1.23.0
-----------
+## v1.23.0 (2022-08-01)
  * Add syncx.HashedMutexMap
 
-v1.22.5
-----------
+## v1.22.5 (2022-07-25)
  * Add URN type for Teams channel
 
-v1.22.4
-----------
+## v1.22.4 (2022-06-29)
  * Add dates.Since to match time.Since
 
-v1.22.3
-----------
+## v1.22.3 (2022-06-29)
  * Add mock analytics backend for testing
 
-v1.22.2
-----------
+## v1.22.2 (2022-06-15)
  * Update dependencies
 
-v1.22.1
-----------
+## v1.22.1 (2022-06-13)
  * Fix dates.Date.Combine
 
-v1.22.0
-----------
+## v1.22.0 (2022-06-10)
  * Add Slack Scheme
 
-v1.21.0
-----------
+## v1.21.0 (2022-05-26)
  * Add analytics package which provides abstraction layer for librato
 
-v1.20.0
-----------
+## v1.20.0 (2022-05-09)
  * Add support for db serialization to dates.Date
 
-v1.19.1
-----------
+## v1.19.1 (2022-05-02)
  * Update to latest phonenumbers
 
-v1.19.0
-----------
+## v1.19.0 (2022-04-29)
  * Update to go 1.18 and make dbutil.Bulk functions generic
  * Tidy up scheme list to make it easier to see what is there
 
-v1.18.0
-----------
+## v1.18.0 (2022-04-12)
  * CI with go 1.17 and 1.18
  * Add httpx.DetectContentType which wraps functionality from github.com/gabriel-vasile/mimetype
 
-v1.17.1
-----------
+## v1.17.1 (2022-02-01)
  * Fix race condition in S3Storage.BatchPut
 
-v1.17.0
-----------
+## v1.17.0 (2022-01-12)
  * Remove rcache module (replace with redisx.IntervalHash) and thus broken redigo dependency
 
-v1.16.2
-----------
+## v1.16.2 (2022-01-10)
  * Return QueryError if error during row iteration
 
-v1.16.1
-----------
+## v1.16.1 (2022-01-10)
  * Fix IsUniqueViolation for wrapped errors
 
-v1.16.0
-----------
+## v1.16.0 (2022-01-07)
  * Add dbutil package previously in mailroom
 
-v1.15.1
-----------
+## v1.15.1 (2021-12-17)
  * Add URN scheme for instagram
 
-v1.15.0
-----------
+## v1.15.0 (2021-12-17)
  * Make random functions threadsafe
 
-v1.14.1
-----------
+## v1.14.1 (2021-10-06)
  * Allow specifying max retries for S3 clients and update client library
 
-v1.14.0
-----------
+## v1.14.0 (2021-09-15)
  * HTTP traces should include number of retries made
  * Build and test with go 1.17
 
-v1.13.2
-----------
+## v1.13.2 (2021-08-26)
  * Update to latest phonenumbers
 
-v1.13.1
-----------
+## v1.13.1 (2021-08-23)
  * Add webchat URN scheme
 
-v1.13.0
-----------
+## v1.13.0 (2021-07-19)
  * Include AWS region in storage URLs
 
-v1.12.0
-----------
+## v1.12.0 (2021-07-09)
  * Add support for sanitizing a response trace by stripping nulls as well as invalid UTF8
 
-v1.11.0
-----------
+## v1.11.0 (2021-07-02)
  * Add Must* versions of jsonx.Marshal and jsonx.Unmarshal
 
-v1.10.0
-----------
+## v1.10.0 (2021-06-03)
  * add BatchPut to storage
  * add use of context for timeouts in storage
 
-v1.9.2
-----------
+## v1.9.2 (2021-05-19)
  * gsm7: Fix U+000C, form feed(\f), instead of space, for 0x0A
 
-v1.9.1
-----------
+## v1.9.1 (2021-04-21)
  * Use standard BCP47 (hypenated) locale codes
 
-v1.9.0
-----------
+## v1.9.0 (2021-04-20)
  * Add custom date formatting code from goflow and add localization support
  * Switch to go 1.16.x to get support for embed package
 
-v1.8.0
-----------
+## v1.8.0 (2021-03-25)
  * Allow http mocks in JSON to use actual JSON for the body
 
-v1.7.2
-----------
+## v1.7.2 (2021-03-02)
  * add option to save request immediately after creating recorder
 
-v1.7.1
-----------
+## v1.7.1 (2020-12-04)
  * ParseNumber should ignore numbers which are only possible as local numbers
 
-v1.7.0
-----------
+## v1.7.0 (2020-11-20)
  * Add support for IP networks in httpx.AccessConfig
 
-v1.6.1
-----------
+## v1.6.1 (2020-10-29)
  * Add RocketChat scheme
  * Add rcache module
 
-v1.5.3
-----------
+## v1.5.3 (2020-10-12)
  * Update to latest phonenumbers
  * If normalizing a number starting with a +, return it with a + if it's a possible number
 
-v1.5.2
-----------
+## v1.5.2 (2020-09-25)
  * Test on 1.14.x and 1.15.x
 
-v1.5.1
-----------
+## v1.5.1 (2020-09-10)
  * Use IsPossibleNumber instead of IsValidNumber
 
-v1.5.0
-----------
+## v1.5.0 (2020-09-04)
  * Add gsm7 package
  * Add httpx util for recording traces from http handlers
 
-v1.4.0
-----------
+## v1.4.0 (2020-09-03)
  * Add uuids package from goflow
  * Add storage package from mailroom
  * Add discord URN type
 
-v1.3.0
-----------
+## v1.3.0 (2020-08-18)
  * Move some util packages from goflow
  * Bump CI go versions
 
-v1.2.0
-----------
+## v1.2.0 (2020-01-31)
  * Add VK scheme
  * Replace Travis with github actions
 
-v1.1.1
-----------
+## v1.1.1 (2019-07-30)
  * Add urns.Parse function
 
