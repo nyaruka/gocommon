@@ -1,3 +1,9 @@
+## v1.96.2 (2026-10-13)
+ * Give CI's valkey enough databases for coordinated test DB claims
+ * Update dependencies
+ * Disable review progress tracking and bump the review model to Opus 5.5
+ * Drop .gitignore entries for the retired deploy tooling
+
 ## v1.96.1 (2026-09-28)
  * Update to vkutil v0.26.0 and claim a valkey database per test
 
