@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -326,4 +329,42 @@ func TestWithRetriesNilInner(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	assert.Equal(t, `{ "ok": "true" }`, string(body))
+}
+
+func TestWithRetriesReusesConnection(t *testing.T) {
+	ctx := context.Background()
+
+	// fail twice with an unread error body, then succeed
+	var requests atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) <= 2 {
+			w.WriteHeader(503)
+			w.Write([]byte(strings.Repeat("x", 64<<10)))
+			return
+		}
+		w.Write([]byte("ok"))
+	}))
+	var conns atomic.Int32
+	server.Config.ConnState = func(c net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	inner := http.DefaultTransport.(*http.Transport).Clone()
+	defer inner.CloseIdleConnections()
+
+	tr := httpx.WithRetries(inner, httpx.NewFixedRetries(50*time.Millisecond, 50*time.Millisecond))
+	req, err := httpx.NewRequest(ctx, "GET", server.URL, nil, nil)
+	require.NoError(t, err)
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	assert.Equal(t, "ok", string(body))
+	assert.Equal(t, int32(3), requests.Load())
+	assert.Equal(t, int32(1), conns.Load(), "discarded responses should leave the connection reusable")
 }
