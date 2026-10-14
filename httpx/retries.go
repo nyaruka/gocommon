@@ -115,8 +115,7 @@ type retryTransport struct {
 // A request with a body is only retried if the body can be rewound, i.e. it has a non-nil GetBody (which
 // http.NewRequest populates automatically for the common in-memory body types). This mirrors how net/http.Transport
 // itself decides whether a request is replayable (see https://github.com/golang/go/issues/18241). Between attempts
-// the discarded response body is drained and closed so the underlying connection can be reused, and the backoff wait
-// is aborted early if the request's context is cancelled.
+// the discarded response is closed, and the backoff wait is aborted early if the request's context is cancelled.
 //
 // To recover how many retries happened, compose this inside WithTraces:
 //
