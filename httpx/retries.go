@@ -3,7 +3,6 @@ package httpx
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -100,11 +99,6 @@ func ParseRetryAfter(value string) time.Duration {
 	return 0
 }
 
-// maxRetryDrain caps how many bytes of a to-be-discarded response body we drain before retrying. Draining lets the
-// underlying connection be reused, but an unbounded drain of a large or slow error body could cost more than the
-// reuse it buys, so we bound it to the same size net/http.Transport uses for the same purpose.
-const maxRetryDrain = 2 << 10 // 2KB
-
 // retryTransport is an http.RoundTripper which retries requests according to a RetryConfig, delegating each attempt
 // to an inner transport. It holds no mutable state, so it's safe for concurrent use by multiple goroutines, as the
 // http.RoundTripper contract requires.
@@ -163,10 +157,8 @@ func (t *retryTransport) RoundTrip(request *http.Request) (*http.Response, error
 			return response, err
 		}
 
-		// drain and close the response we're discarding so the underlying connection can be reused; cap the drain
-		// (as net/http.Transport does) so a large or slow error body doesn't cost more than the reuse it buys
+		// close the response we're discarding - net/http.Transport drains what's left so the connection can be reused
 		if response != nil {
-			io.CopyN(io.Discard, response.Body, maxRetryDrain)
 			response.Body.Close()
 		}
 
