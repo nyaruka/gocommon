@@ -1,3 +1,6 @@
+## v1.97.0 (2026-10-14)
+ * Rely on net/http to drain discarded responses before retrying in WithRetries, reusing connections across retries
+
 ## v1.96.2 (2026-10-13)
  * Give CI's valkey enough databases for coordinated test DB claims
  * Update dependencies
