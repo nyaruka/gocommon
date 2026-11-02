@@ -34,7 +34,7 @@ func Daily(scope string, t time.Time) string {
 }
 
 // Increment adds the given amounts to the tallies of the given owner.
-func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[string]int) error {
+func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[string]int64) error {
 	if len(amounts) == 0 {
 		return nil
 	}
@@ -48,8 +48,16 @@ func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[s
 	}
 	vc.Send("SADD", pendingKey, owner)
 
-	if _, err := valkey.DoContext(vc, ctx, "EXEC"); err != nil {
+	replies, err := valkey.Values(valkey.DoContext(vc, ctx, "EXEC"))
+	if err != nil {
 		return fmt.Errorf("error incrementing tallies for owner %d: %w", owner, err)
+	}
+
+	// a command failing inside a transaction doesn't fail EXEC, only its own reply
+	for _, reply := range replies {
+		if err, ok := reply.(valkey.Error); ok {
+			return fmt.Errorf("error incrementing tallies for owner %d: %w", owner, err)
+		}
 	}
 	return nil
 }

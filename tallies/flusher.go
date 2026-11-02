@@ -36,6 +36,9 @@ type Flusher struct {
 
 // NewFlusher creates a new flusher which flushes up to batchSize owners per call to Flush.
 func NewFlusher(store Store, batchSize int) *Flusher {
+	if batchSize <= 0 {
+		panic("tallies: flusher batch size must be positive")
+	}
 	return &Flusher{store: store, batchSize: batchSize}
 }
 
@@ -62,18 +65,7 @@ func (f *Flusher) flushOwner(ctx context.Context, vc valkey.Conn, owner OwnerID)
 		return fmt.Errorf("error getting last generation: %w", err)
 	}
 
-	// a flushing hash left over from a failed flush which did commit can only be deleted, since merging new increments
-	// into it would see them skipped as already written
-	leftoverGen, err := valkey.Int64(valkey.DoContext(vc, ctx, "HGET", flushingKey(owner), generationField))
-	if err == nil && leftoverGen <= lastGen {
-		if _, err := valkey.DoContext(vc, ctx, "DEL", flushingKey(owner)); err != nil {
-			return fmt.Errorf("error deleting written flushing hash: %w", err)
-		}
-	} else if err != nil && err != valkey.ErrNil {
-		return fmt.Errorf("error getting flushing hash generation: %w", err)
-	}
-
-	amounts, err := valkey.Int64Map(scriptMove.DoContext(ctx, vc, liveKey(owner), flushingKey(owner), lastGen+1))
+	amounts, err := valkey.Int64Map(scriptMove.DoContext(ctx, vc, liveKey(owner), flushingKey(owner), lastGen))
 	if err != nil {
 		return fmt.Errorf("error moving live hash: %w", err)
 	}
