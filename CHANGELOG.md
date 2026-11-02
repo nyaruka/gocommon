@@ -1,3 +1,7 @@
+## v1.98.0 (2026-11-02)
+ * Add tallies package for buffering per-owner totals in Valkey and flushing them to a store
+ * Update to latest phonenumbers
+
 ## v1.97.0 (2026-10-14)
  * Rely on net/http to drain discarded responses before retrying in WithRetries, reusing connections across retries
 
