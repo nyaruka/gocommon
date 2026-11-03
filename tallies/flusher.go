@@ -11,11 +11,11 @@ import (
 
 //go:embed lua/move.lua
 var luaMove string
-var scriptMove = valkey.NewScript(2, luaMove)
+var scriptMove = valkey.NewScript(4, luaMove)
 
 //go:embed lua/done.lua
 var luaDone string
-var scriptDone = valkey.NewScript(3, luaDone)
+var scriptDone = valkey.NewScript(4, luaDone)
 
 // Store is where flushed tallies are written. Each flush of an owner has a generation which increases by one each time
 // it is written, so that a flush which failed after writing isn't written again by its retry.
@@ -24,8 +24,9 @@ type Store interface {
 	LastGeneration(ctx context.Context, owner OwnerID) (int64, error)
 
 	// Write must add the given amounts to the owner's totals and record gen in one transaction, and do nothing if gen
-	// is less than or equal to the recorded generation.
-	Write(ctx context.Context, owner OwnerID, gen int64, amounts map[string]int64) error
+	// is less than or equal to the recorded generation. Expiries are YYYY-MM-DD dates by scope, for scopes which have
+	// one, to be applied to totals which don't exist yet.
+	Write(ctx context.Context, owner OwnerID, gen int64, amounts map[string]int64, expiries map[string]string) error
 }
 
 // Flusher writes buffered tallies to a store.
@@ -65,22 +66,35 @@ func (f *Flusher) flushOwner(ctx context.Context, vc valkey.Conn, owner OwnerID)
 		return fmt.Errorf("error getting last generation: %w", err)
 	}
 
-	amounts, err := valkey.Int64Map(scriptMove.DoContext(ctx, vc, liveKey(owner), flushingKey(owner), lastGen))
+	moved, err := valkey.Values(scriptMove.DoContext(
+		ctx, vc, liveKey(owner), liveExpiriesKey(owner), flushingKey(owner), flushingExpiriesKey(owner), lastGen,
+	))
 	if err != nil {
-		return fmt.Errorf("error moving live hash: %w", err)
+		return fmt.Errorf("error moving live hashes: %w", err)
+	}
+	amounts, err := valkey.Int64Map(moved[0], nil)
+	if err != nil {
+		return fmt.Errorf("error reading flushing hash: %w", err)
+	}
+	expiries, err := valkey.StringMap(moved[1], nil)
+	if err != nil {
+		return fmt.Errorf("error reading flushing expiries: %w", err)
 	}
 
 	if len(amounts) > 0 {
 		gen := amounts[generationField]
 		delete(amounts, generationField)
 
-		if err := f.store.Write(ctx, owner, gen, amounts); err != nil {
+		if err := f.store.Write(ctx, owner, gen, amounts, expiries); err != nil {
 			return fmt.Errorf("error writing tallies: %w", err)
 		}
 	}
 
-	if _, err := scriptDone.DoContext(ctx, vc, liveKey(owner), flushingKey(owner), pendingKey, owner); err != nil {
-		return fmt.Errorf("error deleting flushing hash: %w", err)
+	_, err = scriptDone.DoContext(
+		ctx, vc, liveKey(owner), flushingKey(owner), flushingExpiriesKey(owner), pendingKey, owner,
+	)
+	if err != nil {
+		return fmt.Errorf("error deleting flushing hashes: %w", err)
 	}
 	return nil
 }
