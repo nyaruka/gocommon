@@ -1,3 +1,6 @@
+## v1.98.1 (2026-11-03)
+ * Use @ to separate the day in daily tally scopes, reserve @ in scope names, reject an empty base and add ParseDaily
+
 ## v1.98.0 (2026-11-02)
  * Add tallies package for buffering per-owner totals in Valkey and flushing them to a store
  * Update to latest phonenumbers
