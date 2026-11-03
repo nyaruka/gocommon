@@ -1,3 +1,8 @@
+## v1.98.2 (2026-11-03)
+ * Make tallies an instance with its own key base and flush
+ * Reject tally key bases which can't be used as a hash tag
+ * Let tally writers set the expiry of each scope, validate expiries and clarify that an empty one isn't kept forever
+
 ## v1.98.1 (2026-11-03)
  * Use @ to separate the day in daily tally scopes, reserve @ in scope names, reject an empty base and add ParseDaily
 
