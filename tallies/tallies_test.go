@@ -123,6 +123,23 @@ func TestIncrement(t *testing.T) {
 	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "_gen", ExpiresOn: "2025-06-01"}: 1})
 	assert.EqualError(t, err, "_gen is a reserved scope")
 
+	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-13-01"}: 1})
+	assert.EqualError(t, err, `scope foo has an invalid expiry "2025-13-01"`)
+
+	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
+		{Scope: "foo", ExpiresOn: "2025-07-01"}: 1,
+	})
+	assert.EqualError(t, err, "scope foo is given different expiries")
+
+	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
+		{Scope: "foo"}:                          1,
+	})
+	assert.EqualError(t, err, "scope foo is given different expiries")
+
+	assertvk.NotExists(t, vc, "tallies:1")
+
 	require.NoError(t, tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
 		tallies.Total("foo"): 2,
 		{Scope: "bar@2025-05-04", ExpiresOn: "2025-06-01"}: 1,

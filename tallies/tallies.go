@@ -12,7 +12,8 @@
 //
 // Each writer decides how long its own scopes are kept by giving them an expiry date. Only the first expiry given for a
 // scope since it was last flushed is kept, and a store applies it when it first creates the scope's total, so later
-// expiries for a scope it already has are ignored.
+// expiries for a scope it already has are ignored. A write without an expiry doesn't stop another write of the same
+// scope from giving one, so a scope should only be written by code which agrees on its expiry.
 //
 // There must only be one flusher at a time, so a flush must be cancelled before any lock which ensures that expires.
 package tallies
@@ -42,12 +43,12 @@ func flushingExpiriesKey(owner OwnerID) string { return liveExpiriesKey(owner) +
 // Key is a scope to increment and when its total expires.
 type Key struct {
 	Scope     string
-	ExpiresOn string // as YYYY-MM-DD, or empty if it's kept forever
+	ExpiresOn string // as YYYY-MM-DD, or empty if none is given
 }
 
 // Daily returns the key for the total of the given scope on the UTC day of the given time, which expires the given
-// period after that day, or never if it's zero. Panics if the given scope contains @ as it's reserved for separating
-// the day.
+// period after that day, or has no expiry if it's zero. Panics if the given scope contains @ as it's reserved for
+// separating the day.
 func Daily(scope string, t time.Time, ttl time.Duration) Key {
 	if strings.Contains(scope, "@") {
 		panic(fmt.Sprintf("tallies: scope %q can't contain @", scope))
@@ -61,7 +62,7 @@ func Daily(scope string, t time.Time, ttl time.Duration) Key {
 	return key
 }
 
-// Total returns the key for the all-time total of the given scope, which is kept forever.
+// Total returns the key for the all-time total of the given scope, which has no expiry.
 func Total(scope string) Key {
 	return Key{Scope: scope}
 }
@@ -71,10 +72,20 @@ func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[K
 	if len(amounts) == 0 {
 		return nil
 	}
+	expiries := make(map[string]string, len(amounts))
 	for key := range amounts {
 		if key.Scope == generationField {
 			return fmt.Errorf("%s is a reserved scope", generationField)
 		}
+		if key.ExpiresOn != "" {
+			if _, err := time.Parse(time.DateOnly, key.ExpiresOn); err != nil {
+				return fmt.Errorf("scope %s has an invalid expiry %q", key.Scope, key.ExpiresOn)
+			}
+		}
+		if expiresOn, seen := expiries[key.Scope]; seen && expiresOn != key.ExpiresOn {
+			return fmt.Errorf("scope %s is given different expiries", key.Scope)
+		}
+		expiries[key.Scope] = key.ExpiresOn
 	}
 
 	vc.Send("MULTI")
