@@ -6,6 +6,8 @@
 //   - tallies:<owner> - hash of scope to amount, incremented by writers
 //   - tallies:<owner>:flushing - hash being flushed, with a _gen field holding its flush generation
 //
+// Scopes separate their parts with / and end with @ and the day if they're daily, e.g. foo/bar@2025-05-04.
+//
 // There must only be one flusher at a time, so a flush must be cancelled before any lock which ensures that expires.
 package tallies
 
@@ -29,15 +31,19 @@ type OwnerID int64
 func liveKey(owner OwnerID) string     { return fmt.Sprintf("tallies:%d", owner) }
 func flushingKey(owner OwnerID) string { return liveKey(owner) + ":flushing" }
 
-// Daily returns the scope for the total of the given scope on the UTC day of the given time, e.g. foo@2025-05-04.
+// Daily returns the scope for the total of the given scope on the UTC day of the given time. Panics if the given scope
+// contains @ as it's reserved for separating the day.
 func Daily(scope string, t time.Time) string {
+	if strings.Contains(scope, "@") {
+		panic(fmt.Sprintf("tallies: scope %q can't contain @", scope))
+	}
 	return scope + "@" + t.UTC().Format(time.DateOnly)
 }
 
 // ParseDaily splits a scope returned by Daily into its base scope and day, with ok false if it isn't one.
 func ParseDaily(scope string) (string, time.Time, bool) {
 	base, date, found := strings.Cut(scope, "@")
-	if !found {
+	if !found || base == "" {
 		return "", time.Time{}, false
 	}
 	day, err := time.Parse(time.DateOnly, date)

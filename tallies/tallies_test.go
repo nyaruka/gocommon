@@ -63,6 +63,8 @@ func (s *memoryStore) Write(ctx context.Context, owner tallies.OwnerID, gen int6
 func TestDaily(t *testing.T) {
 	assert.Equal(t, "foo/bar@2025-05-04", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 59, 0, 0, time.UTC)))
 	assert.Equal(t, "foo/bar@2025-05-05", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 0, 0, 0, time.FixedZone("", -2*3600))))
+
+	assert.PanicsWithValue(t, `tallies: scope "foo@bar" can't contain @`, func() { tallies.Daily("foo@bar", time.Now()) })
 }
 
 func TestParseDaily(t *testing.T) {
@@ -71,7 +73,7 @@ func TestParseDaily(t *testing.T) {
 	assert.Equal(t, "foo/bar:in", base)
 	assert.Equal(t, time.Date(2025, 5, 4, 0, 0, 0, 0, time.UTC), day)
 
-	for _, scope := range []string{"foo/bar", "foo/2025-05-04", "foo@", "foo@2025-13-01", "foo@2025-05-04@2025-05-05"} {
+	for _, scope := range []string{"foo/bar", "foo/2025-05-04", "foo@", "@2025-05-04", "foo@2025-13-01", "foo@2025-05-04@2025-05-05"} {
 		_, _, ok := tallies.ParseDaily(scope)
 		assert.False(t, ok, "expected %s to not parse", scope)
 	}
