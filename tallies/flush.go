@@ -29,30 +29,21 @@ type Store interface {
 	Write(ctx context.Context, owner OwnerID, gen int64, amounts map[string]int64, expiries map[string]string) error
 }
 
-// Flusher writes buffered tallies to a store.
-type Flusher struct {
-	store     Store
-	batchSize int
-}
-
-// NewFlusher creates a new flusher which flushes up to batchSize owners per call to Flush.
-func NewFlusher(store Store, batchSize int) *Flusher {
+// Flush writes the tallies of up to batchSize pending owners to the given store, returning the number of owners
+// flushed.
+func (t *Tallies) Flush(ctx context.Context, vc valkey.Conn, store Store, batchSize int) (int, error) {
 	if batchSize <= 0 {
-		panic("tallies: flusher batch size must be positive")
+		panic("tallies: flush batch size must be positive")
 	}
-	return &Flusher{store: store, batchSize: batchSize}
-}
 
-// Flush flushes the tallies of pending owners, returning the number of owners flushed.
-func (f *Flusher) Flush(ctx context.Context, vc valkey.Conn) (int, error) {
-	owners, err := valkey.Int64s(valkey.DoContext(vc, ctx, "SRANDMEMBER", pendingKey, f.batchSize))
+	owners, err := valkey.Int64s(valkey.DoContext(vc, ctx, "SRANDMEMBER", t.pendingKey(), batchSize))
 	if err != nil {
 		return 0, fmt.Errorf("error getting pending owners: %w", err)
 	}
 
 	var errs []error
 	for _, owner := range owners {
-		if err := f.flushOwner(ctx, vc, OwnerID(owner)); err != nil {
+		if err := t.flushOwner(ctx, vc, store, OwnerID(owner)); err != nil {
 			errs = append(errs, fmt.Errorf("error flushing tallies for owner %d: %w", owner, err))
 		}
 	}
@@ -60,14 +51,14 @@ func (f *Flusher) Flush(ctx context.Context, vc valkey.Conn) (int, error) {
 	return len(owners) - len(errs), errors.Join(errs...)
 }
 
-func (f *Flusher) flushOwner(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
-	lastGen, err := f.store.LastGeneration(ctx, owner)
+func (t *Tallies) flushOwner(ctx context.Context, vc valkey.Conn, store Store, owner OwnerID) error {
+	lastGen, err := store.LastGeneration(ctx, owner)
 	if err != nil {
 		return fmt.Errorf("error getting last generation: %w", err)
 	}
 
-	moved, err := valkey.Values(scriptMove.DoContext(
-		ctx, vc, liveKey(owner), liveExpiriesKey(owner), flushingKey(owner), flushingExpiriesKey(owner), lastGen,
+	moved, err := valkey.Values(scriptMove.DoContext(ctx, vc,
+		t.liveKey(owner), t.liveExpiriesKey(owner), t.flushingKey(owner), t.flushingExpiriesKey(owner), lastGen,
 	))
 	if err != nil {
 		return fmt.Errorf("error moving live hashes: %w", err)
@@ -85,13 +76,13 @@ func (f *Flusher) flushOwner(ctx context.Context, vc valkey.Conn, owner OwnerID)
 		gen := amounts[generationField]
 		delete(amounts, generationField)
 
-		if err := f.store.Write(ctx, owner, gen, amounts, expiries); err != nil {
+		if err := store.Write(ctx, owner, gen, amounts, expiries); err != nil {
 			return fmt.Errorf("error writing tallies: %w", err)
 		}
 	}
 
 	_, err = scriptDone.DoContext(
-		ctx, vc, liveKey(owner), flushingKey(owner), flushingExpiriesKey(owner), pendingKey, owner,
+		ctx, vc, t.liveKey(owner), t.flushingKey(owner), t.flushingExpiriesKey(owner), t.pendingKey(), owner,
 	)
 	if err != nil {
 		return fmt.Errorf("error deleting flushing hashes: %w", err)

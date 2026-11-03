@@ -115,53 +115,55 @@ func TestIncrement(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
 
-	require.NoError(t, tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{}))
-	assertvk.SMembers(t, vc, "tallies:pending", []string{})
+	tl := tallies.New("tallies")
 
-	err := tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("_gen"): 1})
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{}))
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
+
+	err := tl.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("_gen"): 1})
 	assert.EqualError(t, err, "_gen is a reserved scope")
-	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "_gen", ExpiresOn: "2025-06-01"}: 1})
+	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "_gen", ExpiresOn: "2025-06-01"}: 1})
 	assert.EqualError(t, err, "_gen is a reserved scope")
 
-	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-13-01"}: 1})
+	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-13-01"}: 1})
 	assert.EqualError(t, err, `scope foo has an invalid expiry "2025-13-01"`)
 
-	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
 		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
 		{Scope: "foo", ExpiresOn: "2025-07-01"}: 1,
 	})
 	assert.EqualError(t, err, "scope foo is given different expiries")
 
-	err = tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
 		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
 		{Scope: "foo"}:                          1,
 	})
 	assert.EqualError(t, err, "scope foo is given different expiries")
 
-	assertvk.NotExists(t, vc, "tallies:1")
+	assertvk.NotExists(t, vc, "{tallies}:1")
 
-	require.NoError(t, tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
 		tallies.Total("foo"): 2,
 		{Scope: "bar@2025-05-04", ExpiresOn: "2025-06-01"}: 1,
 	}))
 
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo": "2", "bar@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
-	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo": "2", "bar@2025-05-04": "1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
 
 	// the first expiry written for a scope wins
-	require.NoError(t, tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
 		{Scope: "bar@2025-05-04", ExpiresOn: "2025-07-01"}: 1,
 		{Scope: "foo"}: 1,
 	}))
 
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo": "3", "bar@2025-05-04": "2"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
+	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo": "3", "bar@2025-05-04": "2"})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
 
 	// as does an expiry written after a scope was first written without one
-	require.NoError(t, tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-07-01"}: 1}))
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-07-01"}: 1}))
 
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{
 		"bar@2025-05-04": "2025-06-01", "foo": "2025-07-01",
 	})
 }
@@ -171,18 +173,18 @@ func TestFlush(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
 
+	tl := tallies.New("tallies")
 	store := newMemoryStore()
-	flusher := tallies.NewFlusher(store, 10)
 
 	foo1, foo2 := tallies.Total("foo/1"), tallies.Total("foo/2")
 	daily := tallies.Daily("daily", time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC), 2*24*time.Hour)
 	other := tallies.Daily("other", time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC), 30*24*time.Hour)
 
 	increment := func(owner tallies.OwnerID, amounts map[tallies.Key]int64) {
-		require.NoError(t, tallies.Increment(ctx, vc, owner, amounts))
+		require.NoError(t, tl.Increment(ctx, vc, owner, amounts))
 	}
 	flush := func(expected int) {
-		flushed, err := flusher.Flush(ctx, vc)
+		flushed, err := tl.Flush(ctx, vc, store, 10)
 		require.NoError(t, err)
 		assert.Equal(t, expected, flushed)
 	}
@@ -192,10 +194,10 @@ func TestFlush(t *testing.T) {
 		assert.Equal(t, gen, store.generations[owner])
 	}
 	assertCleared := func(owner tallies.OwnerID) {
-		assertvk.NotExists(t, vc, fmt.Sprintf("tallies:%d", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("tallies:%d:expiries", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("tallies:%d:flushing", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("tallies:%d:expiries:flushing", owner))
+		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d", owner))
+		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:expiries", owner))
+		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:flushing", owner))
+		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:expiries:flushing", owner))
 	}
 
 	// nothing to flush
@@ -205,10 +207,10 @@ func TestFlush(t *testing.T) {
 	increment(1, map[tallies.Key]int64{foo1: 1})
 	increment(2, map[tallies.Key]int64{foo1: 5})
 
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo/1": "3", "daily@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{"daily@2025-05-04": "2025-05-06"})
-	assertvk.NotExists(t, vc, "tallies:2:expiries")
-	assertvk.SMembers(t, vc, "tallies:pending", []string{"1", "2"})
+	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo/1": "3", "daily@2025-05-04": "1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"daily@2025-05-04": "2025-05-06"})
+	assertvk.NotExists(t, vc, "{tallies}:2:expiries")
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1", "2"})
 
 	flush(2)
 
@@ -220,7 +222,7 @@ func TestFlush(t *testing.T) {
 	assertStored(2, map[string]int64{"foo/1": 5}, map[string]string{}, 1)
 	assertCleared(1)
 	assertCleared(2)
-	assertvk.SMembers(t, vc, "tallies:pending", []string{})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
 
 	// a later expiry for a scope the store already has is passed on, but the store keeps the expiry it created it with
 	increment(1, map[tallies.Key]int64{foo1: 1, foo2: 1, {Scope: daily.Scope, ExpiresOn: "2025-06-01"}: 1})
@@ -237,8 +239,8 @@ func TestFlush(t *testing.T) {
 
 	// a flush which committed but failed before deleting its hashes leaves them behind, and they're discarded rather
 	// than written again
-	vc.Do("HSET", "tallies:1:flushing", "foo/1", 10, "other@2025-05-04", 1, "_gen", 2)
-	vc.Do("HSET", "tallies:1:expiries:flushing", "other@2025-05-04", "2025-05-05")
+	vc.Do("HSET", "{tallies}:1:flushing", "foo/1", 10, "other@2025-05-04", 1, "_gen", 2)
+	vc.Do("HSET", "{tallies}:1:expiries:flushing", "other@2025-05-04", "2025-05-05")
 	increment(1, map[tallies.Key]int64{foo1: 1, other: 1})
 
 	flush(1)
@@ -252,9 +254,9 @@ func TestFlush(t *testing.T) {
 
 	// a flush which failed before committing leaves its hashes behind too, and new increments are merged into them,
 	// with the leftover expiries having been set first
-	vc.Do("HSET", "tallies:1:flushing", "foo/1", 10, "new1@2025-05-04", 1, "_gen", 4)
-	vc.Do("HSET", "tallies:1:expiries:flushing", "new1@2025-05-04", "2025-05-10")
-	vc.Do("SADD", "tallies:pending", 1)
+	vc.Do("HSET", "{tallies}:1:flushing", "foo/1", 10, "new1@2025-05-04", 1, "_gen", 4)
+	vc.Do("HSET", "{tallies}:1:expiries:flushing", "new1@2025-05-04", "2025-05-10")
+	vc.Do("SADD", "{tallies}:pending", 1)
 	increment(1, map[tallies.Key]int64{
 		foo2: 1,
 		{Scope: "new1@2025-05-04", ExpiresOn: "2025-05-20"}: 1,
@@ -275,21 +277,23 @@ func TestFlush(t *testing.T) {
 		4,
 	)
 	assertCleared(1)
-	assertvk.SMembers(t, vc, "tallies:pending", []string{})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
 
 	// a failed write leaves the owner pending with its flushing hashes, which other owners don't wait on
 	increment(1, map[tallies.Key]int64{foo1: 1, {Scope: "new3@2025-05-04", ExpiresOn: "2025-05-10"}: 1})
 	store.writeErr = errors.New("boom")
 
-	flushed, err := flusher.Flush(ctx, vc)
+	flushed, err := tl.Flush(ctx, vc, store, 10)
 	assert.EqualError(t, err, "error flushing tallies for owner 1: error writing tallies: boom")
 	assert.Equal(t, 0, flushed)
 
-	assertvk.NotExists(t, vc, "tallies:1")
-	assertvk.NotExists(t, vc, "tallies:1:expiries")
-	assertvk.HGetAll(t, vc, "tallies:1:flushing", map[string]string{"foo/1": "1", "new3@2025-05-04": "1", "_gen": "5"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries:flushing", map[string]string{"new3@2025-05-04": "2025-05-10"})
-	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
+	assertvk.NotExists(t, vc, "{tallies}:1")
+	assertvk.NotExists(t, vc, "{tallies}:1:expiries")
+	assertvk.HGetAll(t, vc, "{tallies}:1:flushing", map[string]string{
+		"foo/1": "1", "new3@2025-05-04": "1", "_gen": "5",
+	})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries:flushing", map[string]string{"new3@2025-05-04": "2025-05-10"})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
 
 	// and it's recovered by the next flush, along with increments made in the meantime, whose expiries don't replace
 	// the ones being retried
@@ -318,7 +322,7 @@ func TestFlush(t *testing.T) {
 	assertStored(2, map[string]int64{"foo/1": 6}, map[string]string{}, 2)
 	assertCleared(1)
 	assertCleared(2)
-	assertvk.SMembers(t, vc, "tallies:pending", []string{})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
 
 	// an increment arriving while an owner is being written leaves it pending for the next flush, expiry and all
 	store.onWrite = func() {
@@ -330,11 +334,11 @@ func TestFlush(t *testing.T) {
 
 	assert.Equal(t, int64(19), store.totals[1]["foo/1"])
 	assert.Equal(t, int64(6), store.generations[1])
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"new5@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{"new5@2025-05-04": "2025-05-20"})
-	assertvk.NotExists(t, vc, "tallies:1:flushing")
-	assertvk.NotExists(t, vc, "tallies:1:expiries:flushing")
-	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"new5@2025-05-04": "1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"new5@2025-05-04": "2025-05-20"})
+	assertvk.NotExists(t, vc, "{tallies}:1:flushing")
+	assertvk.NotExists(t, vc, "{tallies}:1:expiries:flushing")
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
 
 	store.onWrite = nil
 
@@ -344,20 +348,20 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, "2025-05-20", store.expiries[1]["new5@2025-05-04"])
 	assert.Equal(t, int64(7), store.generations[1])
 	assertCleared(1)
-	assertvk.SMembers(t, vc, "tallies:pending", []string{})
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
 
 	// failing to get the last generation leaves everything as it was
 	increment(1, map[tallies.Key]int64{foo1: 1, {Scope: "new6@2025-05-04", ExpiresOn: "2025-05-20"}: 1})
 	store.lastGenErr = errors.New("boom")
 
-	flushed, err = flusher.Flush(ctx, vc)
+	flushed, err = tl.Flush(ctx, vc, store, 10)
 	assert.EqualError(t, err, "error flushing tallies for owner 1: error getting last generation: boom")
 	assert.Equal(t, 0, flushed)
 
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo/1": "1", "new6@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "tallies:1:expiries", map[string]string{"new6@2025-05-04": "2025-05-20"})
-	assertvk.NotExists(t, vc, "tallies:1:flushing")
-	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo/1": "1", "new6@2025-05-04": "1"})
+	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"new6@2025-05-04": "2025-05-20"})
+	assertvk.NotExists(t, vc, "{tallies}:1:flushing")
+	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
 
 	store.lastGenErr = nil
 
@@ -374,24 +378,24 @@ func TestFlushBatches(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
 
-	assert.Panics(t, func() { tallies.NewFlusher(newMemoryStore(), 0) })
-
+	tl := tallies.New("tallies")
 	store := newMemoryStore()
-	flusher := tallies.NewFlusher(store, 2)
+
+	assert.Panics(t, func() { tl.Flush(ctx, vc, store, 0) })
 
 	for owner := range tallies.OwnerID(3) {
-		require.NoError(t, tallies.Increment(ctx, vc, owner+1, map[tallies.Key]int64{tallies.Total("foo"): 1}))
+		require.NoError(t, tl.Increment(ctx, vc, owner+1, map[tallies.Key]int64{tallies.Total("foo"): 1}))
 	}
 
-	flushed, err := flusher.Flush(ctx, vc)
+	flushed, err := tl.Flush(ctx, vc, store, 2)
 	require.NoError(t, err)
 	assert.Equal(t, 2, flushed)
-	assertvk.SCard(t, vc, "tallies:pending", 1)
+	assertvk.SCard(t, vc, "{tallies}:pending", 1)
 
-	flushed, err = flusher.Flush(ctx, vc)
+	flushed, err = tl.Flush(ctx, vc, store, 2)
 	require.NoError(t, err)
 	assert.Equal(t, 1, flushed)
-	assertvk.SCard(t, vc, "tallies:pending", 0)
+	assertvk.SCard(t, vc, "{tallies}:pending", 0)
 
 	for owner := range tallies.OwnerID(3) {
 		assert.Equal(t, map[string]int64{"foo": 1}, store.totals[owner+1])
@@ -403,9 +407,34 @@ func TestIncrementError(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
 
-	// a failing command inside the transaction is reported even though the transaction itself succeeds
-	vc.Do("HSET", "tallies:1", "foo", "bar")
+	tl := tallies.New("tallies")
 
-	err := tallies.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("foo"): 1})
+	// a failing command inside the transaction is reported even though the transaction itself succeeds
+	vc.Do("HSET", "{tallies}:1", "foo", "bar")
+
+	err := tl.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("foo"): 1})
 	assert.EqualError(t, err, "error incrementing tallies for owner 1: ERR hash value is not an integer")
+}
+
+func TestKeyBases(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	foo, bar := tallies.New("foo"), tallies.New("bar")
+	store := newMemoryStore()
+
+	require.NoError(t, foo.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("x"): 1}))
+	require.NoError(t, bar.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("x"): 2}))
+
+	assertvk.HGetAll(t, vc, "{foo}:1", map[string]string{"x": "1"})
+	assertvk.HGetAll(t, vc, "{bar}:1", map[string]string{"x": "2"})
+
+	// each only flushes its own tallies
+	flushed, err := foo.Flush(ctx, vc, store, 10)
+	require.NoError(t, err)
+	assert.Equal(t, 1, flushed)
+	assert.Equal(t, map[string]int64{"x": 1}, store.totals[1])
+	assertvk.SMembers(t, vc, "{foo}:pending", []string{})
+	assertvk.SMembers(t, vc, "{bar}:pending", []string{"1"})
 }

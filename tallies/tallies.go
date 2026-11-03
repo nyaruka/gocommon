@@ -1,12 +1,14 @@
 // Package tallies buffers per-owner totals of things which only go up in Valkey and periodically flushes them to a
 // store, so that frequent increments cost one write per owner per flush rather than a write each.
 //
-// Keys:
-//   - tallies:pending - set of owners with buffered tallies
-//   - tallies:<owner> - hash of scope to amount, incremented by writers
-//   - tallies:<owner>:expiries - hash of scope to expiry date, set by the first write of each scope with one
-//   - tallies:<owner>:flushing - hash being flushed, with a _gen field holding its flush generation
-//   - tallies:<owner>:expiries:flushing - expiries being flushed with it
+// Keys, for a key base of foo:
+//   - {foo}:pending - set of owners with buffered tallies
+//   - {foo}:<owner> - hash of scope to amount, incremented by writers
+//   - {foo}:<owner>:expiries - hash of scope to expiry date, set by the first write of each scope with one
+//   - {foo}:<owner>:flushing - hash being flushed, with a _gen field holding its flush generation
+//   - {foo}:<owner>:expiries:flushing - expiries being flushed with it
+//
+// Everything which increments or flushes the same tallies must use the same key base.
 //
 // Scopes separate their parts with / and end with @ and the day if they're daily, e.g. foo/bar@2025-05-04.
 //
@@ -15,7 +17,8 @@
 // expiries for a scope it already has are ignored. A write without an expiry doesn't stop another write of the same
 // scope from giving one, so a scope should only be written by code which agrees on its expiry.
 //
-// There must only be one flusher at a time, so a flush must be cancelled before any lock which ensures that expires.
+// There must only be one flush of the same tallies at a time, so a flush must be cancelled before any lock which
+// ensures that expires.
 package tallies
 
 import (
@@ -27,18 +30,28 @@ import (
 	valkey "github.com/gomodule/redigo/redis"
 )
 
-const (
-	pendingKey      = "tallies:pending"
-	generationField = "_gen"
-)
+const generationField = "_gen"
 
 // OwnerID is the identifier of the owner that tallies belong to.
 type OwnerID int64
 
-func liveKey(owner OwnerID) string             { return fmt.Sprintf("tallies:%d", owner) }
-func liveExpiriesKey(owner OwnerID) string     { return liveKey(owner) + ":expiries" }
-func flushingKey(owner OwnerID) string         { return liveKey(owner) + ":flushing" }
-func flushingExpiriesKey(owner OwnerID) string { return liveExpiriesKey(owner) + ":flushing" }
+// Tallies are per-owner totals buffered under a key base.
+type Tallies struct {
+	keyBase string
+}
+
+// New creates new tallies with the given key base.
+func New(keyBase string) *Tallies {
+	return &Tallies{keyBase: keyBase}
+}
+
+func (t *Tallies) pendingKey() string                   { return fmt.Sprintf("{%s}:pending", t.keyBase) }
+func (t *Tallies) liveKey(owner OwnerID) string         { return fmt.Sprintf("{%s}:%d", t.keyBase, owner) }
+func (t *Tallies) liveExpiriesKey(owner OwnerID) string { return t.liveKey(owner) + ":expiries" }
+func (t *Tallies) flushingKey(owner OwnerID) string     { return t.liveKey(owner) + ":flushing" }
+func (t *Tallies) flushingExpiriesKey(owner OwnerID) string {
+	return t.liveExpiriesKey(owner) + ":flushing"
+}
 
 // Key is a scope to increment and when its total expires.
 type Key struct {
@@ -68,7 +81,7 @@ func Total(scope string) Key {
 }
 
 // Increment adds the given amounts to the tallies of the given owner.
-func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[Key]int64) error {
+func (t *Tallies) Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[Key]int64) error {
 	if len(amounts) == 0 {
 		return nil
 	}
@@ -90,12 +103,12 @@ func Increment(ctx context.Context, vc valkey.Conn, owner OwnerID, amounts map[K
 
 	vc.Send("MULTI")
 	for key, amount := range amounts {
-		vc.Send("HINCRBY", liveKey(owner), key.Scope, amount)
+		vc.Send("HINCRBY", t.liveKey(owner), key.Scope, amount)
 		if key.ExpiresOn != "" {
-			vc.Send("HSETNX", liveExpiriesKey(owner), key.Scope, key.ExpiresOn)
+			vc.Send("HSETNX", t.liveExpiriesKey(owner), key.Scope, key.ExpiresOn)
 		}
 	}
-	vc.Send("SADD", pendingKey, owner)
+	vc.Send("SADD", t.pendingKey(), owner)
 
 	replies, err := valkey.Values(valkey.DoContext(vc, ctx, "EXEC"))
 	if err != nil {
