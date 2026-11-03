@@ -421,6 +421,10 @@ func TestKeyBases(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
 
+	for _, keyBase := range []string{"", "{foo}", "foo}"} {
+		assert.PanicsWithValue(t, fmt.Sprintf("tallies: invalid key base %q", keyBase), func() { tallies.New(keyBase) })
+	}
+
 	foo, bar := tallies.New("foo"), tallies.New("bar")
 	store := newMemoryStore()
 

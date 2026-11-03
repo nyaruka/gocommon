@@ -40,8 +40,12 @@ type Tallies struct {
 	keyBase string
 }
 
-// New creates new tallies with the given key base.
+// New creates new tallies with the given key base. Panics if the key base is empty or contains { or }, as then it
+// can't be used as the hash tag which keeps all its keys in the same slot.
 func New(keyBase string) *Tallies {
+	if keyBase == "" || strings.ContainsAny(keyBase, "{}") {
+		panic(fmt.Sprintf("tallies: invalid key base %q", keyBase))
+	}
 	return &Tallies{keyBase: keyBase}
 }
 
