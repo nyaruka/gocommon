@@ -61,8 +61,20 @@ func (s *memoryStore) Write(ctx context.Context, owner tallies.OwnerID, gen int6
 }
 
 func TestDaily(t *testing.T) {
-	assert.Equal(t, "foo/2025-05-04", tallies.Daily("foo", time.Date(2025, 5, 4, 23, 59, 0, 0, time.UTC)))
-	assert.Equal(t, "foo/2025-05-05", tallies.Daily("foo", time.Date(2025, 5, 4, 23, 0, 0, 0, time.FixedZone("", -2*3600))))
+	assert.Equal(t, "foo/bar@2025-05-04", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 59, 0, 0, time.UTC)))
+	assert.Equal(t, "foo/bar@2025-05-05", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 0, 0, 0, time.FixedZone("", -2*3600))))
+}
+
+func TestParseDaily(t *testing.T) {
+	base, day, ok := tallies.ParseDaily("foo/bar:in@2025-05-04")
+	assert.True(t, ok)
+	assert.Equal(t, "foo/bar:in", base)
+	assert.Equal(t, time.Date(2025, 5, 4, 0, 0, 0, 0, time.UTC), day)
+
+	for _, scope := range []string{"foo/bar", "foo/2025-05-04", "foo@", "foo@2025-13-01", "foo@2025-05-04@2025-05-05"} {
+		_, _, ok := tallies.ParseDaily(scope)
+		assert.False(t, ok, "expected %s to not parse", scope)
+	}
 }
 
 func TestFlush(t *testing.T) {
@@ -95,26 +107,26 @@ func TestFlush(t *testing.T) {
 	err := tallies.Increment(ctx, vc, 1, map[string]int64{"_gen": 1})
 	assert.EqualError(t, err, "_gen is a reserved scope")
 
-	increment(1, map[string]int64{"foo/1": 2, "daily/2025-05-04": 1})
+	increment(1, map[string]int64{"foo/1": 2, "daily@2025-05-04": 1})
 	increment(1, map[string]int64{"foo/1": 1})
 	increment(2, map[string]int64{"foo/1": 5})
 
-	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo/1": "3", "daily/2025-05-04": "1"})
+	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo/1": "3", "daily@2025-05-04": "1"})
 	assertvk.SMembers(t, vc, "tallies:pending", []string{"1", "2"})
 
 	flush(2)
 
-	assertStored(1, map[string]int64{"foo/1": 3, "daily/2025-05-04": 1}, 1)
+	assertStored(1, map[string]int64{"foo/1": 3, "daily@2025-05-04": 1}, 1)
 	assertStored(2, map[string]int64{"foo/1": 5}, 1)
 	assertvk.NotExists(t, vc, "tallies:1")
 	assertvk.NotExists(t, vc, "tallies:1:flushing")
 	assertvk.SMembers(t, vc, "tallies:pending", []string{})
 
-	increment(1, map[string]int64{"foo/1": 1, "foo/2": 1, "daily/2025-05-04": 1})
+	increment(1, map[string]int64{"foo/1": 1, "foo/2": 1, "daily@2025-05-04": 1})
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 4, "foo/2": 1, "daily/2025-05-04": 2}, 2)
+	assertStored(1, map[string]int64{"foo/1": 4, "foo/2": 1, "daily@2025-05-04": 2}, 2)
 	assertStored(2, map[string]int64{"foo/1": 5}, 1)
 
 	// a flush which committed but failed before deleting its hash leaves it behind, and it's discarded rather than
@@ -124,7 +136,7 @@ func TestFlush(t *testing.T) {
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 5, "foo/2": 1, "daily/2025-05-04": 2}, 3)
+	assertStored(1, map[string]int64{"foo/1": 5, "foo/2": 1, "daily@2025-05-04": 2}, 3)
 
 	// a flush which failed before committing leaves its hash behind too, and new increments are merged into it
 	vc.Do("HSET", "tallies:1:flushing", "foo/1", 10, "_gen", 4)
@@ -133,7 +145,7 @@ func TestFlush(t *testing.T) {
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 15, "foo/2": 2, "daily/2025-05-04": 2}, 4)
+	assertStored(1, map[string]int64{"foo/1": 15, "foo/2": 2, "daily@2025-05-04": 2}, 4)
 	assertvk.NotExists(t, vc, "tallies:1:flushing")
 	assertvk.SMembers(t, vc, "tallies:pending", []string{})
 
@@ -145,7 +157,7 @@ func TestFlush(t *testing.T) {
 	assert.EqualError(t, err, "error flushing tallies for owner 1: error writing tallies: boom")
 	assert.Equal(t, 0, flushed)
 
-	assertStored(1, map[string]int64{"foo/1": 15, "foo/2": 2, "daily/2025-05-04": 2}, 4)
+	assertStored(1, map[string]int64{"foo/1": 15, "foo/2": 2, "daily@2025-05-04": 2}, 4)
 	assertvk.NotExists(t, vc, "tallies:1")
 	assertvk.HGetAll(t, vc, "tallies:1:flushing", map[string]string{"foo/1": "1", "_gen": "5"})
 	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
@@ -157,7 +169,7 @@ func TestFlush(t *testing.T) {
 
 	flush(2)
 
-	assertStored(1, map[string]int64{"foo/1": 18, "foo/2": 2, "daily/2025-05-04": 2}, 5)
+	assertStored(1, map[string]int64{"foo/1": 18, "foo/2": 2, "daily@2025-05-04": 2}, 5)
 	assertStored(2, map[string]int64{"foo/1": 6}, 2)
 	assertvk.NotExists(t, vc, "tallies:1")
 	assertvk.NotExists(t, vc, "tallies:1:flushing")
@@ -169,7 +181,7 @@ func TestFlush(t *testing.T) {
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 19, "foo/2": 2, "daily/2025-05-04": 2}, 6)
+	assertStored(1, map[string]int64{"foo/1": 19, "foo/2": 2, "daily@2025-05-04": 2}, 6)
 	assertvk.HGetAll(t, vc, "tallies:1", map[string]string{"foo/2": "1"})
 	assertvk.NotExists(t, vc, "tallies:1:flushing")
 	assertvk.SMembers(t, vc, "tallies:pending", []string{"1"})
@@ -178,7 +190,7 @@ func TestFlush(t *testing.T) {
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 19, "foo/2": 3, "daily/2025-05-04": 2}, 7)
+	assertStored(1, map[string]int64{"foo/1": 19, "foo/2": 3, "daily@2025-05-04": 2}, 7)
 	assertvk.SMembers(t, vc, "tallies:pending", []string{})
 
 	// failing to get the last generation leaves everything as it was
@@ -197,7 +209,7 @@ func TestFlush(t *testing.T) {
 
 	flush(1)
 
-	assertStored(1, map[string]int64{"foo/1": 20, "foo/2": 3, "daily/2025-05-04": 2}, 8)
+	assertStored(1, map[string]int64{"foo/1": 20, "foo/2": 3, "daily@2025-05-04": 2}, 8)
 }
 
 func TestFlushBatches(t *testing.T) {

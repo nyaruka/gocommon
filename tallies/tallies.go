@@ -12,6 +12,7 @@ package tallies
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	valkey "github.com/gomodule/redigo/redis"
@@ -28,9 +29,22 @@ type OwnerID int64
 func liveKey(owner OwnerID) string     { return fmt.Sprintf("tallies:%d", owner) }
 func flushingKey(owner OwnerID) string { return liveKey(owner) + ":flushing" }
 
-// Daily returns the scope for the total of the given scope on the UTC day of the given time.
+// Daily returns the scope for the total of the given scope on the UTC day of the given time, e.g. foo@2025-05-04.
 func Daily(scope string, t time.Time) string {
-	return scope + "/" + t.UTC().Format(time.DateOnly)
+	return scope + "@" + t.UTC().Format(time.DateOnly)
+}
+
+// ParseDaily splits a scope returned by Daily into its base scope and day, with ok false if it isn't one.
+func ParseDaily(scope string) (string, time.Time, bool) {
+	base, date, found := strings.Cut(scope, "@")
+	if !found {
+		return "", time.Time{}, false
+	}
+	day, err := time.Parse(time.DateOnly, date)
+	if err != nil {
+		return "", time.Time{}, false
+	}
+	return base, day, true
 }
 
 // Increment adds the given amounts to the tallies of the given owner.
