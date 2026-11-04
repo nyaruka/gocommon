@@ -34,9 +34,11 @@ type Store interface {
 	// LastBatch returns the id of the last batch written, or zero if there is none.
 	LastBatch(ctx context.Context) (int64, error)
 
-	// Write must add the given amounts to their totals and record id as the last batch in one transaction, and do
-	// nothing if the last batch is already greater than or equal to id.
-	Write(ctx context.Context, id int64, amounts []Amount) error
+	// Write must add the given amounts to their totals and record id as the last batch in one transaction, returning
+	// whether it did. It must do nothing if the last batch is already greater than or equal to id, checking that
+	// atomically with recording id (e.g. with a conditional update of the last batch) as concurrent flushes can write
+	// the same batch at the same time.
+	Write(ctx context.Context, id int64, amounts []Amount) (bool, error)
 }
 
 // Flush writes everything buffered when it starts to the given store in batches of up to batchSize amounts, along
@@ -155,8 +157,12 @@ func (t *Tallies) writeBatch(ctx context.Context, store Store, id int64, kvs []s
 		amounts = append(amounts, Amount{Owner: OwnerID(owner), Scope: scope, Count: count})
 	}
 
-	if err := store.Write(ctx, id, amounts); err != nil {
+	written, err := store.Write(ctx, id, amounts)
+	if err != nil {
 		return 0, fmt.Errorf("error writing batch %d: %w", id, err)
+	}
+	if !written {
+		return 0, nil
 	}
 	return len(amounts), nil
 }

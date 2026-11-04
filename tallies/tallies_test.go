@@ -39,15 +39,15 @@ func (s *memoryStore) LastBatch(ctx context.Context) (int64, error) {
 	return s.lastBatch, s.lastBatchErr
 }
 
-func (s *memoryStore) Write(ctx context.Context, id int64, amounts []tallies.Amount) error {
+func (s *memoryStore) Write(ctx context.Context, id int64, amounts []tallies.Amount) (bool, error) {
 	if s.writeErr != nil {
-		return s.writeErr
+		return false, s.writeErr
 	}
 	if s.onWrite != nil {
 		s.onWrite()
 	}
 	if id <= s.lastBatch {
-		return nil
+		return false, nil
 	}
 	for _, a := range amounts {
 		if s.totals[a.Owner] == nil {
@@ -57,7 +57,7 @@ func (s *memoryStore) Write(ctx context.Context, id int64, amounts []tallies.Amo
 	}
 	s.lastBatch = id
 	s.batches = append(s.batches, len(amounts))
-	return nil
+	return true, nil
 }
 
 func TestDaily(t *testing.T) {
@@ -255,8 +255,9 @@ func TestFlushConcurrently(t *testing.T) {
 		otherFlushed, otherErr = tl.Flush(ctx, vc2, store, 1)
 	}
 
-	_, err := tl.Flush(ctx, vc, store, 1)
+	flushed, err := tl.Flush(ctx, vc, store, 1)
 	assert.NoError(t, err)
+	assert.Equal(t, 0, flushed)
 	assert.NoError(t, otherErr)
 	assert.Equal(t, 3, otherFlushed)
 

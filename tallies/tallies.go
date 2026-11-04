@@ -9,6 +9,8 @@
 //
 // Everything which increments or flushes the same tallies must use the same key base.
 //
+// Flushing needs Valkey or Redis 6.2 or later.
+//
 // Scopes separate their parts with / and end with @ and the day if they're daily, e.g. foo/bar@2025-05-04.
 //
 // A flush renames live to flushing and then writes it to the store a batch at a time. Batch ids only go up, and the
