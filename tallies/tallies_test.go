@@ -214,6 +214,14 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, int64(10), store.lastBatch)
 	assertCleared()
 
+	// a batch without an id can't be written safely, so stops flushing until it's dealt with
+	vc.Do("HSET", "{tallies}:batch", "1|foo", 100)
+
+	_, err = tl.Flush(ctx, vc, store, 10)
+	assert.EqualError(t, err, "error reading id of leftover batch from {tallies}:batch_id: redigo: nil returned")
+
+	vc.Do("DEL", "{tallies}:batch")
+
 	// batch ids carry on from the last one used if the store is behind, e.g. because it was reset
 	store.lastBatch = 3
 	increment(1, map[string]int64{"foo": 1})

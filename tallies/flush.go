@@ -94,7 +94,7 @@ func (t *Tallies) finishBatch(ctx context.Context, vc valkey.Conn, store Store, 
 	}
 	id, err := valkey.Int64(replies[1], nil)
 	if err != nil {
-		return 0, fmt.Errorf("error reading leftover batch id: %w", err)
+		return 0, fmt.Errorf("error reading id of leftover batch from %s: %w", t.batchIDKey(), err)
 	}
 
 	written := 0
