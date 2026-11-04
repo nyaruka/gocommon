@@ -23,91 +23,54 @@ func TestMain(m *testing.M) {
 
 // memoryStore is a store which keeps totals in memory and can be made to fail.
 type memoryStore struct {
-	totals      map[tallies.OwnerID]map[string]int64
-	expiries    map[tallies.OwnerID]map[string]string
-	generations map[tallies.OwnerID]int64
-	lastGenErr  error
-	writeErr    error
-	onWrite     func()
+	totals       map[tallies.OwnerID]map[string]int64
+	lastBatch    int64
+	batches      []int // sizes of the batches written
+	lastBatchErr error
+	writeErr     error
+	onWrite      func()
 }
 
 func newMemoryStore() *memoryStore {
-	return &memoryStore{
-		totals:      map[tallies.OwnerID]map[string]int64{},
-		expiries:    map[tallies.OwnerID]map[string]string{},
-		generations: map[tallies.OwnerID]int64{},
-	}
+	return &memoryStore{totals: map[tallies.OwnerID]map[string]int64{}}
 }
 
-func (s *memoryStore) LastGeneration(ctx context.Context, owner tallies.OwnerID) (int64, error) {
-	if s.lastGenErr != nil {
-		return 0, s.lastGenErr
-	}
-	return s.generations[owner], nil
+func (s *memoryStore) LastBatch(ctx context.Context) (int64, error) {
+	return s.lastBatch, s.lastBatchErr
 }
 
-func (s *memoryStore) Write(
-	ctx context.Context, owner tallies.OwnerID, gen int64, amounts map[string]int64, expiries map[string]string,
-) error {
+func (s *memoryStore) Write(ctx context.Context, id int64, amounts []tallies.Amount) (bool, error) {
 	if s.writeErr != nil {
-		return s.writeErr
+		return false, s.writeErr
 	}
 	if s.onWrite != nil {
 		s.onWrite()
 	}
-	if gen <= s.generations[owner] {
-		return nil
+	if id <= s.lastBatch {
+		return false, nil
 	}
-	if s.totals[owner] == nil {
-		s.totals[owner] = map[string]int64{}
-		s.expiries[owner] = map[string]string{}
-	}
-	for scope, amount := range amounts {
-		// like a table upsert, an expiry only applies to a total being created
-		if _, exists := s.totals[owner][scope]; !exists && expiries[scope] != "" {
-			s.expiries[owner][scope] = expiries[scope]
+	for _, a := range amounts {
+		if s.totals[a.Owner] == nil {
+			s.totals[a.Owner] = map[string]int64{}
 		}
-		s.totals[owner][scope] += amount
+		s.totals[a.Owner][a.Scope] += a.Count
 	}
-	s.generations[owner] = gen
-	return nil
+	s.lastBatch = id
+	s.batches = append(s.batches, len(amounts))
+	return true, nil
 }
 
 func TestDaily(t *testing.T) {
 	minus2, plus2 := time.FixedZone("", -2*3600), time.FixedZone("", 2*3600)
 
-	tcs := []struct {
-		t         time.Time
-		ttl       time.Duration
-		scope     string
-		expiresOn string
-	}{
-		{time.Date(2025, 5, 4, 0, 0, 0, 0, time.UTC), 90 * 24 * time.Hour, "foo/bar@2025-05-04", "2025-08-02"},
-		{time.Date(2025, 5, 4, 23, 59, 59, 0, time.UTC), 90 * 24 * time.Hour, "foo/bar@2025-05-04", "2025-08-02"},
+	assert.Equal(t, "foo/bar@2025-05-04", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 0, 0, 0, 0, time.UTC)))
+	assert.Equal(t, "foo/bar@2025-05-04", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 59, 59, 0, time.UTC)))
 
-		// the day and its expiry are the UTC ones
-		{time.Date(2025, 5, 4, 23, 0, 0, 0, minus2), 90 * 24 * time.Hour, "foo/bar@2025-05-05", "2025-08-03"},
-		{time.Date(2025, 5, 4, 1, 0, 0, 0, plus2), 90 * 24 * time.Hour, "foo/bar@2025-05-03", "2025-08-01"},
+	// the day is the UTC one
+	assert.Equal(t, "foo/bar@2025-05-05", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 23, 0, 0, 0, minus2)))
+	assert.Equal(t, "foo/bar@2025-05-03", tallies.Daily("foo/bar", time.Date(2025, 5, 4, 1, 0, 0, 0, plus2)))
 
-		// a period which isn't whole days is counted from the start of the day
-		{time.Date(2025, 12, 31, 20, 0, 0, 0, time.UTC), 36 * time.Hour, "foo/bar@2025-12-31", "2026-01-01"},
-
-		// no period means it's kept forever
-		{time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC), 0, "foo/bar@2025-05-04", ""},
-	}
-
-	for _, tc := range tcs {
-		expected := tallies.Key{Scope: tc.scope, ExpiresOn: tc.expiresOn}
-		assert.Equal(t, expected, tallies.Daily("foo/bar", tc.t, tc.ttl), "daily for %s", tc.t)
-	}
-
-	assert.PanicsWithValue(t, `tallies: scope "foo@bar" can't contain @`, func() {
-		tallies.Daily("foo@bar", time.Now(), 0)
-	})
-}
-
-func TestTotal(t *testing.T) {
-	assert.Equal(t, tallies.Key{Scope: "foo/bar"}, tallies.Total("foo/bar"))
+	assert.PanicsWithValue(t, `tallies: scope "foo@bar" can't contain @`, func() { tallies.Daily("foo@bar", time.Now()) })
 }
 
 func TestIncrement(t *testing.T) {
@@ -116,56 +79,24 @@ func TestIncrement(t *testing.T) {
 	defer vc.Close()
 
 	tl := tallies.New("tallies")
+	assert.Equal(t, "tallies", tl.KeyBase())
 
-	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{}))
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[string]int64{}))
+	assertvk.NotExists(t, vc, "{tallies}:live")
 
-	err := tl.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("_gen"): 1})
-	assert.EqualError(t, err, "_gen is a reserved scope")
-	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "_gen", ExpiresOn: "2025-06-01"}: 1})
-	assert.EqualError(t, err, "_gen is a reserved scope")
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[string]int64{"foo": 2, "bar@2025-05-04": 1}))
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[string]int64{"foo": 1}))
+	require.NoError(t, tl.Increment(ctx, vc, 23, map[string]int64{"foo": 5, "a|b": 1}))
 
-	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-13-01"}: 1})
-	assert.EqualError(t, err, `scope foo has an invalid expiry "2025-13-01"`)
-
-	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
-		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
-		{Scope: "foo", ExpiresOn: "2025-07-01"}: 1,
+	assertvk.HGetAll(t, vc, "{tallies}:live", map[string]string{
+		"1|foo": "3", "1|bar@2025-05-04": "1", "23|foo": "5", "23|a|b": "1",
 	})
-	assert.EqualError(t, err, "scope foo is given different expiries")
 
-	err = tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
-		{Scope: "foo", ExpiresOn: "2025-06-01"}: 1,
-		{Scope: "foo"}:                          1,
-	})
-	assert.EqualError(t, err, "scope foo is given different expiries")
+	// a failing command inside the transaction is reported even though the transaction itself succeeds
+	vc.Do("HSET", "{tallies}:live", "1|foo", "bar")
 
-	assertvk.NotExists(t, vc, "{tallies}:1")
-
-	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
-		tallies.Total("foo"): 2,
-		{Scope: "bar@2025-05-04", ExpiresOn: "2025-06-01"}: 1,
-	}))
-
-	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo": "2", "bar@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
-
-	// the first expiry written for a scope wins
-	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{
-		{Scope: "bar@2025-05-04", ExpiresOn: "2025-07-01"}: 1,
-		{Scope: "foo"}: 1,
-	}))
-
-	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo": "3", "bar@2025-05-04": "2"})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"bar@2025-05-04": "2025-06-01"})
-
-	// as does an expiry written after a scope was first written without one
-	require.NoError(t, tl.Increment(ctx, vc, 1, map[tallies.Key]int64{{Scope: "foo", ExpiresOn: "2025-07-01"}: 1}))
-
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{
-		"bar@2025-05-04": "2025-06-01", "foo": "2025-07-01",
-	})
+	err := tl.Increment(ctx, vc, 1, map[string]int64{"foo": 1})
+	assert.EqualError(t, err, "error incrementing tallies for owner 1: ERR hash value is not an integer")
 }
 
 func TestFlush(t *testing.T) {
@@ -176,204 +107,177 @@ func TestFlush(t *testing.T) {
 	tl := tallies.New("tallies")
 	store := newMemoryStore()
 
-	foo1, foo2 := tallies.Total("foo/1"), tallies.Total("foo/2")
-	daily := tallies.Daily("daily", time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC), 2*24*time.Hour)
-	other := tallies.Daily("other", time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC), 30*24*time.Hour)
+	assert.Panics(t, func() { tl.Flush(ctx, vc, store, 0) })
 
-	increment := func(owner tallies.OwnerID, amounts map[tallies.Key]int64) {
+	increment := func(owner tallies.OwnerID, amounts map[string]int64) {
 		require.NoError(t, tl.Increment(ctx, vc, owner, amounts))
 	}
-	flush := func(expected int) {
-		flushed, err := tl.Flush(ctx, vc, store, 10)
+	flush := func(batchSize, expected int) {
+		flushed, err := tl.Flush(ctx, vc, store, batchSize)
 		require.NoError(t, err)
 		assert.Equal(t, expected, flushed)
 	}
-	assertStored := func(owner tallies.OwnerID, totals map[string]int64, expiries map[string]string, gen int64) {
-		assert.Equal(t, totals, store.totals[owner])
-		assert.Equal(t, expiries, store.expiries[owner])
-		assert.Equal(t, gen, store.generations[owner])
-	}
-	assertCleared := func(owner tallies.OwnerID) {
-		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:expiries", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:flushing", owner))
-		assertvk.NotExists(t, vc, fmt.Sprintf("{tallies}:%d:expiries:flushing", owner))
+	assertCleared := func() {
+		assertvk.NotExists(t, vc, "{tallies}:live")
+		assertvk.NotExists(t, vc, "{tallies}:flushing")
+		assertvk.NotExists(t, vc, "{tallies}:batch")
 	}
 
 	// nothing to flush
-	flush(0)
+	flush(10, 0)
+	assert.Equal(t, int64(0), store.lastBatch)
 
-	increment(1, map[tallies.Key]int64{foo1: 2, daily: 1})
-	increment(1, map[tallies.Key]int64{foo1: 1})
-	increment(2, map[tallies.Key]int64{foo1: 5})
+	increment(1, map[string]int64{"foo": 2, "bar@2025-05-04": 1})
+	increment(1, map[string]int64{"foo": 1})
+	increment(2, map[string]int64{"foo": 5, "a|b": 1})
 
-	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo/1": "3", "daily@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"daily@2025-05-04": "2025-05-06"})
-	assertvk.NotExists(t, vc, "{tallies}:2:expiries")
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1", "2"})
+	flush(10, 4)
 
-	flush(2)
+	assert.Equal(t, map[tallies.OwnerID]map[string]int64{
+		1: {"foo": 3, "bar@2025-05-04": 1},
+		2: {"foo": 5, "a|b": 1},
+	}, store.totals)
+	assert.Equal(t, int64(1), store.lastBatch)
+	assert.Equal(t, []int{4}, store.batches)
+	assertvk.Get(t, vc, "{tallies}:batch_id", "1")
+	assertCleared()
 
-	assertStored(1,
-		map[string]int64{"foo/1": 3, "daily@2025-05-04": 1},
-		map[string]string{"daily@2025-05-04": "2025-05-06"},
-		1,
-	)
-	assertStored(2, map[string]int64{"foo/1": 5}, map[string]string{}, 1)
-	assertCleared(1)
-	assertCleared(2)
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
+	// a flush drains everything buffered when it started, a batch at a time
+	increment(1, map[string]int64{"foo": 1, "a": 1, "b": 1})
+	increment(3, map[string]int64{"foo": 1, "a": 1})
 
-	// a later expiry for a scope the store already has is passed on, but the store keeps the expiry it created it with
-	increment(1, map[tallies.Key]int64{foo1: 1, foo2: 1, {Scope: daily.Scope, ExpiresOn: "2025-06-01"}: 1})
+	flush(2, 5)
 
-	flush(1)
+	assert.Equal(t, int64(4), store.lastBatch)
+	assert.Equal(t, []int{4, 2, 2, 1}, store.batches)
+	assert.Equal(t, map[string]int64{"foo": 4, "bar@2025-05-04": 1, "a": 1, "b": 1}, store.totals[1])
+	assert.Equal(t, map[string]int64{"foo": 1, "a": 1}, store.totals[3])
+	assertCleared()
 
-	assertStored(1,
-		map[string]int64{"foo/1": 4, "foo/2": 1, "daily@2025-05-04": 2},
-		map[string]string{"daily@2025-05-04": "2025-05-06"},
-		2,
-	)
-	assertStored(2, map[string]int64{"foo/1": 5}, map[string]string{}, 1)
-	assertCleared(1)
+	// but not increments made during it, which wait for the next one
+	store.onWrite = func() { increment(1, map[string]int64{"foo": 10}) }
+	increment(1, map[string]int64{"foo": 1})
 
-	// a flush which committed but failed before deleting its hashes leaves them behind, and they're discarded rather
-	// than written again
-	vc.Do("HSET", "{tallies}:1:flushing", "foo/1", 10, "other@2025-05-04", 1, "_gen", 2)
-	vc.Do("HSET", "{tallies}:1:expiries:flushing", "other@2025-05-04", "2025-05-05")
-	increment(1, map[tallies.Key]int64{foo1: 1, other: 1})
+	flush(10, 1)
 
-	flush(1)
-
-	assertStored(1,
-		map[string]int64{"foo/1": 5, "foo/2": 1, "daily@2025-05-04": 2, "other@2025-05-04": 1},
-		map[string]string{"daily@2025-05-04": "2025-05-06", "other@2025-05-04": "2025-06-03"},
-		3,
-	)
-	assertCleared(1)
-
-	// a flush which failed before committing leaves its hashes behind too, and new increments are merged into them,
-	// with the leftover expiries having been set first
-	vc.Do("HSET", "{tallies}:1:flushing", "foo/1", 10, "new1@2025-05-04", 1, "_gen", 4)
-	vc.Do("HSET", "{tallies}:1:expiries:flushing", "new1@2025-05-04", "2025-05-10")
-	vc.Do("SADD", "{tallies}:pending", 1)
-	increment(1, map[tallies.Key]int64{
-		foo2: 1,
-		{Scope: "new1@2025-05-04", ExpiresOn: "2025-05-20"}: 1,
-		{Scope: "new2@2025-05-04", ExpiresOn: "2025-05-30"}: 1,
-	})
-
-	flush(1)
-
-	assertStored(1,
-		map[string]int64{
-			"foo/1": 15, "foo/2": 2, "daily@2025-05-04": 2, "other@2025-05-04": 1,
-			"new1@2025-05-04": 2, "new2@2025-05-04": 1,
-		},
-		map[string]string{
-			"daily@2025-05-04": "2025-05-06", "other@2025-05-04": "2025-06-03",
-			"new1@2025-05-04": "2025-05-10", "new2@2025-05-04": "2025-05-30",
-		},
-		4,
-	)
-	assertCleared(1)
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
-
-	// a failed write leaves the owner pending with its flushing hashes, which other owners don't wait on
-	increment(1, map[tallies.Key]int64{foo1: 1, {Scope: "new3@2025-05-04", ExpiresOn: "2025-05-10"}: 1})
-	store.writeErr = errors.New("boom")
-
-	flushed, err := tl.Flush(ctx, vc, store, 10)
-	assert.EqualError(t, err, "error flushing tallies for owner 1: error writing tallies: boom")
-	assert.Equal(t, 0, flushed)
-
-	assertvk.NotExists(t, vc, "{tallies}:1")
-	assertvk.NotExists(t, vc, "{tallies}:1:expiries")
-	assertvk.HGetAll(t, vc, "{tallies}:1:flushing", map[string]string{
-		"foo/1": "1", "new3@2025-05-04": "1", "_gen": "5",
-	})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries:flushing", map[string]string{"new3@2025-05-04": "2025-05-10"})
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
-
-	// and it's recovered by the next flush, along with increments made in the meantime, whose expiries don't replace
-	// the ones being retried
-	store.writeErr = nil
-	increment(1, map[tallies.Key]int64{
-		foo1: 2,
-		{Scope: "new3@2025-05-04", ExpiresOn: "2025-05-20"}: 1,
-		{Scope: "new4@2025-05-04", ExpiresOn: "2025-05-20"}: 1,
-	})
-	increment(2, map[tallies.Key]int64{foo1: 1})
-
-	flush(2)
-
-	assertStored(1,
-		map[string]int64{
-			"foo/1": 18, "foo/2": 2, "daily@2025-05-04": 2, "other@2025-05-04": 1,
-			"new1@2025-05-04": 2, "new2@2025-05-04": 1, "new3@2025-05-04": 2, "new4@2025-05-04": 1,
-		},
-		map[string]string{
-			"daily@2025-05-04": "2025-05-06", "other@2025-05-04": "2025-06-03",
-			"new1@2025-05-04": "2025-05-10", "new2@2025-05-04": "2025-05-30",
-			"new3@2025-05-04": "2025-05-10", "new4@2025-05-04": "2025-05-20",
-		},
-		5,
-	)
-	assertStored(2, map[string]int64{"foo/1": 6}, map[string]string{}, 2)
-	assertCleared(1)
-	assertCleared(2)
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
-
-	// an increment arriving while an owner is being written leaves it pending for the next flush, expiry and all
-	store.onWrite = func() {
-		increment(1, map[tallies.Key]int64{{Scope: "new5@2025-05-04", ExpiresOn: "2025-05-20"}: 1})
-	}
-	increment(1, map[tallies.Key]int64{foo1: 1})
-
-	flush(1)
-
-	assert.Equal(t, int64(19), store.totals[1]["foo/1"])
-	assert.Equal(t, int64(6), store.generations[1])
-	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"new5@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"new5@2025-05-04": "2025-05-20"})
-	assertvk.NotExists(t, vc, "{tallies}:1:flushing")
-	assertvk.NotExists(t, vc, "{tallies}:1:expiries:flushing")
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
+	assert.Equal(t, int64(5), store.totals[1]["foo"])
+	assertvk.HGetAll(t, vc, "{tallies}:live", map[string]string{"1|foo": "10"})
 
 	store.onWrite = nil
+	flush(10, 1)
 
-	flush(1)
+	assert.Equal(t, int64(15), store.totals[1]["foo"])
+	assert.Equal(t, int64(6), store.lastBatch)
+	assertCleared()
 
-	assert.Equal(t, int64(1), store.totals[1]["new5@2025-05-04"])
-	assert.Equal(t, "2025-05-20", store.expiries[1]["new5@2025-05-04"])
-	assert.Equal(t, int64(7), store.generations[1])
-	assertCleared(1)
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{})
+	// failing to get the last batch leaves everything as it was
+	increment(1, map[string]int64{"foo": 1})
+	store.lastBatchErr = errors.New("boom")
 
-	// failing to get the last generation leaves everything as it was
-	increment(1, map[tallies.Key]int64{foo1: 1, {Scope: "new6@2025-05-04", ExpiresOn: "2025-05-20"}: 1})
-	store.lastGenErr = errors.New("boom")
+	_, err := tl.Flush(ctx, vc, store, 10)
+	assert.EqualError(t, err, "error getting last batch: boom")
+	assertvk.HGetAll(t, vc, "{tallies}:live", map[string]string{"1|foo": "1"})
 
-	flushed, err = tl.Flush(ctx, vc, store, 10)
-	assert.EqualError(t, err, "error flushing tallies for owner 1: error getting last generation: boom")
+	store.lastBatchErr = nil
+
+	// a failed write leaves its batch, and the rest of the snapshot, for the next flush to write
+	increment(2, map[string]int64{"foo": 1, "a|b": 1})
+	store.writeErr = errors.New("boom")
+
+	flushed, err := tl.Flush(ctx, vc, store, 2)
+	assert.EqualError(t, err, "error writing batch 7: boom")
 	assert.Equal(t, 0, flushed)
 
-	assertvk.HGetAll(t, vc, "{tallies}:1", map[string]string{"foo/1": "1", "new6@2025-05-04": "1"})
-	assertvk.HGetAll(t, vc, "{tallies}:1:expiries", map[string]string{"new6@2025-05-04": "2025-05-20"})
-	assertvk.NotExists(t, vc, "{tallies}:1:flushing")
-	assertvk.SMembers(t, vc, "{tallies}:pending", []string{"1"})
+	assertvk.HLen(t, vc, "{tallies}:batch", 2)
+	assertvk.HLen(t, vc, "{tallies}:flushing", 1)
+	assertvk.Get(t, vc, "{tallies}:batch_id", "7")
 
-	store.lastGenErr = nil
+	// and does so before taking a new snapshot, which includes increments made in the meantime
+	store.writeErr = nil
+	increment(2, map[string]int64{"foo": 1})
 
-	flush(1)
+	flush(2, 4)
 
-	assert.Equal(t, int64(20), store.totals[1]["foo/1"])
-	assert.Equal(t, "2025-05-20", store.expiries[1]["new6@2025-05-04"])
-	assert.Equal(t, int64(8), store.generations[1])
-	assertCleared(1)
+	assert.Equal(t, int64(16), store.totals[1]["foo"])
+	assert.Equal(t, map[string]int64{"foo": 7, "a|b": 2}, store.totals[2])
+	assert.Equal(t, int64(9), store.lastBatch)
+	assertCleared()
+
+	// a batch which was written but not deleted is deleted without being written again
+	vc.Do("HSET", "{tallies}:batch", "1|foo", 100)
+	vc.Do("SET", "{tallies}:batch_id", 9)
+	increment(1, map[string]int64{"foo": 1})
+
+	flush(10, 1)
+
+	assert.Equal(t, int64(17), store.totals[1]["foo"])
+	assert.Equal(t, int64(10), store.lastBatch)
+	assertCleared()
+
+	// a batch without an id can't be written safely, so stops flushing until it's dealt with
+	vc.Do("HSET", "{tallies}:batch", "1|foo", 100)
+	vc.Do("DEL", "{tallies}:batch_id")
+
+	_, err = tl.Flush(ctx, vc, store, 10)
+	assert.EqualError(t, err, "error reading id of leftover batch from {tallies}:batch_id: redigo: nil returned")
+
+	vc.Do("DEL", "{tallies}:batch")
+	vc.Do("SET", "{tallies}:batch_id", 10)
+
+	// batch ids carry on from the last one used if the store is behind, e.g. because it was reset
+	store.lastBatch = 3
+	increment(1, map[string]int64{"foo": 1})
+
+	flush(10, 1)
+
+	assert.Equal(t, int64(11), store.lastBatch)
+	assertvk.Get(t, vc, "{tallies}:batch_id", "11")
+
+	// or from the store's if Valkey is behind, e.g. because it lost data
+	vc.Do("DEL", "{tallies}:batch_id")
+	increment(1, map[string]int64{"foo": 1})
+
+	flush(10, 1)
+
+	assert.Equal(t, int64(12), store.lastBatch)
+	assertvk.Get(t, vc, "{tallies}:batch_id", "12")
+	assert.Equal(t, int64(19), store.totals[1]["foo"])
 }
 
-func TestFlushBatches(t *testing.T) {
+func TestFlushConcurrently(t *testing.T) {
+	ctx := t.Context()
+	db := assertvk.ClaimDB(t)
+	vc, vc2 := db.Pool().Get(), db.Pool().Get()
+	defer vc.Close()
+	defer vc2.Close()
+
+	tl := tallies.New("tallies")
+	store := newMemoryStore()
+
+	require.NoError(t, tl.Increment(ctx, vc, 1, map[string]int64{"a": 1, "b": 1, "c": 1}))
+
+	// another flush which runs while this one is writing its first batch writes that batch itself and then the rest,
+	// so this one's write of it does nothing and it finds nothing left
+	var otherFlushed int
+	var otherErr error
+	store.onWrite = func() {
+		store.onWrite = nil
+		otherFlushed, otherErr = tl.Flush(ctx, vc2, store, 1)
+	}
+
+	flushed, err := tl.Flush(ctx, vc, store, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, flushed)
+	assert.NoError(t, otherErr)
+	assert.Equal(t, 3, otherFlushed)
+
+	assert.Equal(t, map[string]int64{"a": 1, "b": 1, "c": 1}, store.totals[1])
+	assert.Equal(t, int64(3), store.lastBatch)
+	assertvk.NotExists(t, vc, "{tallies}:flushing")
+	assertvk.NotExists(t, vc, "{tallies}:batch")
+}
+
+func TestFlushLargeBatches(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
@@ -381,39 +285,17 @@ func TestFlushBatches(t *testing.T) {
 	tl := tallies.New("tallies")
 	store := newMemoryStore()
 
-	assert.Panics(t, func() { tl.Flush(ctx, vc, store, 0) })
-
-	for owner := range tallies.OwnerID(3) {
-		require.NoError(t, tl.Increment(ctx, vc, owner+1, map[tallies.Key]int64{tallies.Total("foo"): 1}))
+	amounts := make(map[string]int64, 2500)
+	for i := range 2500 {
+		amounts[fmt.Sprintf("scope%d", i)] = 1
 	}
+	require.NoError(t, tl.Increment(ctx, vc, 1, amounts))
 
-	flushed, err := tl.Flush(ctx, vc, store, 2)
+	flushed, err := tl.Flush(ctx, vc, store, 2000)
 	require.NoError(t, err)
-	assert.Equal(t, 2, flushed)
-	assertvk.SCard(t, vc, "{tallies}:pending", 1)
-
-	flushed, err = tl.Flush(ctx, vc, store, 2)
-	require.NoError(t, err)
-	assert.Equal(t, 1, flushed)
-	assertvk.SCard(t, vc, "{tallies}:pending", 0)
-
-	for owner := range tallies.OwnerID(3) {
-		assert.Equal(t, map[string]int64{"foo": 1}, store.totals[owner+1])
-	}
-}
-
-func TestIncrementError(t *testing.T) {
-	ctx := t.Context()
-	vc := assertvk.ClaimDB(t).Pool().Get()
-	defer vc.Close()
-
-	tl := tallies.New("tallies")
-
-	// a failing command inside the transaction is reported even though the transaction itself succeeds
-	vc.Do("HSET", "{tallies}:1", "foo", "bar")
-
-	err := tl.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("foo"): 1})
-	assert.EqualError(t, err, "error incrementing tallies for owner 1: ERR hash value is not an integer")
+	assert.Equal(t, 2500, flushed)
+	assert.Equal(t, []int{2000, 500}, store.batches)
+	assert.Len(t, store.totals[1], 2500)
 }
 
 func TestKeyBases(t *testing.T) {
@@ -428,17 +310,17 @@ func TestKeyBases(t *testing.T) {
 	foo, bar := tallies.New("foo"), tallies.New("bar")
 	store := newMemoryStore()
 
-	require.NoError(t, foo.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("x"): 1}))
-	require.NoError(t, bar.Increment(ctx, vc, 1, map[tallies.Key]int64{tallies.Total("x"): 2}))
+	require.NoError(t, foo.Increment(ctx, vc, 1, map[string]int64{"x": 1}))
+	require.NoError(t, bar.Increment(ctx, vc, 1, map[string]int64{"x": 2}))
 
-	assertvk.HGetAll(t, vc, "{foo}:1", map[string]string{"x": "1"})
-	assertvk.HGetAll(t, vc, "{bar}:1", map[string]string{"x": "2"})
+	assertvk.HGetAll(t, vc, "{foo}:live", map[string]string{"1|x": "1"})
+	assertvk.HGetAll(t, vc, "{bar}:live", map[string]string{"1|x": "2"})
 
 	// each only flushes its own tallies
 	flushed, err := foo.Flush(ctx, vc, store, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 1, flushed)
 	assert.Equal(t, map[string]int64{"x": 1}, store.totals[1])
-	assertvk.SMembers(t, vc, "{foo}:pending", []string{})
-	assertvk.SMembers(t, vc, "{bar}:pending", []string{"1"})
+	assertvk.NotExists(t, vc, "{foo}:live")
+	assertvk.HGetAll(t, vc, "{bar}:live", map[string]string{"1|x": "2"})
 }
