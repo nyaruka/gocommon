@@ -95,8 +95,8 @@ github.com/nyaruka/null/v3 v3.1.0 h1:YQsMXz8Nve0JTVduxpqwzMkTca5X+gwSMBkRcSwa2l8
 github.com/nyaruka/null/v3 v3.1.0/go.mod h1:vH2+lGf6XzKr4USjgfJHj+l87dhCiR+ajAuu515xENg=
 github.com/nyaruka/phonenumbers/v2 v2.0.16 h1:3B/JxRqpACmsO/JgCr9d8ukR/s9VzH4RNrY7Zt/eSCM=
 github.com/nyaruka/phonenumbers/v2 v2.0.16/go.mod h1:ch3CB5vKpdcQXyRLWm+ELlEdiUwagKR6pYvXgVXRiN0=
-github.com/nyaruka/vkutil v0.29.0 h1:+xuPfIjmOQ7dzxSiak2I0G3NkoFh+27KhG9jKgK3k/k=
-github.com/nyaruka/vkutil v0.29.0/go.mod h1:eh/L5J9IvZsV8qEhWmgC654vl1aEkX86lh8gU+YnKww=
+github.com/nyaruka/vkutil v0.31.0 h1:dahXr3jl1kCYwE/a/gFxu4Mm08wMIMVeHOlcGY/QFI0=
+github.com/nyaruka/vkutil v0.31.0/go.mod h1:eh/L5J9IvZsV8qEhWmgC654vl1aEkX86lh8gU+YnKww=
 github.com/shopspring/decimal v1.5.0 h1:HxSWk31RmJv0EyY4oLiGQB9u7WPludUwPBdvQZnYFPc=
 github.com/shopspring/decimal v1.5.0/go.mod h1:gawqmDU56v4yIKSwfBSFip1HdCCXN8/+DMd9qYNcwME=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
