@@ -1,3 +1,6 @@
+## v1.98.4 (2026-11-04)
+ * Update to vkutil v0.31.0 and remove tallies package, which now lives there
+
 ## v1.98.3 (2026-11-04)
  * Buffer tallies in a single hash and flush them in batches across owners
 
