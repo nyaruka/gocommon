@@ -1,3 +1,6 @@
+## v1.98.3 (2026-11-04)
+ * Buffer tallies in a single hash and flush them in batches across owners
+
 ## v1.98.2 (2026-11-03)
  * Make tallies an instance with its own key base and flush
  * Reject tally key bases which can't be used as a hash tag
