@@ -1,3 +1,8 @@
+## v1.99.1 (2026-11-05)
+ * Add timed pause to MsgsV2 queue for backing off an owner
+ * Keep a paused owner parked when its queue is cleared
+ * Cache Go modules and build cache in CI
+
 ## v1.99.0 (2026-11-05)
  * Add MsgsV2 queue for outgoing messages, ported from courier
  * Stop the review workflow adding Claude Code attribution
