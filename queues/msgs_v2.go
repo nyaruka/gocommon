@@ -1,0 +1,165 @@
+package queues
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+
+	valkey "github.com/gomodule/redigo/redis"
+)
+
+// the most waiting owners that a single pop will make ready
+const msgsV2WakeLimit = 100
+
+// MsgsV2 implements a queue of outgoing messages where each owner (i.e. a channel) has its own TPS limit, and owners
+// with queued messages are popped from fairly by the number of their sends in flight.
+//
+// A queue with base key "foo" and owner "owner1" will have the following keys:
+//   - {foo}:ready - zset of owners that can be popped from, scored by number of sends in flight
+//   - {foo}:waiting - zset of owners waiting on their TPS or a scheduled item, scored by the time they can be woken
+//   - {foo}:ch:owner1 - hash of owner1's state: tps, sec and used (this second's TPS usage), and inflight
+//   - {foo}:q:owner1/0 - e.g. zset of bulk priority items for owner1, scored by when they can be popped
+//   - {foo}:q:owner1/1 - e.g. zset of high priority items for owner1, scored by when they can be popped
+//
+// Items are JSON arrays of messages for a single contact. A pop takes the first message, charging its tps_cost field
+// (default 1) against its owner's TPS, and schedules the rest a few seconds out so they're sent in order.
+type MsgsV2 struct {
+	keyBase string
+}
+
+// NewMsgsV2 creates a new msgs queue with the given key base.
+func NewMsgsV2(keyBase string) *MsgsV2 {
+	return &MsgsV2{keyBase: fmt.Sprintf("{%s}", keyBase)}
+}
+
+//go:embed lua/msgs2_push.lua
+var luaMsgs2Push string
+var scriptMsgs2Push = valkey.NewScript(4, luaMsgs2Push)
+
+// Push adds the passed in batch, a JSON array, to the owner's queue. A tps of 0 means no limit, and the latest push
+// sets the TPS for everything queued for the owner.
+func (q *MsgsV2) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, tps int, priority bool, batch []byte) error {
+	_, err := scriptMsgs2Push.DoContext(ctx, vc, q.queueKey(owner, priority), q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, tps, batch, timeNow().UnixMicro())
+	if err != nil {
+		return fmt.Errorf("error pushing batch for owner %s: %w", owner, err)
+	}
+	return nil
+}
+
+//go:embed lua/msgs2_pop.lua
+var luaMsgs2Pop string
+var scriptMsgs2Pop = valkey.NewScript(2, luaMsgs2Pop)
+
+// Pop pops the next message off our queue, returning an empty owner if there's nothing to pop. Callers must call Done
+// with the owner when they've sent it.
+func (q *MsgsV2) Pop(ctx context.Context, vc valkey.Conn) (OwnerID, []byte, error) {
+	for {
+		vals, err := valkey.Values(scriptMsgs2Pop.DoContext(ctx, vc, q.readyKey(), q.waitingKey(), q.keyBase, msgsV2WakeLimit, timeNow().UnixMicro()))
+		if err != nil {
+			return "", nil, fmt.Errorf("error popping message: %w", err)
+		}
+
+		var owner string
+		var msg []byte
+		if _, err := valkey.Scan(vals, &owner, &msg); err != nil {
+			return "", nil, fmt.Errorf("error scanning pop result: %w", err)
+		}
+
+		switch owner {
+		case "empty":
+			return "", nil, nil
+		case "retry": // selected owner was throttled or had nothing to pop, try again
+			continue
+		}
+
+		return OwnerID(owner), msg, nil
+	}
+}
+
+//go:embed lua/msgs2_done.lua
+var luaMsgs2Done string
+var scriptMsgs2Done = valkey.NewScript(3, luaMsgs2Done)
+
+// Done marks a message popped for the given owner as sent. Callers must call this for every message they pop in order
+// to maintain fair distribution across owners.
+func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
+	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner)
+	if err != nil {
+		return fmt.Errorf("error marking message done for owner %s: %w", owner, err)
+	}
+	return nil
+}
+
+//go:embed lua/msgs2_clear.lua
+var luaMsgs2Clear string
+var scriptMsgs2Clear = valkey.NewScript(5, luaMsgs2Clear)
+
+// Clear removes everything queued for the given owner.
+func (q *MsgsV2) Clear(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
+	_, err := scriptMsgs2Clear.DoContext(ctx, vc, q.queueKey(owner, true), q.queueKey(owner, false), q.channelKey(owner), q.readyKey(), q.waitingKey(), owner)
+	if err != nil {
+		return fmt.Errorf("error clearing queue for owner %s: %w", owner, err)
+	}
+	return nil
+}
+
+// Size returns the number of high and bulk priority items queued across all owners
+func (q *MsgsV2) Size(ctx context.Context, vc valkey.Conn) (high, bulk int, err error) {
+	var owners []OwnerID
+
+	for _, set := range []string{q.readyKey(), q.waitingKey()} {
+		members, err := valkey.Strings(valkey.DoContext(vc, ctx, "ZRANGE", set, 0, -1))
+		if err != nil {
+			return 0, 0, err
+		}
+		for _, m := range members {
+			owners = append(owners, OwnerID(m))
+		}
+	}
+
+	// pipeline the counts, as there's a pair for every owner
+	for _, owner := range owners {
+		if err := vc.Send("ZCARD", q.queueKey(owner, true)); err != nil {
+			return 0, 0, err
+		}
+		if err := vc.Send("ZCARD", q.queueKey(owner, false)); err != nil {
+			return 0, 0, err
+		}
+	}
+	if err := vc.Flush(); err != nil {
+		return 0, 0, err
+	}
+
+	for range owners {
+		h, err := valkey.Int(valkey.ReceiveContext(vc, ctx))
+		if err != nil {
+			return 0, 0, err
+		}
+		b, err := valkey.Int(valkey.ReceiveContext(vc, ctx))
+		if err != nil {
+			return 0, 0, err
+		}
+		high += h
+		bulk += b
+	}
+	return high, bulk, nil
+}
+
+func (q *MsgsV2) readyKey() string {
+	return q.keyBase + ":ready"
+}
+
+func (q *MsgsV2) waitingKey() string {
+	return q.keyBase + ":waiting"
+}
+
+func (q *MsgsV2) channelKey(owner OwnerID) string {
+	return fmt.Sprintf("%s:ch:%s", q.keyBase, owner)
+}
+
+func (q *MsgsV2) queueKey(owner OwnerID, priority bool) string {
+	if priority {
+		return fmt.Sprintf("%s:q:%s/1", q.keyBase, owner)
+	}
+	return fmt.Sprintf("%s:q:%s/0", q.keyBase, owner)
+}
