@@ -109,9 +109,9 @@ func (q *MsgsV2) Pause(ctx context.Context, vc valkey.Conn, owner OwnerID, until
 var luaMsgs2Clear string
 var scriptMsgs2Clear = valkey.NewScript(5, luaMsgs2Clear)
 
-// Clear removes everything queued for the given owner.
+// Clear removes everything queued for the given owner. A pause outlives it.
 func (q *MsgsV2) Clear(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
-	_, err := scriptMsgs2Clear.DoContext(ctx, vc, q.queueKey(owner, true), q.queueKey(owner, false), q.channelKey(owner), q.readyKey(), q.waitingKey(), owner)
+	_, err := scriptMsgs2Clear.DoContext(ctx, vc, q.queueKey(owner, true), q.queueKey(owner, false), q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, timeNow().UnixMicro())
 	if err != nil {
 		return fmt.Errorf("error clearing queue for owner %s: %w", owner, err)
 	}

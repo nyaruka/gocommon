@@ -594,6 +594,43 @@ func TestMsgsV2PauseStateExpiry(t *testing.T) {
 	assertTTL(t, vc, "{msgs}:ch:chan2", 60)
 }
 
+func TestMsgsV2ClearWhenPaused(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1},{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(90)))
+
+	// clearing a paused owner keeps it parked, and its state, until the pause ends
+	require.NoError(t, q.Clear(ctx, vc, "chan1"))
+	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 90})
+	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
+
+	setMsgsV2Time(80)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":3}]`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	setMsgsV2Time(90)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
+
+	// once the pause is over, clearing lets the state expire as usual
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":4}]`)
+	require.NoError(t, q.Clear(ctx, vc, "chan1"))
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
+	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
+}
+
 func TestMsgsV2Clear(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
