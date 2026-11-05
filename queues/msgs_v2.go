@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"time"
 
 	valkey "github.com/gomodule/redigo/redis"
 )
@@ -17,7 +18,7 @@ const msgsV2WakeLimit = 100
 // A queue with base key "foo" and owner "owner1" will have the following keys:
 //   - {foo}:ready - zset of owners that can be popped from, scored by number of sends in flight
 //   - {foo}:waiting - zset of owners waiting on their TPS or a scheduled item, scored by the time they can be woken
-//   - {foo}:ch:owner1 - hash of owner1's state: tps, sec and used (this second's TPS usage), and inflight
+//   - {foo}:ch:owner1 - hash of owner1's state: tps, sec and used (this second's TPS usage), inflight and paused_until
 //   - {foo}:q:owner1/0 - e.g. zset of bulk priority items for owner1, scored by when they can be popped
 //   - {foo}:q:owner1/1 - e.g. zset of high priority items for owner1, scored by when they can be popped
 //
@@ -86,6 +87,20 @@ func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID) error 
 	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner)
 	if err != nil {
 		return fmt.Errorf("error marking message done for owner %s: %w", owner, err)
+	}
+	return nil
+}
+
+//go:embed lua/msgs2_pause.lua
+var luaMsgs2Pause string
+var scriptMsgs2Pause = valkey.NewScript(3, luaMsgs2Pause)
+
+// Pause stops messages being popped for the given owner until the given time, e.g. to back off a channel whose provider
+// is overloaded. A pause can only be extended, and it ends on its own.
+func (q *MsgsV2) Pause(ctx context.Context, vc valkey.Conn, owner OwnerID, until time.Time) error {
+	_, err := scriptMsgs2Pause.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, until.UnixMicro(), timeNow().UnixMicro())
+	if err != nil {
+		return fmt.Errorf("error pausing owner %s: %w", owner, err)
 	}
 	return nil
 }

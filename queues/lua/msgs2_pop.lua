@@ -31,7 +31,14 @@ local function park(untilTime)
     return {"retry", ""}
 end
 
-local state = redis.call("HMGET", chKey, "tps", "sec", "used")
+local state = redis.call("HMGET", chKey, "tps", "sec", "used", "paused_until")
+
+-- a paused owner can still be ready, e.g. if made so by an app that doesn't know about pauses
+local pausedUntil = tonumber(state[4]) or 0
+if pausedUntil > now then
+    return park(pausedUntil)
+end
+
 local tps = tonumber(state[1]) or 0
 local used = 0
 if tonumber(state[2]) == nowSec then

@@ -17,7 +17,12 @@ const t0 = 1767225600.5
 
 // steps the time seen by the queue to the given number of seconds after t0
 func setMsgsV2Time(secs float64) {
-	queues.SetTimeNow(func() time.Time { return time.UnixMicro(int64((t0 + secs) * 1000000)) })
+	queues.SetTimeNow(func() time.Time { return msgsV2Time(secs) })
+}
+
+// returns the given number of seconds after t0
+func msgsV2Time(secs float64) time.Time {
+	return time.UnixMicro(int64((t0 + secs) * 1000000))
 }
 
 func TestMsgsV2(t *testing.T) {
@@ -457,6 +462,136 @@ func TestMsgsV2StateExpiry(t *testing.T) {
 	require.NoError(t, q.Done(ctx, vc, "chan3"))
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan3", map[string]string{"inflight": "0"})
 	assertTTL(t, vc, "{msgs}:ch:chan3", 60)
+}
+
+func TestMsgsV2Pause(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	for i := range 3 {
+		assertMsgsV2Push(t, q, vc, "chan1", 0, false, fmt.Sprintf(`[{"id":%d}]`, i))
+	}
+	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":10}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":0}`)
+
+	// pausing a ready owner parks it until the pause ends
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(10)))
+	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0", "inflight": "1", "paused_until": "1767225610.5"})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": 0})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 10})
+
+	// other owners are unaffected
+	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":10}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	// pushing doesn't make a paused owner ready
+	assertMsgsV2Push(t, q, vc, "chan1", 0, true, `[{"id":3}]`)
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 10})
+
+	// a pause can be extended but not shortened, and pauses in the past are ignored
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(5)))
+	require.NoError(t, q.Pause(ctx, vc, "chan2", msgsV2Time(-1)))
+	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "paused_until", "1767225610.5")
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 10})
+
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(20)))
+	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "paused_until", "1767225620.5")
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 20})
+
+	setMsgsV2Time(19.9)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	setMsgsV2Time(20)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+}
+
+func TestMsgsV2PauseWithOtherApps(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1},{"id":2}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":3}]`)
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(1)))
+
+	// a paused owner made ready by an app that doesn't know about pauses is parked by a pop
+	_, err := vc.Do("ZADD", "{msgs}:ready", 0, "chan1")
+	require.NoError(t, err)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 1})
+
+	setMsgsV2Time(1)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 4})
+
+	// a pause that ends before what the owner is waiting on doesn't wake it early
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(2)))
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 4})
+
+	// but a push for a paused owner only waits on the pause
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":4}]`)
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 2})
+
+	setMsgsV2Time(2)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
+}
+
+func TestMsgsV2PauseStateExpiry(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	// pausing an owner with nothing queued keeps its state for the pause
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
+
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(90)))
+	require.NoError(t, q.Pause(ctx, vc, "chan2", msgsV2Time(90)))
+	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{"paused_until": "1767225690.5"})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 90, "chan2": t0 + 90})
+
+	require.NoError(t, q.Done(ctx, vc, "chan1"))
+	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
+	assertTTL(t, vc, "{msgs}:ch:chan2", -1)
+
+	// so that pushes during the pause wait on it
+	setMsgsV2Time(80)
+	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	// and once the pause ends, state expires as soon as there's nothing queued
+	setMsgsV2Time(90)
+	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
+	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
+	assertTTL(t, vc, "{msgs}:ch:chan2", 60)
 }
 
 func TestMsgsV2Clear(t *testing.T) {
