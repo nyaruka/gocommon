@@ -53,14 +53,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Get Go environment
+        id: go
+        run: |
+          echo "version=$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
+          echo "modcache=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          echo "cache=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      # image tag floats across patch releases, which invalidate the build cache
       - name: Cache Go modules and build cache
         uses: actions/cache@v6
         with:
           path: |
-            /go/pkg/mod
-            /root/.cache/go-build
-          key: go-${{ matrix.go-version }}-${{ hashFiles('go.sum') }}
-          restore-keys: go-${{ matrix.go-version }}-
+            ${{ steps.go.outputs.modcache }}
+            ${{ steps.go.outputs.cache }}
+          key: ${{ steps.go.outputs.version }}-${{ hashFiles('go.sum') }}
+          restore-keys: ${{ steps.go.outputs.version }}-
 
       - name: Run tests
         run: go test -race -p=1 ./...
