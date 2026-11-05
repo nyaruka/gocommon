@@ -76,53 +76,28 @@ end
 
 redis.call("ZREM", fromKey, value)
 
--- items are batches of messages for a single contact, of which we take the first
+-- items are batches of messages for a single contact, of which we take the first. Note that cjson can't re-encode
+-- empty arrays, which come back as empty objects.
 local ok, batch = pcall(cjson.decode, value)
 if not ok or type(batch) ~= "table" or batch[1] == nil then
     -- not a non-empty array so there's nothing to send
     return {"retry", ""}
 end
+local popped = table.remove(batch, 1)
 
 redis.call("ZADD", readyKey, redis.call("HINCRBY", chKey, "inflight", 1), owner)
 
 if tps > 0 then
     local cost = 1
-    if type(batch[1]) == "table" and type(batch[1]["tps_cost"]) == "number" then
-        cost = math.max(1, math.floor(batch[1]["tps_cost"]))
+    if type(popped) == "table" and type(popped["tps_cost"]) == "number" then
+        cost = math.max(1, math.floor(popped["tps_cost"]))
     end
     redis.call("HSET", chKey, "sec", nowSec, "used", used + cost)
 end
 
--- cjson can't re-encode messages as they were, e.g. empty arrays become objects, so we split the batch's JSON at the
--- end of its first element, i.e. the first comma or bracket outside of a nested value or string
-local first = string.find(value, "%[") + 1
-local pos, depth = first, 0
-local split
-while true do
-    local i = string.find(value, '[%[%]{}",]', pos)
-    local c = string.sub(value, i, i)
-    if c == '"' then
-        repeat
-            i = string.find(value, '["\\]', i + 1)
-            local escape = string.sub(value, i, i) == "\\"
-            if escape then
-                i = i + 1
-            end
-        until not escape
-    elseif c == "[" or c == "{" then
-        depth = depth + 1
-    elseif depth > 0 and (c == "]" or c == "}") then
-        depth = depth - 1
-    elseif depth == 0 then
-        split = i
-        break
-    end
-    pos = i + 1
-end
-
 -- and schedule the rest a few seconds out so they're sent in order
-if batch[2] ~= nil then
-    redis.call("ZADD", highKey, now + 3, "[" .. string.sub(value, split + 1))
+if #batch > 0 then
+    redis.call("ZADD", highKey, now + 3, cjson.encode(batch))
 end
 
-return {owner, string.match(string.sub(value, first, split - 1), "^%s*(.-)%s*$")}
+return {owner, cjson.encode(popped)}

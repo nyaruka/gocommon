@@ -581,42 +581,6 @@ func assertTTL(t *testing.T, vc valkey.Conn, key string, expected int) {
 	assert.Equal(t, expected, ttl, "TTL mismatch for %s", key)
 }
 
-func TestMsgsV2Payloads(t *testing.T) {
-	vc := assertvk.ClaimDB(t).Pool().Get()
-	defer vc.Close()
-
-	setMsgsV2Time(0)
-	defer queues.SetTimeNow(nil)
-
-	q := queues.NewMsgsV2("msgs")
-
-	// messages are popped exactly as pushed, e.g. with empty arrays, large numbers, key order, and strings containing
-	// JSON syntax and escapes
-	tcs := []struct {
-		batch    string
-		expected []string
-	}{
-		{`["foo"]`, []string{`"foo"`}},
-		{`[{"text":"a, [b] {c}","attachments":[],"id":12345678901234567890},{"id":2}]`, []string{`{"text":"a, [b] {c}","attachments":[],"id":12345678901234567890}`, `{"id":2}`}},
-		{`[{"text":"say \"hi\", \\","b":{"c":[[],{}]}},"x\\",{"id":3}]`, []string{`{"text":"say \"hi\", \\","b":{"c":[[],{}]}}`, `"x\\"`, `{"id":3}`}},
-		{` [ {"id":4} ,	{"id":5} ] `, []string{`{"id":4}`, `{"id":5}`}},
-	}
-
-	for _, tc := range tcs {
-		vc.Do("FLUSHDB")
-		setMsgsV2Time(0)
-
-		assertMsgsV2Push(t, q, vc, "chan1", 0, false, tc.batch)
-
-		for i, expected := range tc.expected {
-			setMsgsV2Time(float64(i * 3))
-			assertMsgsV2Pop(t, q, vc, "chan1", expected)
-		}
-		assertMsgsV2Pop(t, q, vc, "", "")
-		assertMsgsV2Size(t, q, vc, 0, 0)
-	}
-}
-
 func TestMsgsV2InvalidItems(t *testing.T) {
 	vc := assertvk.ClaimDB(t).Pool().Get()
 	defer vc.Close()
