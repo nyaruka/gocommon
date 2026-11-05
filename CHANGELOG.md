@@ -1,3 +1,7 @@
+## v1.99.0 (2026-11-05)
+ * Add MsgsV2 queue for outgoing messages, ported from courier
+ * Stop the review workflow adding Claude Code attribution
+
 ## v1.98.4 (2026-11-04)
  * Update to vkutil v0.31.0 and remove tallies package, which now lives there
 
