@@ -68,7 +68,7 @@ func (q *MsgsV2) Pop(ctx context.Context, vc valkey.Conn) (OwnerID, []byte, erro
 		switch owner {
 		case "empty":
 			return "", nil, nil
-		case "retry": // selected owner was throttled or had nothing to pop, try again
+		case "retry": // selected owner was throttled or had nothing to pop, and has been taken out of ready so try again
 			continue
 		}
 
@@ -103,7 +103,8 @@ func (q *MsgsV2) Clear(ctx context.Context, vc valkey.Conn, owner OwnerID) error
 	return nil
 }
 
-// Size returns the number of high and bulk priority items queued across all owners
+// Size returns the number of high and bulk priority items queued across all owners. It reads every owner and isn't
+// atomic, so is meant for metrics.
 func (q *MsgsV2) Size(ctx context.Context, vc valkey.Conn) (high, bulk int, err error) {
 	var owners []OwnerID
 
@@ -117,30 +118,20 @@ func (q *MsgsV2) Size(ctx context.Context, vc valkey.Conn) (high, bulk int, err 
 		}
 	}
 
-	// pipeline the counts, as there's a pair for every owner
+	// counted in a transaction so that a reply error, e.g. WRONGTYPE, doesn't leave other replies unread on vc
+	vc.Send("MULTI")
 	for _, owner := range owners {
-		if err := vc.Send("ZCARD", q.queueKey(owner, true)); err != nil {
-			return 0, 0, err
-		}
-		if err := vc.Send("ZCARD", q.queueKey(owner, false)); err != nil {
-			return 0, 0, err
-		}
+		vc.Send("ZCARD", q.queueKey(owner, true))
+		vc.Send("ZCARD", q.queueKey(owner, false))
 	}
-	if err := vc.Flush(); err != nil {
+	counts, err := valkey.Ints(valkey.DoContext(vc, ctx, "EXEC"))
+	if err != nil {
 		return 0, 0, err
 	}
 
-	for range owners {
-		h, err := valkey.Int(valkey.ReceiveContext(vc, ctx))
-		if err != nil {
-			return 0, 0, err
-		}
-		b, err := valkey.Int(valkey.ReceiveContext(vc, ctx))
-		if err != nil {
-			return 0, 0, err
-		}
-		high += h
-		bulk += b
+	for i := 0; i < len(counts); i += 2 {
+		high += counts[i]
+		bulk += counts[i+1]
 	}
 	return high, bulk, nil
 }
