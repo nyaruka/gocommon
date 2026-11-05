@@ -12,9 +12,18 @@ redis.call("ZADD", queueKey, now, batch)
 redis.call("HSET", channelKey, "tps", tps)
 redis.call("PERSIST", channelKey)
 
+local state = redis.call("HMGET", channelKey, "sec", "used", "inflight", "paused_until")
+
+-- a paused owner waits until the pause ends rather than being made ready
+local pausedUntil = tonumber(state[4]) or 0
+if pausedUntil > now then
+    redis.call("ZREM", readyKey, owner)
+    redis.call("ZADD", waitingKey, pausedUntil, owner)
+    return 0
+end
+
 -- an owner that's used up this second's TPS waits until the next, otherwise make it ready so that this batch doesn't
 -- wait on whatever the owner was waiting for, e.g. the rest of a batch
-local state = redis.call("HMGET", channelKey, "sec", "used", "inflight")
 if tps > 0 and tonumber(state[1]) == nowSec and (tonumber(state[2]) or 0) >= tps then
     if not redis.call("ZSCORE", readyKey, owner) then
         redis.call("ZADD", waitingKey, "LT", nowSec + 1, owner)
