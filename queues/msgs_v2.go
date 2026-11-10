@@ -9,8 +9,14 @@ import (
 	valkey "github.com/gomodule/redigo/redis"
 )
 
-// the most waiting owners that a single pop will make ready
-const msgsV2WakeLimit = 100
+const (
+	// the most waiting owners that a single pop will make ready
+	msgsV2WakeLimit = 100
+
+	// the most debt an owner can be in, as the time it takes to drain, so that one very expensive send can't block it
+	// for long
+	msgsV2MaxDebt = 10 * time.Second
+)
 
 // MsgsV2 implements a queue of outgoing messages where each owner (i.e. a channel) has its own TPS limit, and owners
 // with queued messages are popped from fairly by the number of their sends in flight.
@@ -18,12 +24,23 @@ const msgsV2WakeLimit = 100
 // A queue with base key "foo" and owner "owner1" will have the following keys:
 //   - {foo}:ready - zset of owners that can be popped from, scored by number of sends in flight
 //   - {foo}:waiting - zset of owners waiting on their TPS or a scheduled item, scored by the time they can be woken
-//   - {foo}:ch:owner1 - hash of owner1's state: tps, sec and used (this second's TPS usage), inflight and paused_until
+//   - {foo}:ch:owner1 - hash of owner1's state: tps, debt_until, inflight and paused_until
 //   - {foo}:q:owner1/0 - e.g. zset of bulk priority items for owner1, scored by when they can be popped
 //   - {foo}:q:owner1/1 - e.g. zset of high priority items for owner1, scored by when they can be popped
 //
-// Items are JSON arrays of messages for a single contact. A pop takes the first message, charging its tps_cost field
-// (default 1) against its owner's TPS, and schedules the rest a few seconds out so they're sent in order.
+// Items are JSON arrays of messages for a single contact. A pop takes the first message and schedules the rest a few
+// seconds out so they're sent in order.
+//
+// An owner's TPS is charged with the cost of each send, which only the sender knows, so is passed to Done. Charges
+// accrue as debt, stored as the time it will have drained by at the owner's TPS, and an owner can be popped from while
+// its debt is no more than a second's worth. So that sends in flight count against the owner, a pop charges an
+// estimated cost of 1 which Done swaps for the actual cost.
+//
+// LEGACY WINDOW: older versions instead charge the tps_cost field of messages (default 1) at pop against a fixed
+// one-second window, kept in the sec and used fields of the owner's state. So that versions can share a queue, pops
+// also charge that window as older versions do, and usage of it by older versions is charged as debt, with debt_sec
+// and debt_used tracking how much of it has been. Code marked LEGACY WINDOW can be removed once every app that pops
+// runs this version.
 type MsgsV2 struct {
 	keyBase string
 }
@@ -33,9 +50,12 @@ func NewMsgsV2(keyBase string) *MsgsV2 {
 	return &MsgsV2{keyBase: fmt.Sprintf("{%s}", keyBase)}
 }
 
+//go:embed lua/msgs2_throttle.lua
+var luaMsgs2Throttle string
+
 //go:embed lua/msgs2_push.lua
 var luaMsgs2Push string
-var scriptMsgs2Push = valkey.NewScript(4, luaMsgs2Push)
+var scriptMsgs2Push = valkey.NewScript(4, luaMsgs2Throttle+luaMsgs2Push)
 
 // Push adds the passed in batch, a JSON array, to the owner's queue. A tps of 0 means no limit, and the latest push
 // sets the TPS for everything queued for the owner.
@@ -49,10 +69,10 @@ func (q *MsgsV2) Push(ctx context.Context, vc valkey.Conn, owner OwnerID, tps in
 
 //go:embed lua/msgs2_pop.lua
 var luaMsgs2Pop string
-var scriptMsgs2Pop = valkey.NewScript(2, luaMsgs2Pop)
+var scriptMsgs2Pop = valkey.NewScript(2, luaMsgs2Throttle+luaMsgs2Pop)
 
 // Pop pops the next message off our queue, returning an empty owner if there's nothing to pop. Callers must call Done
-// with the owner when they've sent it.
+// with the owner and the cost of the send when they've sent it.
 func (q *MsgsV2) Pop(ctx context.Context, vc valkey.Conn) (OwnerID, []byte, error) {
 	for {
 		vals, err := valkey.Values(scriptMsgs2Pop.DoContext(ctx, vc, q.readyKey(), q.waitingKey(), q.keyBase, msgsV2WakeLimit, timeNow().UnixMicro()))
@@ -79,12 +99,14 @@ func (q *MsgsV2) Pop(ctx context.Context, vc valkey.Conn) (OwnerID, []byte, erro
 
 //go:embed lua/msgs2_done.lua
 var luaMsgs2Done string
-var scriptMsgs2Done = valkey.NewScript(3, luaMsgs2Done)
+var scriptMsgs2Done = valkey.NewScript(3, luaMsgs2Throttle+luaMsgs2Done)
 
-// Done marks a message popped for the given owner as sent. Callers must call this for every message they pop in order
-// to maintain fair distribution across owners.
-func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID) error {
-	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner)
+// Done marks a message popped for the given owner as sent, charging the cost of sending it against the owner's TPS.
+// What a unit of cost is depends on what the owner's TPS limits, e.g. segments or API requests. Callers must call
+// this for every message they pop in order to maintain fair distribution across owners.
+func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID, cost int) error {
+	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, cost,
+		msgsV2MaxDebt.Seconds(), timeNow().UnixMicro())
 	if err != nil {
 		return fmt.Errorf("error marking message done for owner %s: %w", owner, err)
 	}

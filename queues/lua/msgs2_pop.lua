@@ -4,7 +4,6 @@ local readyKey, waitingKey = KEYS[1], KEYS[2]
 local keyBase, wakeLimit = ARGV[1], tonumber(ARGV[2])
 
 local now = tonumber(ARGV[3]) / 1000000
-local nowSec = math.floor(now)
 
 -- channel keys share our hash tag so are safe to construct here even in cluster mode
 local function channelKey(owner)
@@ -31,22 +30,17 @@ local function park(untilTime)
     return {"retry", ""}
 end
 
-local state = redis.call("HMGET", chKey, "tps", "sec", "used", "paused_until")
-
 -- a paused owner can still be ready, e.g. if made so by an app that doesn't know about pauses
-local pausedUntil = tonumber(state[4]) or 0
+local pausedUntil = tonumber(redis.call("HGET", chKey, "paused_until")) or 0
 if pausedUntil > now then
     return park(pausedUntil)
 end
 
-local tps = tonumber(state[1]) or 0
-local used = 0
-if tonumber(state[2]) == nowSec then
-    used = tonumber(state[3]) or 0
-end
-
-if tps > 0 and used >= tps then
-    return park(nowSec + 1)
+-- as can an owner in debt
+local st = msgs2ThrottleState(chKey, now)
+local throttledUntil = msgs2ThrottledUntil(st, now)
+if throttledUntil > 0 then
+    return park(throttledUntil)
 end
 
 local function head(key)
@@ -73,9 +67,9 @@ elseif highValue or bulkValue then
 else
     redis.call("ZREM", readyKey, owner)
 
-    -- nothing queued so let the owner's state expire, but not before this second's usage is done. Sends in flight
-    -- are forgotten so that any never marked done, e.g. by a worker that died, don't count against the owner
-    -- forever - those that are still in flight just complete to zero.
+    -- nothing queued so let the owner's state expire, which is longer than any debt lasts. Sends in flight are
+    -- forgotten so that any never marked done, e.g. by a worker that died, don't count against the owner forever -
+    -- those that are still in flight just complete to zero.
     redis.call("HSET", chKey, "inflight", 0)
     redis.call("EXPIRE", chKey, 60)
     return {"retry", ""}
@@ -94,12 +88,20 @@ local popped = table.remove(batch, 1)
 
 redis.call("ZADD", readyKey, redis.call("HINCRBY", chKey, "inflight", 1), owner)
 
-if tps > 0 then
+if st.tps > 0 then
+    -- charge an estimated cost of 1 so that sends in flight count against the owner, which done swaps for the actual
+    -- cost
+    msgs2ChargeDebt(chKey, st, 1, now, math.huge)
+
+    -- LEGACY WINDOW: charge the message's tps_cost (default 1) against this second as older versions do, so that they
+    -- see it
     local cost = 1
     if type(popped) == "table" and type(popped["tps_cost"]) == "number" then
         cost = math.max(1, math.floor(popped["tps_cost"]))
     end
-    redis.call("HSET", chKey, "sec", nowSec, "used", used + cost)
+    local nowSec = math.floor(now)
+    redis.call("HSET", chKey, "sec", nowSec, "used", st.used + cost, "debt_sec", nowSec, "debt_used",
+        st.debtUsed + cost)
 end
 
 -- and schedule the rest a few seconds out so they're sent in order
