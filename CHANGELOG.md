@@ -1,3 +1,7 @@
+## v1.100.0 (2026-11-10)
+ * Charge MsgsV2 TPS from the cost the sender passes to Done
+ * Update dependencies
+
 ## v1.99.1 (2026-11-05)
  * Add timed pause to MsgsV2 queue for backing off an owner
  * Keep a paused owner parked when its queue is cleared
