@@ -9,14 +9,8 @@ import (
 	valkey "github.com/gomodule/redigo/redis"
 )
 
-const (
-	// the most waiting owners that a single pop will make ready
-	msgsV2WakeLimit = 100
-
-	// the most debt an owner can be in, as the time it takes to drain, so that one very expensive send can't block it
-	// for long
-	msgsV2MaxDebt = 10 * time.Second
-)
+// the most waiting owners that a single pop will make ready
+const msgsV2WakeLimit = 100
 
 // MsgsV2 implements a queue of outgoing messages where each owner (i.e. a channel) has its own TPS limit, and owners
 // with queued messages are popped from fairly by the number of their sends in flight.
@@ -105,8 +99,7 @@ var scriptMsgs2Done = valkey.NewScript(3, luaMsgs2Throttle+luaMsgs2Done)
 // What a unit of cost is depends on what the owner's TPS limits, e.g. segments or API requests. Callers must call
 // this for every message they pop in order to maintain fair distribution across owners.
 func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID, cost int) error {
-	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, cost,
-		msgsV2MaxDebt.Seconds(), timeNow().UnixMicro())
+	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), owner, cost, timeNow().UnixMicro())
 	if err != nil {
 		return fmt.Errorf("error marking message done for owner %s: %w", owner, err)
 	}

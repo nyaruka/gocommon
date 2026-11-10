@@ -1,9 +1,9 @@
 -- KEYS: [Channel, Ready, Waiting]
--- ARGV: [Owner, Cost, MaxDebtSecs, NowMicros]
+-- ARGV: [Owner, Cost, NowMicros]
 local channelKey, readyKey, waitingKey = KEYS[1], KEYS[2], KEYS[3]
-local owner, cost, maxDebt = ARGV[1], math.max(0, tonumber(ARGV[2])), tonumber(ARGV[3])
+local owner, cost = ARGV[1], math.max(0, tonumber(ARGV[2]))
 
-local now = tonumber(ARGV[4]) / 1000000
+local now = tonumber(ARGV[3]) / 1000000
 
 local inflight = redis.call("HINCRBY", channelKey, "inflight", -1)
 if inflight < 0 then
@@ -15,7 +15,7 @@ end
 -- block the owner for long
 local st = msgs2ThrottleState(channelKey, now)
 if st.tps > 0 then
-    msgs2ChargeDebt(channelKey, st, cost - 1, now, maxDebt)
+    msgs2ChargeDebt(channelKey, st, cost - 1, now)
 
     -- a send that cost less than estimated may mean that a waiting owner can send sooner
     if cost < 1 and redis.call("ZSCORE", waitingKey, owner) then

@@ -91,7 +91,7 @@ redis.call("ZADD", readyKey, redis.call("HINCRBY", chKey, "inflight", 1), owner)
 if st.tps > 0 then
     -- charge an estimated cost of 1 so that sends in flight count against the owner, which done swaps for the actual
     -- cost
-    msgs2ChargeDebt(chKey, st, 1, now, math.huge)
+    msgs2ChargeDebt(chKey, st, 1, now)
 
     -- LEGACY WINDOW: charge the message's tps_cost (default 1) against this second as older versions do, so that they
     -- see it

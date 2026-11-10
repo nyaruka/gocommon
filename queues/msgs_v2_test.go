@@ -404,8 +404,15 @@ func TestMsgsV2LegacyWindow(t *testing.T) {
 	setMsgsV2Time(0.41)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
 
+	// usage by older versions is capped as debt like any other
+	_, err = vc.Do("HINCRBY", "{msgs}:ch:chan1", "used", 1000)
+	require.NoError(t, err)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2DebtUntil(t, vc, "chan1", 10.41)
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 9.61})
+
 	// usage resets with each second
-	setMsgsV2Time(1)
+	setMsgsV2Time(9.62)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":6}`)
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "1")
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "debt_used", "1")

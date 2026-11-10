@@ -1,5 +1,8 @@
 -- Shared by the scripts that throttle an owner by its TPS, so that they all agree on when it can next send.
 
+-- the most debt an owner can be in, in seconds, so that one very expensive send can't block it for long
+local msgs2MaxDebt = 10
+
 -- Reads the state of an owner that its throttling depends on.
 local function msgs2ThrottleState(chKey, now)
     local s = redis.call("HMGET", chKey, "tps", "debt_until", "sec", "used", "debt_sec", "debt_used")
@@ -16,7 +19,7 @@ local function msgs2ThrottleState(chKey, now)
 
     -- LEGACY WINDOW: charge as debt any usage by older versions, so that our debt covers what they send too
     if st.tps > 0 and st.used > st.debtUsed then
-        st.debtUntil = st.debtUntil + (st.used - st.debtUsed) / st.tps
+        st.debtUntil = math.min(st.debtUntil + (st.used - st.debtUsed) / st.tps, now + msgs2MaxDebt)
         st.debtUsed = st.used
         redis.call("HSET", chKey, "debt_until", st.debtUntil, "debt_sec", nowSec, "debt_used", st.debtUsed)
     end
@@ -37,9 +40,8 @@ local function msgs2ThrottledUntil(st, now)
     return 0
 end
 
--- Charges the given cost, which may be negative, against the debt of an owner with a TPS, capping it at the given
--- number of seconds.
-local function msgs2ChargeDebt(chKey, st, cost, now, maxDebt)
-    st.debtUntil = math.max(math.min(st.debtUntil + cost / st.tps, now + maxDebt), now)
+-- Charges the given cost, which may be negative, against the debt of an owner with a TPS.
+local function msgs2ChargeDebt(chKey, st, cost, now)
+    st.debtUntil = math.max(math.min(st.debtUntil + cost / st.tps, now + msgs2MaxDebt), now)
     redis.call("HSET", chKey, "debt_until", st.debtUntil)
 end
