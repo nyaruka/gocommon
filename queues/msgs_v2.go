@@ -32,9 +32,9 @@ const (
 // seconds out so they're sent in order.
 //
 // An owner's TPS is charged with the cost of each send, which only the sender knows, so is passed to Done. Charges
-// accrue as debt, stored as the time it will have drained by at the owner's TPS, and an owner can be popped from while
-// its debt is no more than a second's worth. So that sends in flight count against the owner, a pop charges an
-// estimated cost of 1 which Done swaps for the actual cost.
+// accrue as debt, stored as the time it will have drained by at the owner's TPS. So that sends in flight count against
+// the owner, a pop charges an estimated cost of 1 which Done swaps for the actual cost, and an owner can be popped from
+// while its debt with that estimate is no more than a second's worth.
 //
 // LEGACY WINDOW: older versions instead charge the tps_cost field of messages (default 1) at pop against a fixed
 // one-second window, kept in the sec and used fields of the owner's state. So that versions can share a queue, pops

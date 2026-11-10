@@ -24,12 +24,15 @@ local function msgs2ThrottleState(chKey, now)
     return st
 end
 
--- Returns when an owner can next send, or 0 if it can send now. An owner can send while its debt is no more than a
--- second's worth. The returned time is computed the same way each time so that an owner woken at it is always found
--- able to send.
+-- Returns when an owner can next send, or 0 if it can send now. An owner can send while its debt, with the estimated
+-- cost of the send, is no more than a second's worth. The returned time is computed the same way each time so that an
+-- owner woken at it is always found able to send.
 local function msgs2ThrottledUntil(st, now)
-    if st.tps > 0 and st.debtUntil - 1 > now then
-        return st.debtUntil - 1
+    if st.tps > 0 then
+        local wakeAt = st.debtUntil + 1 / st.tps - 1
+        if wakeAt > now then
+            return wakeAt
+        end
     end
     return 0
 end
