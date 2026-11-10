@@ -17,7 +17,8 @@ local function msgs2ThrottleState(chKey, now)
         end
     end
 
-    -- LEGACY WINDOW: charge as debt any usage by older versions, so that our debt covers what they send too
+    -- LEGACY WINDOW: charge as debt any usage by older versions, so that our debt covers what they send too. Only
+    -- usage seen within its second is charged, so this is approximate.
     if st.tps > 0 and st.used > st.debtUsed then
         st.debtUntil = math.min(st.debtUntil + (st.used - st.debtUsed) / st.tps, now + msgs2MaxDebt)
         st.debtUsed = st.used

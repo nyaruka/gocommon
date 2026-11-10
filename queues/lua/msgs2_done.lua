@@ -11,8 +11,8 @@ if inflight < 0 then
     redis.call("HSET", channelKey, "inflight", 0)
 end
 
--- swap the estimated cost charged by pop for the actual cost, capping the debt so that a very expensive send can't
--- block the owner for long
+-- swap the estimated cost charged by pop for the actual cost. This assumes the estimate was charged at the current TPS,
+-- so is approximate if the TPS has changed since.
 local st = msgs2ThrottleState(channelKey, now)
 if st.tps > 0 then
     msgs2ChargeDebt(channelKey, st, cost - 1, now)

@@ -257,6 +257,7 @@ func TestMsgsV2Throttle(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":7}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
 }
+
 func TestMsgsV2PushWhenThrottled(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
@@ -295,6 +296,7 @@ func TestMsgsV2PushWhenThrottled(t *testing.T) {
 	setMsgsV2Time(2.1)
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":4}`)
 }
+
 func TestMsgsV2Cost(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
@@ -348,6 +350,7 @@ func TestMsgsV2Cost(t *testing.T) {
 	require.NoError(t, q.Done(ctx, vc, "chan2", 10))
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{"tps": "0", "inflight": "0"})
 }
+
 func TestMsgsV2LegacyWindow(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
@@ -417,6 +420,7 @@ func TestMsgsV2LegacyWindow(t *testing.T) {
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "1")
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "debt_used", "1")
 }
+
 func TestMsgsV2Fairness(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
