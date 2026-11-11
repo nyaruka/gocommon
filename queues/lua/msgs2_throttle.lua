@@ -46,3 +46,31 @@ local function msgs2ChargeDebt(chKey, st, cost, now)
     st.debtUntil = math.max(math.min(st.debtUntil + cost / st.tps, now + msgs2MaxDebt), now)
     redis.call("HSET", chKey, "debt_until", st.debtUntil)
 end
+
+-- Schedules an owner that has something new to pop: a paused owner waits until the pause ends, an owner in debt that
+-- isn't ready waits until it can send, and otherwise the owner is made ready so that the new item doesn't wait on
+-- whatever the owner was waiting for, e.g. the rest of a batch. Returns whether the owner was made ready.
+local function msgs2Schedule(chKey, readyKey, waitingKey, owner, now)
+    redis.call("PERSIST", chKey)
+
+    local state = redis.call("HMGET", chKey, "inflight", "paused_until")
+
+    local pausedUntil = tonumber(state[2]) or 0
+    if pausedUntil > now then
+        redis.call("ZREM", readyKey, owner)
+        redis.call("ZADD", waitingKey, pausedUntil, owner)
+        return false
+    end
+
+    local throttledUntil = msgs2ThrottledUntil(msgs2ThrottleState(chKey, now), now)
+    if throttledUntil > 0 then
+        if not redis.call("ZSCORE", readyKey, owner) then
+            redis.call("ZADD", waitingKey, "LT", throttledUntil, owner)
+        end
+        return false
+    end
+
+    redis.call("ZREM", waitingKey, owner)
+    redis.call("ZADD", readyKey, tonumber(state[1]) or 0, owner)
+    return true
+end

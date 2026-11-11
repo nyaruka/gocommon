@@ -51,19 +51,23 @@ local function head(key)
     return nil, nil
 end
 
--- high priority items first, then bulk
-local highKey, bulkKey = keyBase .. ":q:" .. owner .. "/1", keyBase .. ":q:" .. owner .. "/0"
+-- requeued items first, then high priority, then bulk
+local queuePrefix = keyBase .. ":q:" .. owner
+local requeueKey, highKey, bulkKey = queuePrefix .. "/2", queuePrefix .. "/1", queuePrefix .. "/0"
+local requeueValue, requeueScore = head(requeueKey)
 local highValue, highScore = head(highKey)
 local bulkValue, bulkScore = head(bulkKey)
 local fromKey, value
 
-if highValue and highScore <= now then
+if requeueValue and requeueScore <= now then
+    fromKey, value = requeueKey, requeueValue
+elseif highValue and highScore <= now then
     fromKey, value = highKey, highValue
 elseif bulkValue and bulkScore <= now then
     fromKey, value = bulkKey, bulkValue
-elseif highValue or bulkValue then
+elseif requeueValue or highValue or bulkValue then
     -- only items scheduled for later, so wait until the first of those
-    return park(math.min(highScore or math.huge, bulkScore or math.huge))
+    return park(math.min(requeueScore or math.huge, highScore or math.huge, bulkScore or math.huge))
 else
     redis.call("ZREM", readyKey, owner)
 

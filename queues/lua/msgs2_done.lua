@@ -1,7 +1,7 @@
--- KEYS: [Channel, Ready, Waiting]
--- ARGV: [Owner, Cost, NowMicros]
-local channelKey, readyKey, waitingKey = KEYS[1], KEYS[2], KEYS[3]
-local owner, cost = ARGV[1], math.max(0, tonumber(ARGV[2]))
+-- KEYS: [Channel, Ready, Waiting, RequeueQueue]
+-- ARGV: [Owner, Cost, NowMicros, Item?]
+local channelKey, readyKey, waitingKey, requeueKey = KEYS[1], KEYS[2], KEYS[3], KEYS[4]
+local owner, cost, item = ARGV[1], math.max(0, tonumber(ARGV[2])), ARGV[4]
 
 local now = tonumber(ARGV[3]) / 1000000
 
@@ -24,6 +24,12 @@ if st.tps > 0 then
             redis.call("ZADD", waitingKey, "LT", math.max(msgs2ThrottledUntil(st, now), now), owner)
         end
     end
+end
+
+-- an item that was popped but never sent goes back to be popped before anything else, in the order put back
+if item then
+    redis.call("ZADD", requeueKey, now, item)
+    msgs2Schedule(channelKey, readyKey, waitingKey, owner, now)
 end
 
 if redis.call("ZSCORE", readyKey, owner) then
