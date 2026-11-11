@@ -47,13 +47,20 @@ local function msgs2ChargeDebt(chKey, st, cost, now)
     redis.call("HSET", chKey, "debt_until", st.debtUntil)
 end
 
+-- Returns an owner's score in the ready set, which is its number of sends in flight plus a fraction that grows with the
+-- time it was last popped from, so that owners with the same number in flight take turns rather than the first by name
+-- always going first. The fraction stays below 1 for any time before 2106.
+local function msgs2ReadyScore(inflight, lastPop)
+    return (tonumber(inflight) or 0) + (tonumber(lastPop) or 0) / 2 ^ 32
+end
+
 -- Schedules an owner that has something new to pop: a paused owner waits until the pause ends, an owner in debt that
 -- isn't ready waits until it can send, and otherwise the owner is made ready so that the new item doesn't wait on
 -- whatever the owner was waiting for, e.g. the rest of a batch. Returns whether the owner was made ready.
 local function msgs2Schedule(chKey, readyKey, waitingKey, owner, now)
     redis.call("PERSIST", chKey)
 
-    local state = redis.call("HMGET", chKey, "inflight", "paused_until")
+    local state = redis.call("HMGET", chKey, "inflight", "paused_until", "last_pop")
 
     local pausedUntil = tonumber(state[2]) or 0
     if pausedUntil > now then
@@ -71,6 +78,6 @@ local function msgs2Schedule(chKey, readyKey, waitingKey, owner, now)
     end
 
     redis.call("ZREM", waitingKey, owner)
-    redis.call("ZADD", readyKey, tonumber(state[1]) or 0, owner)
+    redis.call("ZADD", readyKey, msgs2ReadyScore(state[1], state[3]), owner)
     return true
 end
