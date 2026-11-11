@@ -1,3 +1,6 @@
+## v1.100.1 (2026-11-11)
+ * Add requeue lane to MsgsV2 for messages popped but never sent
+
 ## v1.100.0 (2026-11-10)
  * Charge MsgsV2 TPS from the cost the sender passes to Done
  * Update dependencies
