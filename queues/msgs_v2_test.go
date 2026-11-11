@@ -865,10 +865,24 @@ func TestMsgsV2Requeue(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "", "")
 	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 
+	// a requeued message goes first even for a pop by an app whose clock is behind that of the app that requeued it
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":8}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":8}`)
+	setMsgsV2Time(3)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":8}]`)))
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":9}]`)
+	setMsgsV2Time(2.9)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":8}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 3})
+	setMsgsV2Time(3)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":9}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
 	// a requeued batch of several messages is popped like any other
 	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":5},{"id":6}]`)))
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
-	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":6}]`: t0 + 5})
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":6}]`: t0 + 6})
 
 	// batches that aren't non-empty arrays are refused
 	for _, batch := range []string{``, `[]`, `null`, `{"id":7}`, `"foo"`, `not json`} {

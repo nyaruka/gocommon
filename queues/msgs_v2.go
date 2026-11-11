@@ -100,8 +100,8 @@ var scriptMsgs2Done = valkey.NewScript(4, luaMsgs2Throttle+luaMsgs2Done)
 
 // Done marks a message popped for the given owner as sent, charging the cost of sending it against the owner's TPS.
 // What a unit of cost is depends on what the owner's TPS limits, e.g. segments or API requests, and a send that
-// reached no provider costs 0. Negative costs count as 0. Callers must call this for every message they pop in order
-// to maintain fair distribution across owners.
+// reached no provider costs 0. Negative costs count as 0. Callers must call this, or Requeue, for every message they
+// pop in order to maintain fair distribution across owners.
 func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID, cost int) error {
 	_, err := scriptMsgs2Done.DoContext(ctx, vc, q.channelKey(owner), q.readyKey(), q.waitingKey(), q.requeueKey(owner), owner, cost, timeNow().UnixMicro())
 	if err != nil {

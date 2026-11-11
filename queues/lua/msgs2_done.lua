@@ -17,8 +17,9 @@ local st = msgs2ThrottleState(channelKey, now)
 if st.tps > 0 then
     msgs2ChargeDebt(channelKey, st, cost - 1, now)
 
-    -- a send that cost less than estimated may mean that a waiting owner can send sooner
-    if cost < 1 and redis.call("ZSCORE", waitingKey, owner) then
+    -- a send that cost less than estimated may mean that a waiting owner can send sooner. A requeue reschedules the
+    -- owner below anyway.
+    if cost < 1 and not item and redis.call("ZSCORE", waitingKey, owner) then
         local pausedUntil = tonumber(redis.call("HGET", channelKey, "paused_until")) or 0
         if pausedUntil <= now then
             redis.call("ZADD", waitingKey, "LT", math.max(msgs2ThrottledUntil(st, now), now), owner)
