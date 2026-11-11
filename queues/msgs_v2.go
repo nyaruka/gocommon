@@ -113,7 +113,9 @@ func (q *MsgsV2) Done(ctx context.Context, vc valkey.Conn, owner OwnerID, cost i
 // Requeue is called instead of Done for a message popped for the given owner that was never handed to a provider. It
 // does what Done does with a cost of 0, and puts back the passed in batch, a JSON array as taken by Push, to be popped
 // before anything else queued for the owner. Callers that want it to wait, e.g. for a provider to recover, should pause
-// the owner first. Older versions don't pop requeued items, and can leave them unpopped until the owner is next pushed
+// the owner first. The rest of a popped batch is popped a few seconds later regardless, so a message requeued after
+// that may be sent after messages that followed it. Requeuing a batch identical to one already requeued just moves that
+// one to the back. Older versions don't pop requeued items, and can leave them unpopped until the owner is next pushed
 // to, so every app that pops should run this version before any app requeues.
 func (q *MsgsV2) Requeue(ctx context.Context, vc valkey.Conn, owner OwnerID, batch []byte) error {
 	var msgs []json.RawMessage

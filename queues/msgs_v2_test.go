@@ -879,6 +879,21 @@ func TestMsgsV2Requeue(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":9}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
 
+	// requeuing a batch identical to one already requeued just moves that one to the back
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":10}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":11}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":10}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":11}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":10}]`)))
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":11}]`)))
+	setMsgsV2Time(4)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":10}]`)))
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/2", map[string]float64{`[{"id":11}]`: t0 + 3, `[{"id":10}]`: t0 + 4})
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":11}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":10}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	setMsgsV2Time(3)
+
 	// a requeued batch of several messages is popped like any other
 	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":5},{"id":6}]`)))
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
@@ -926,6 +941,26 @@ func TestMsgsV2RequeueWhenPaused(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
 	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 13})
+}
+
+func TestMsgsV2RequeueAfterBatchSpacing(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	// the rest of a batch is popped when due regardless, so a message requeued after that is sent after it
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1},{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	setMsgsV2Time(3.5)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
 }
 
 func TestMsgsV2RequeueCost(t *testing.T) {
