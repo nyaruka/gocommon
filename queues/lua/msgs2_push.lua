@@ -9,28 +9,8 @@ redis.call("ZADD", queueKey, now, batch)
 
 -- the latest push sets the TPS for everything queued for this owner
 redis.call("HSET", channelKey, "tps", tps)
-redis.call("PERSIST", channelKey)
 
-local state = redis.call("HMGET", channelKey, "inflight", "paused_until")
-
--- a paused owner waits until the pause ends rather than being made ready
-local pausedUntil = tonumber(state[2]) or 0
-if pausedUntil > now then
-    redis.call("ZREM", readyKey, owner)
-    redis.call("ZADD", waitingKey, pausedUntil, owner)
-    return 0
+if msgs2Schedule(channelKey, readyKey, waitingKey, owner, now) then
+    return 1
 end
-
--- an owner in debt waits until it can send, otherwise make it ready so that this batch doesn't wait on whatever the
--- owner was waiting for, e.g. the rest of a batch
-local throttledUntil = msgs2ThrottledUntil(msgs2ThrottleState(channelKey, now), now)
-if throttledUntil > 0 then
-    if not redis.call("ZSCORE", readyKey, owner) then
-        redis.call("ZADD", waitingKey, "LT", throttledUntil, owner)
-    end
-    return 0
-end
-
-redis.call("ZREM", waitingKey, owner)
-redis.call("ZADD", readyKey, tonumber(state[1]) or 0, owner)
-return 1
+return 0

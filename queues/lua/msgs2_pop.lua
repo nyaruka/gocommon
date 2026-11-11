@@ -51,13 +51,18 @@ local function head(key)
     return nil, nil
 end
 
--- high priority items first, then bulk
-local highKey, bulkKey = keyBase .. ":q:" .. owner .. "/1", keyBase .. ":q:" .. owner .. "/0"
+-- requeued items first, then high priority, then bulk. Requeued items are scored by when they were requeued, by
+-- whichever app's clock, so only for their order and are always due.
+local queuePrefix = keyBase .. ":q:" .. owner
+local requeueKey, highKey, bulkKey = queuePrefix .. "/2", queuePrefix .. "/1", queuePrefix .. "/0"
+local requeueValue = head(requeueKey)
 local highValue, highScore = head(highKey)
 local bulkValue, bulkScore = head(bulkKey)
 local fromKey, value
 
-if highValue and highScore <= now then
+if requeueValue then
+    fromKey, value = requeueKey, requeueValue
+elseif highValue and highScore <= now then
     fromKey, value = highKey, highValue
 elseif bulkValue and bulkScore <= now then
     fromKey, value = bulkKey, bulkValue

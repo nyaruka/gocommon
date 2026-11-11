@@ -63,7 +63,7 @@ func TestMsgsV2(t *testing.T) {
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":10}]`: t0})
 	assertvk.ZCard(t, vc, "{msgs}:q:chan1/0", 3)
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0"})
-	assertMsgsV2Size(t, q, vc, 1, 3)
+	assertMsgsV2Size(t, q, vc, 1, 3, 0)
 
 	// high priority first, then bulk in the order pushed
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":10}`)
@@ -73,7 +73,7 @@ func TestMsgsV2(t *testing.T) {
 	// ready score is the number of sends in flight
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 3})
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "inflight", "3")
-	assertMsgsV2Size(t, q, vc, 0, 1)
+	assertMsgsV2Size(t, q, vc, 0, 1, 0)
 
 	// without a TPS limit no usage is tracked
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0", "inflight": "3"})
@@ -83,7 +83,7 @@ func TestMsgsV2(t *testing.T) {
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 
 	// still ready until a pop finds it has nothing queued
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2})
@@ -154,7 +154,7 @@ func TestMsgsV2Batches(t *testing.T) {
 	// first of the batch is popped and the rest rescheduled 3s out as high priority so they're sent in order
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":2},{"id":3}]`: t0 + 3})
-	assertMsgsV2Size(t, q, vc, 1, 1)
+	assertMsgsV2Size(t, q, vc, 1, 1, 0)
 
 	// other items can be popped in the meantime
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
@@ -539,7 +539,7 @@ func TestMsgsV2ForgetsLostSends(t *testing.T) {
 		assertMsgsV2Pop(t, q, vc, "chan1", fmt.Sprintf(`{"id":%d}`, 10+i))
 	}
 	assertMsgsV2Pop(t, q, vc, "", "")
-	assertMsgsV2Size(t, q, vc, 0, 1)
+	assertMsgsV2Size(t, q, vc, 0, 1, 0)
 }
 
 func TestMsgsV2StateExpiry(t *testing.T) {
@@ -730,7 +730,7 @@ func TestMsgsV2ClearWhenPaused(t *testing.T) {
 
 	// clearing a paused owner keeps it parked, and its state, until the pause ends
 	require.NoError(t, q.Clear(ctx, vc, "chan1"))
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 90})
 	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
 
@@ -771,14 +771,14 @@ func TestMsgsV2Clear(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan3", `{"id":4}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
 	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 1, "chan2": 1, "chan3": 1})
-	assertMsgsV2Size(t, q, vc, 0, 2)
+	assertMsgsV2Size(t, q, vc, 0, 2, 0)
 
 	require.NoError(t, q.Clear(ctx, vc, "chan1"))
 
 	assertvk.NotExists(t, vc, "{msgs}:q:chan1/1")
 	assertvk.NotExists(t, vc, "{msgs}:q:chan1/0")
 	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan2": 1, "chan3": 1})
-	assertMsgsV2Size(t, q, vc, 0, 1)
+	assertMsgsV2Size(t, q, vc, 0, 1, 0)
 
 	// state is kept for the send in flight, but expires
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "inflight", "1")
@@ -799,7 +799,7 @@ func TestMsgsV2Clear(t *testing.T) {
 	// other owners unaffected
 	assertMsgsV2Pop(t, q, vc, "chan3", `{"id":5}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 }
 
 func TestMsgsV2Size(t *testing.T) {
@@ -811,14 +811,14 @@ func TestMsgsV2Size(t *testing.T) {
 
 	q := queues.NewMsgsV2("msgs")
 
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 
 	assertMsgsV2Push(t, q, vc, "chan1", 1, true, `[{"id":1}]`)
 	assertMsgsV2Push(t, q, vc, "chan1", 1, true, `[{"id":2}]`)
 	assertMsgsV2Push(t, q, vc, "chan1", 1, false, `[{"id":3}]`)
 	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":4},{"id":5}]`)
 	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":6}]`)
-	assertMsgsV2Size(t, q, vc, 2, 3)
+	assertMsgsV2Size(t, q, vc, 2, 3, 0)
 
 	// items of waiting owners are counted too, and rescheduled batches count as high priority
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
@@ -826,7 +826,282 @@ func TestMsgsV2Size(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":6}`)
 	assertMsgsV2Pop(t, q, vc, "", "")
 	assertvk.ZCard(t, vc, "{msgs}:waiting", 2)
-	assertMsgsV2Size(t, q, vc, 2, 1)
+	assertMsgsV2Size(t, q, vc, 2, 1, 0)
+}
+
+func TestMsgsV2Requeue(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":2}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, true, `[{"id":3}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2})
+
+	// messages that were never sent are put back and are no longer in flight
+	setMsgsV2Time(1)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	setMsgsV2Time(2)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":3}]`)))
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/2", map[string]float64{`[{"id":1}]`: t0 + 1, `[{"id":3}]`: t0 + 2})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 0})
+	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "inflight", "0")
+	assertMsgsV2Size(t, q, vc, 0, 1, 2)
+
+	// and are popped before high and bulk priority items, in the order they were put back
+	assertMsgsV2Push(t, q, vc, "chan1", 0, true, `[{"id":4}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
+
+	// a requeued message goes first even for a pop by an app whose clock is behind that of the app that requeued it
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":8}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":8}`)
+	setMsgsV2Time(3)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":8}]`)))
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":9}]`)
+	setMsgsV2Time(2.9)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":8}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 3})
+	setMsgsV2Time(3)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":9}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	// requeuing a batch identical to one already requeued just moves that one to the back
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":10}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":11}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":10}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":11}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":10}]`)))
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":11}]`)))
+	setMsgsV2Time(4)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":10}]`)))
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/2", map[string]float64{`[{"id":11}]`: t0 + 3, `[{"id":10}]`: t0 + 4})
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":11}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":10}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	setMsgsV2Time(3)
+
+	// a requeued batch of several messages is popped like any other
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":5},{"id":6}]`)))
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":6}]`: t0 + 6})
+
+	// batches that aren't non-empty arrays are refused
+	for _, batch := range []string{``, `[]`, `null`, `{"id":7}`, `"foo"`, `not json`} {
+		assert.Error(t, q.Requeue(ctx, vc, "chan2", []byte(batch)), "expected error for %q", batch)
+	}
+	assertvk.NotExists(t, vc, "{msgs}:ch:chan2")
+	assertvk.NotExists(t, vc, "{msgs}:q:chan2/2")
+}
+
+func TestMsgsV2RequeueWhenPaused(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1},{"id":2},{"id":3}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":4}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/1", map[string]float64{`[{"id":2},{"id":3}]`: t0 + 3})
+
+	// a sender that couldn't send pauses the owner and puts the message back, which waits on the pause
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(10)))
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 10})
+	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	setMsgsV2Time(9.9)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	// once the pause ends the requeued message goes first, even though the rest of its batch became due during the
+	// pause, so a contact's messages stay in order
+	setMsgsV2Time(10)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 13})
+}
+
+func TestMsgsV2RequeueAfterBatchSpacing(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	// the rest of a batch is popped when due regardless, so a message requeued after that is sent after it
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1},{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	setMsgsV2Time(3.5)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+}
+
+func TestMsgsV2RequeueCost(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	for i := range 3 {
+		assertMsgsV2Push(t, q, vc, "chan1", 2, false, fmt.Sprintf(`[{"id":%d}]`, i))
+	}
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":0}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2DebtUntil(t, vc, "chan1", 1)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 0.5})
+
+	// a requeued message costs nothing, so refunds the estimate charged by pop and the owner can send again
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertMsgsV2DebtUntil(t, vc, "chan1", 0.5)
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
+
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2DebtUntil(t, vc, "chan1", 1)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 0.5})
+
+	// whereas an owner still in debt after the refund waits until it can send
+	require.NoError(t, q.Done(ctx, vc, "chan1", 4))
+	assertMsgsV2DebtUntil(t, vc, "chan1", 2.5)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertMsgsV2DebtUntil(t, vc, "chan1", 2)
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+
+	setMsgsV2Time(0.5)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 1.5})
+
+	setMsgsV2Time(1.5)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+}
+
+func TestMsgsV2RequeueWakesOwner(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	// an owner that a pop dropped, as it had nothing else queued, is made ready again
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
+
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 0})
+	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+
+	// an owner waiting on the rest of a batch doesn't keep a requeued message waiting too
+	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":2},{"id":3}]`)
+	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan2": 3})
+
+	require.NoError(t, q.Requeue(ctx, vc, "chan2", []byte(`[{"id":2}]`)))
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{})
+	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":2}`)
+	assertMsgsV2Pop(t, q, vc, "", "")
+	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan2": 3})
+}
+
+func TestMsgsV2ClearRequeued(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+	assertMsgsV2Size(t, q, vc, 0, 1, 1)
+
+	require.NoError(t, q.Clear(ctx, vc, "chan1"))
+	assertvk.NotExists(t, vc, "{msgs}:q:chan1/2")
+	assertvk.NotExists(t, vc, "{msgs}:q:chan1/0")
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
+	assertMsgsV2Pop(t, q, vc, "", "")
+}
+
+func TestMsgsV2RequeueWithOlderPop(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+	legacy := newMsgsV2LegacySimNode(t, vc)
+
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
+
+	// an older version's pop doesn't know about requeued items, so finds nothing queued and drops the owner, leaving
+	// the requeued message where no pop will find it...
+	owner, _ := legacy.pop()
+	assert.Equal(t, queues.OwnerID(""), owner)
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
+	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
+	assertvk.ZCard(t, vc, "{msgs}:q:chan1/2", 1)
+	assertMsgsV2Pop(t, q, vc, "", "")
+
+	// ...until the owner is next pushed to, when it's popped first
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":2}]`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
+
+	// and while an older version pops from an owner, it skips over requeued messages
+	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":2}]`)))
+	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":3}]`)
+	owner, msg := legacy.pop()
+	assert.Equal(t, queues.OwnerID("chan1"), owner)
+	assert.Equal(t, `{"id":3}`, string(msg))
+	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
 }
 
 func assertMsgsV2Push(t *testing.T, q *queues.MsgsV2, vc valkey.Conn, owner queues.OwnerID, tps int, priority bool, batch string) {
@@ -848,20 +1123,21 @@ func assertMsgsV2Pop(t *testing.T, q *queues.MsgsV2, vc valkey.Conn, expectedOwn
 	}
 }
 
-func assertMsgsV2Size(t *testing.T, q *queues.MsgsV2, vc valkey.Conn, expectedHigh, expectedBulk int) {
+func assertMsgsV2Size(t *testing.T, q *queues.MsgsV2, vc valkey.Conn, expectedHigh, expectedBulk, expectedRequeued int) {
 	t.Helper()
 
-	high, bulk, err := q.Size(t.Context(), vc)
+	high, bulk, requeued, err := q.Size(t.Context(), vc)
 	require.NoError(t, err)
 	assert.Equal(t, expectedHigh, high, "high priority size mismatch")
 	assert.Equal(t, expectedBulk, bulk, "bulk priority size mismatch")
+	assert.Equal(t, expectedRequeued, requeued, "requeued size mismatch")
 }
 
 func assertMsgsV2Empty(t *testing.T, q *queues.MsgsV2, vc valkey.Conn) {
 	t.Helper()
 
 	assertMsgsV2Pop(t, q, vc, "", "")
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 	assertvk.Keys(t, vc, "*", []string{})
 }
 
@@ -919,7 +1195,7 @@ func TestMsgsV2InvalidItems(t *testing.T) {
 	assertMsgsV2Push(t, q, vc, "chan1", 1, false, `[{"id":2}]`)
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
-	assertMsgsV2Size(t, q, vc, 0, 0)
+	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
 		"tps": "1", "debt_until": "1767225601.6", "inflight": "1",
 		"sec": "1767225600", "used": "1", "debt_sec": "1767225600", "debt_used": "1",

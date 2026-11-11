@@ -1,11 +1,12 @@
--- KEYS: [HighQueue, BulkQueue, Channel, Ready, Waiting]
+-- KEYS: [RequeueQueue, HighQueue, BulkQueue, Channel, Ready, Waiting]
 -- ARGV: [Owner, NowMicros]
-local highKey, bulkKey, channelKey, readyKey, waitingKey = KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5]
+local requeueKey, highKey, bulkKey = KEYS[1], KEYS[2], KEYS[3]
+local channelKey, readyKey, waitingKey = KEYS[4], KEYS[5], KEYS[6]
 local owner = ARGV[1]
 
 local now = tonumber(ARGV[2]) / 1000000
 
-redis.call("DEL", highKey, bulkKey)
+redis.call("DEL", requeueKey, highKey, bulkKey)
 redis.call("ZREM", readyKey, owner)
 
 -- a paused owner stays parked so that its state, and so the pause, is kept until the pause ends, when a pop will find
