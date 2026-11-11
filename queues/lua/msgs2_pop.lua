@@ -100,16 +100,6 @@ if st.tps > 0 then
     -- charge an estimated cost of 1 so that sends in flight count against the owner, which done swaps for the actual
     -- cost
     msgs2ChargeDebt(chKey, st, 1, now)
-
-    -- LEGACY WINDOW: charge the message's tps_cost (default 1) against this second as older versions do, so that they
-    -- see it
-    local cost = 1
-    if type(popped) == "table" and type(popped["tps_cost"]) == "number" then
-        cost = math.max(1, math.floor(popped["tps_cost"]))
-    end
-    local nowSec = math.floor(now)
-    redis.call("HSET", chKey, "sec", nowSec, "used", st.used + cost, "debt_sec", nowSec, "debt_used",
-        st.debtUsed + cost)
 end
 
 -- and schedule the rest a few seconds out so they're sent in order

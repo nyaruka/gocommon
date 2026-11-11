@@ -32,12 +32,6 @@ const msgsV2WakeLimit = 100
 // accrue as debt, stored as the time it will have drained by at the owner's TPS. So that sends in flight count against
 // the owner, a pop charges an estimated cost of 1 which Done swaps for the actual cost, and an owner can be popped from
 // while its debt with that estimate is no more than a second's worth.
-//
-// LEGACY WINDOW: older versions instead charge the tps_cost field of messages (default 1) at pop against a fixed
-// one-second window, kept in the sec and used fields of the owner's state. So that versions can share a queue, pops
-// also charge that window as older versions do, and usage of it by older versions is charged as debt, with debt_sec
-// and debt_used tracking how much of it has been. Code marked LEGACY WINDOW can be removed once every app that pops
-// runs this version.
 type MsgsV2 struct {
 	keyBase string
 }
