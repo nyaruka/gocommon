@@ -13,10 +13,11 @@ end
 -- make ready any owners whose wait is over
 for _, owner in ipairs(redis.call("ZRANGEBYSCORE", waitingKey, "-inf", now, "LIMIT", 0, wakeLimit)) do
     redis.call("ZREM", waitingKey, owner)
-    redis.call("ZADD", readyKey, tonumber(redis.call("HGET", channelKey(owner), "inflight")) or 0, owner)
+    local state = redis.call("HMGET", channelKey(owner), "inflight", "last_pop")
+    redis.call("ZADD", readyKey, msgs2ReadyScore(state[1], state[2]), owner)
 end
 
--- take the ready owner with the fewest sends in flight
+-- take the ready owner with the fewest sends in flight, and of those the one least recently popped from
 local owner = redis.call("ZRANGE", readyKey, 0, 0)[1]
 if not owner then
     return {"empty", ""}
@@ -91,7 +92,9 @@ if not ok or type(batch) ~= "table" or batch[1] == nil then
 end
 local popped = table.remove(batch, 1)
 
-redis.call("ZADD", readyKey, redis.call("HINCRBY", chKey, "inflight", 1), owner)
+local inflight = redis.call("HINCRBY", chKey, "inflight", 1)
+redis.call("HSET", chKey, "last_pop", now)
+redis.call("ZADD", readyKey, msgs2ReadyScore(inflight, now), owner)
 
 if st.tps > 0 then
     -- charge an estimated cost of 1 so that sends in flight count against the owner, which done swaps for the actual

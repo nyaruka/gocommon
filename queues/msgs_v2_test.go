@@ -41,6 +41,12 @@ func msgsV2Time(secs float64) time.Time {
 	return time.UnixMicro(int64((t0 + secs) * 1000000))
 }
 
+// returns the score in the ready set of an owner with the given number of sends in flight, that was last popped from
+// the given number of seconds after t0
+func msgsV2Ready(inflight int, poppedSecs float64) float64 {
+	return float64(inflight) + float64(msgsV2Time(poppedSecs).UnixMicro())/1000000/(1<<32)
+}
+
 func TestMsgsV2(t *testing.T) {
 	ctx := t.Context()
 	vc := assertvk.ClaimDB(t).Pool().Get()
@@ -71,22 +77,22 @@ func TestMsgsV2(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
 
 	// ready score is the number of sends in flight
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 3})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(3, 0)})
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "inflight", "3")
 	assertMsgsV2Size(t, q, vc, 0, 1, 0)
 
 	// without a TPS limit no usage is tracked
-	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0", "inflight": "3"})
+	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0", "inflight": "3", "last_pop": "1767225600.5"})
 
 	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
 	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(1, 0)})
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
 	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 
 	// still ready until a pop finds it has nothing queued
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(2, 0)})
 	assertMsgsV2Pop(t, q, vc, "", "")
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
 }
@@ -109,7 +115,7 @@ func TestMsgsV2Keys(t *testing.T) {
 
 	assertvk.Keys(t, vc, "*", []string{"{msgs}:ch:chan1", "{msgs}:q:chan1/0", "{msgs}:waiting"})
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
-		"tps": "1", "debt_until": "1767225601.5", "inflight": "1",
+		"tps": "1", "debt_until": "1767225601.5", "inflight": "1", "last_pop": "1767225600.5",
 		"sec": "1767225600", "used": "1", "debt_sec": "1767225600", "debt_used": "1",
 	})
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/0", map[string]float64{`[{"id":2}]`: t0})
@@ -118,7 +124,7 @@ func TestMsgsV2Keys(t *testing.T) {
 	setMsgsV2Time(1)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
 	assertvk.Keys(t, vc, "*", []string{"{msgs}:ch:chan1", "{msgs}:ready"})
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(2, 1)})
 
 	// and items written directly to those keys, as by another app, can be popped
 	_, err := vc.Do("ZADD", "{msgs}:q:chan2/1", t0, `[{"id":3},{"id":4}]`)
@@ -131,7 +137,7 @@ func TestMsgsV2Keys(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":3}`)
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan2/1", map[string]float64{`[{"id":4}]`: t0 + 4})
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{
-		"tps": "10", "debt_until": "1767225601.6", "inflight": "1",
+		"tps": "10", "debt_until": "1767225601.6", "inflight": "1", "last_pop": "1767225601.5",
 		"sec": "1767225601", "used": "1", "debt_sec": "1767225601", "debt_used": "1",
 	})
 
@@ -194,7 +200,7 @@ func TestMsgsV2PushWakesWaiting(t *testing.T) {
 	// a new push doesn't wait on the rest of the batch
 	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":3}]`)
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(1, 0)})
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
 }
@@ -250,7 +256,7 @@ func TestMsgsV2Throttle(t *testing.T) {
 	// a push with a new TPS applies to everything queued
 	setMsgsV2Time(1.5)
 	assertMsgsV2Push(t, q, vc, "chan1", 10, false, `[{"id":7}]`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 3})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(3, 1)})
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":6}`)
@@ -273,7 +279,7 @@ func TestMsgsV2PushWhenThrottled(t *testing.T) {
 
 	// a ready owner that's in debt is left for a pop to park
 	assertMsgsV2Push(t, q, vc, "chan1", 1, false, `[{"id":2}]`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(1, 0)})
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
 
 	assertMsgsV2Pop(t, q, vc, "", "")
@@ -348,7 +354,7 @@ func TestMsgsV2Cost(t *testing.T) {
 	assertMsgsV2Push(t, q, vc, "chan2", 0, false, `[{"id":5}]`)
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":5}`)
 	require.NoError(t, q.Done(ctx, vc, "chan2", 10))
-	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{"tps": "0", "inflight": "0"})
+	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{"tps": "0", "inflight": "0", "last_pop": "1767225611"})
 }
 
 func TestMsgsV2LegacyWindow(t *testing.T) {
@@ -371,7 +377,7 @@ func TestMsgsV2LegacyWindow(t *testing.T) {
 	// older versions see what we send as usage of this second, charged as they would
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1,"tps_cost":3}`)
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
-		"tps": "5", "debt_until": "1767225600.7", "inflight": "1",
+		"tps": "5", "debt_until": "1767225600.7", "inflight": "1", "last_pop": "1767225600.5",
 		"sec": "1767225600", "used": "3", "debt_sec": "1767225600", "debt_used": "3",
 	})
 
@@ -440,20 +446,64 @@ func TestMsgsV2Fairness(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":0}`)
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":10}`)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2, "chan2": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(2, 0), "chan2": msgsV2Ready(1, 0)})
 
 	// until one completes its sends
 	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
 	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 0, "chan2": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(0, 0), "chan2": msgsV2Ready(1, 0)})
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1, "chan2": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(1, 0), "chan2": msgsV2Ready(1, 0)})
 
 	// a newly pushed owner has nothing in flight so goes first
 	assertMsgsV2Push(t, q, vc, "chan3", 0, false, `[{"id":20}]`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1, "chan2": 1, "chan3": 0})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{
+		"chan1": msgsV2Ready(1, 0), "chan2": msgsV2Ready(1, 0), "chan3": 0,
+	})
 	assertMsgsV2Pop(t, q, vc, "chan3", `{"id":20}`)
+}
+
+func TestMsgsV2TakesTurns(t *testing.T) {
+	ctx := t.Context()
+	vc := assertvk.ClaimDB(t).Pool().Get()
+	defer vc.Close()
+
+	setMsgsV2Time(0)
+	defer queues.SetTimeNow(nil)
+
+	q := queues.NewMsgsV2("msgs")
+
+	for i := range 3 {
+		assertMsgsV2Push(t, q, vc, "chan1", 0, false, fmt.Sprintf(`[{"id":%d}]`, i))
+		assertMsgsV2Push(t, q, vc, "chan2", 0, false, fmt.Sprintf(`[{"id":%d}]`, 10+i))
+		assertMsgsV2Push(t, q, vc, "chan3", 0, false, fmt.Sprintf(`[{"id":%d}]`, 20+i))
+	}
+
+	// a sender that completes each send before popping the next leaves owners tied on sends in flight
+	send := func(secs float64, owner queues.OwnerID, msg string) {
+		setMsgsV2Time(secs)
+		assertMsgsV2Pop(t, q, vc, owner, msg)
+		require.NoError(t, q.Done(ctx, vc, owner, 1))
+	}
+
+	// so they go in order of when they were last popped from, rather than the first by name every time
+	send(0, "chan1", `{"id":0}`)
+	send(0.1, "chan2", `{"id":10}`)
+	send(0.2, "chan3", `{"id":20}`)
+	send(0.3, "chan1", `{"id":1}`)
+	send(0.4, "chan2", `{"id":11}`)
+	send(0.5, "chan3", `{"id":21}`)
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{
+		"chan1": msgsV2Ready(0, 0.3), "chan2": msgsV2Ready(0, 0.4), "chan3": msgsV2Ready(0, 0.5),
+	})
+
+	// an owner that has to wait keeps its turn
+	setMsgsV2Time(0.6)
+	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(0.7)))
+	send(0.6, "chan2", `{"id":12}`)
+	send(0.8, "chan1", `{"id":2}`)
+	send(0.9, "chan3", `{"id":22}`)
 }
 
 func TestMsgsV2WakeLimit(t *testing.T) {
@@ -491,8 +541,8 @@ func TestMsgsV2WakeLimit(t *testing.T) {
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan100": t0 + 1})
 
 	// woken owners are ready with their in-flight counts
-	assertvk.ZScore(t, vc, "{msgs}:ready", "chan000", 2)
-	assertvk.ZScore(t, vc, "{msgs}:ready", "chan001", 1)
+	assertvk.ZScore(t, vc, "{msgs}:ready", "chan000", msgsV2Ready(2, 1))
+	assertvk.ZScore(t, vc, "{msgs}:ready", "chan001", msgsV2Ready(1, 0))
 
 	// and the next pop wakes the rest
 	_, _, err = q.Pop(t.Context(), vc)
@@ -575,7 +625,7 @@ func TestMsgsV2StateExpiry(t *testing.T) {
 	setMsgsV2Time(3)
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":3}`)
 	require.NoError(t, q.Done(ctx, vc, "chan2", 1))
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": 0})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": msgsV2Ready(0, 3)})
 	assertTTL(t, vc, "{msgs}:ch:chan2", -1)
 
 	// done for an owner with no state creates state that expires
@@ -602,7 +652,9 @@ func TestMsgsV2Pause(t *testing.T) {
 
 	// pausing a ready owner parks it until the pause ends
 	require.NoError(t, q.Pause(ctx, vc, "chan1", msgsV2Time(10)))
-	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{"tps": "0", "inflight": "1", "paused_until": "1767225610.5"})
+	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
+		"tps": "0", "inflight": "1", "last_pop": "1767225600.5", "paused_until": "1767225610.5",
+	})
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": 0})
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 10})
 
@@ -789,7 +841,7 @@ func TestMsgsV2Clear(t *testing.T) {
 	// clearing a ready owner
 	setMsgsV2Time(1)
 	assertMsgsV2Push(t, q, vc, "chan2", 1, false, `[{"id":6}]`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan2": msgsV2Ready(1, 0)})
 	require.NoError(t, q.Clear(ctx, vc, "chan2"))
 	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
 
@@ -844,7 +896,7 @@ func TestMsgsV2Requeue(t *testing.T) {
 	assertMsgsV2Push(t, q, vc, "chan1", 0, true, `[{"id":3}]`)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3}`)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 2})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(2, 0)})
 
 	// messages that were never sent are put back and are no longer in flight
 	setMsgsV2Time(1)
@@ -852,7 +904,7 @@ func TestMsgsV2Requeue(t *testing.T) {
 	setMsgsV2Time(2)
 	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":3}]`)))
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/2", map[string]float64{`[{"id":1}]`: t0 + 1, `[{"id":3}]`: t0 + 2})
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 0})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(0, 0)})
 	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "inflight", "0")
 	assertMsgsV2Size(t, q, vc, 0, 1, 2)
 
@@ -986,7 +1038,7 @@ func TestMsgsV2RequeueCost(t *testing.T) {
 	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
 	assertMsgsV2DebtUntil(t, vc, "chan1", 0.5)
 	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{})
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 1})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(1, 0)})
 
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
 	assertMsgsV2DebtUntil(t, vc, "chan1", 1)
@@ -1026,7 +1078,7 @@ func TestMsgsV2RequeueWakesOwner(t *testing.T) {
 	assertTTL(t, vc, "{msgs}:ch:chan1", 60)
 
 	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": 0})
+	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{"chan1": msgsV2Ready(0, 0)})
 	assertTTL(t, vc, "{msgs}:ch:chan1", -1)
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
 
@@ -1197,7 +1249,7 @@ func TestMsgsV2InvalidItems(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
 	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
-		"tps": "1", "debt_until": "1767225601.6", "inflight": "1",
+		"tps": "1", "debt_until": "1767225601.6", "inflight": "1", "last_pop": "1767225600.6",
 		"sec": "1767225600", "used": "1", "debt_sec": "1767225600", "debt_used": "1",
 	})
 }

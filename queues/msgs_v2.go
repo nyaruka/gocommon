@@ -15,12 +15,12 @@ import (
 const msgsV2WakeLimit = 100
 
 // MsgsV2 implements a queue of outgoing messages where each owner (i.e. a channel) has its own TPS limit, and owners
-// with queued messages are popped from fairly by the number of their sends in flight.
+// with queued messages are popped from fairly by the number of their sends in flight, taking turns when that's equal.
 //
 // A queue with base key "foo" and owner "owner1" will have the following keys:
-//   - {foo}:ready - zset of owners that can be popped from, scored by number of sends in flight
+//   - {foo}:ready - zset of owners that can be popped from, scored by number of sends in flight then last pop time
 //   - {foo}:waiting - zset of owners waiting on their TPS or a scheduled item, scored by the time they can be woken
-//   - {foo}:ch:owner1 - hash of owner1's state: tps, debt_until, inflight and paused_until
+//   - {foo}:ch:owner1 - hash of owner1's state: tps, debt_until, inflight, last_pop and paused_until
 //   - {foo}:q:owner1/0 - e.g. zset of bulk priority items for owner1, scored by when they can be popped
 //   - {foo}:q:owner1/1 - e.g. zset of high priority items for owner1, scored by when they can be popped
 //   - {foo}:q:owner1/2 - e.g. zset of requeued items for owner1, popped before anything else

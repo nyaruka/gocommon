@@ -34,7 +34,7 @@ if item then
 end
 
 if redis.call("ZSCORE", readyKey, owner) then
-    redis.call("ZADD", readyKey, inflight, owner)
+    redis.call("ZADD", readyKey, msgs2ReadyScore(inflight, redis.call("HGET", channelKey, "last_pop")), owner)
 
 -- an owner that's neither ready nor waiting has nothing queued, so once nothing is in flight let its state expire
 elseif inflight == 0 and not redis.call("ZSCORE", waitingKey, owner) then
