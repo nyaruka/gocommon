@@ -1,15 +1,12 @@
 package queues_test
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
 	"math"
-	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -116,7 +113,6 @@ func TestMsgsV2Keys(t *testing.T) {
 	assertvk.Keys(t, vc, "*", []string{"{msgs}:ch:chan1", "{msgs}:q:chan1/0", "{msgs}:waiting"})
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
 		"tps": "1", "debt_until": "1767225601.5", "inflight": "1", "last_pop": "1767225600.5",
-		"sec": "1767225600", "used": "1", "debt_sec": "1767225600", "debt_used": "1",
 	})
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan1/0", map[string]float64{`[{"id":2}]`: t0})
 	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{"chan1": t0 + 1})
@@ -138,7 +134,6 @@ func TestMsgsV2Keys(t *testing.T) {
 	assertvk.ZGetAll(t, vc, "{msgs}:q:chan2/1", map[string]float64{`[{"id":4}]`: t0 + 4})
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{
 		"tps": "10", "debt_until": "1767225601.6", "inflight": "1", "last_pop": "1767225601.5",
-		"sec": "1767225601", "used": "1", "debt_sec": "1767225601", "debt_used": "1",
 	})
 
 	require.NoError(t, q.Done(ctx, vc, "chan2", 1))
@@ -355,76 +350,6 @@ func TestMsgsV2Cost(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "chan2", `{"id":5}`)
 	require.NoError(t, q.Done(ctx, vc, "chan2", 10))
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan2", map[string]string{"tps": "0", "inflight": "0", "last_pop": "1767225611"})
-}
-
-func TestMsgsV2LegacyWindow(t *testing.T) {
-	ctx := t.Context()
-	vc := assertvk.ClaimDB(t).Pool().Get()
-	defer vc.Close()
-
-	setMsgsV2Time(0)
-	defer queues.SetTimeNow(nil)
-
-	q := queues.NewMsgsV2("msgs")
-
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":1,"tps_cost":3}]`)
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":2,"tps_cost":0.5}]`)
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":3,"tps_cost":"2"}]`)
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":4}]`)
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":5}]`)
-	assertMsgsV2Push(t, q, vc, "chan1", 5, false, `[{"id":6}]`)
-
-	// older versions see what we send as usage of this second, charged as they would
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1,"tps_cost":3}`)
-	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
-		"tps": "5", "debt_until": "1767225600.7", "inflight": "1", "last_pop": "1767225600.5",
-		"sec": "1767225600", "used": "3", "debt_sec": "1767225600", "debt_used": "3",
-	})
-
-	// with costs below 1 or not numbers counting as 1
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2,"tps_cost":0.5}`)
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "4")
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":3,"tps_cost":"2"}`)
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "5")
-
-	// but that usage doesn't throttle us as we charge actual costs as debt
-	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
-	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
-	require.NoError(t, q.Done(ctx, vc, "chan1", 1))
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":4}`)
-	assertMsgsV2DebtUntil(t, vc, "chan1", 0.8)
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "6")
-
-	// whereas usage by older versions is charged as debt, so we don't send what they already have
-	_, err := vc.Do("HINCRBY", "{msgs}:ch:chan1", "used", 2)
-	require.NoError(t, err)
-	assertMsgsV2Pop(t, q, vc, "", "")
-	assertMsgsV2DebtUntil(t, vc, "chan1", 1.2)
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "debt_used", "8")
-	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 0.4})
-
-	// and an older version of a pushing app can make an owner ready that's in debt, which a pop parks
-	_, err = vc.Do("ZADD", "{msgs}:ready", 0, "chan1")
-	require.NoError(t, err)
-	assertMsgsV2Pop(t, q, vc, "", "")
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
-	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 0.4})
-
-	setMsgsV2Time(0.41)
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":5}`)
-
-	// usage by older versions is capped as debt like any other
-	_, err = vc.Do("HINCRBY", "{msgs}:ch:chan1", "used", 1000)
-	require.NoError(t, err)
-	assertMsgsV2Pop(t, q, vc, "", "")
-	assertMsgsV2DebtUntil(t, vc, "chan1", 10.41)
-	assertMsgsV2Waiting(t, vc, map[queues.OwnerID]float64{"chan1": 9.61})
-
-	// usage resets with each second
-	setMsgsV2Time(9.62)
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":6}`)
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "used", "1")
-	assertvk.HGet(t, vc, "{msgs}:ch:chan1", "debt_used", "1")
 }
 
 func TestMsgsV2Fairness(t *testing.T) {
@@ -1118,44 +1043,6 @@ func TestMsgsV2ClearRequeued(t *testing.T) {
 	assertMsgsV2Pop(t, q, vc, "", "")
 }
 
-func TestMsgsV2RequeueWithOlderPop(t *testing.T) {
-	ctx := t.Context()
-	vc := assertvk.ClaimDB(t).Pool().Get()
-	defer vc.Close()
-
-	setMsgsV2Time(0)
-	defer queues.SetTimeNow(nil)
-
-	q := queues.NewMsgsV2("msgs")
-	legacy := newMsgsV2LegacySimNode(t, vc)
-
-	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":1}]`)
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
-	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":1}]`)))
-
-	// an older version's pop doesn't know about requeued items, so finds nothing queued and drops the owner, leaving
-	// the requeued message where no pop will find it...
-	owner, _ := legacy.pop()
-	assert.Equal(t, queues.OwnerID(""), owner)
-	assertvk.ZGetAll(t, vc, "{msgs}:ready", map[string]float64{})
-	assertvk.ZGetAll(t, vc, "{msgs}:waiting", map[string]float64{})
-	assertvk.ZCard(t, vc, "{msgs}:q:chan1/2", 1)
-	assertMsgsV2Pop(t, q, vc, "", "")
-
-	// ...until the owner is next pushed to, when it's popped first
-	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":2}]`)
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":1}`)
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
-
-	// and while an older version pops from an owner, it skips over requeued messages
-	require.NoError(t, q.Requeue(ctx, vc, "chan1", []byte(`[{"id":2}]`)))
-	assertMsgsV2Push(t, q, vc, "chan1", 0, false, `[{"id":3}]`)
-	owner, msg := legacy.pop()
-	assert.Equal(t, queues.OwnerID("chan1"), owner)
-	assert.Equal(t, `{"id":3}`, string(msg))
-	assertMsgsV2Pop(t, q, vc, "chan1", `{"id":2}`)
-}
-
 func assertMsgsV2Push(t *testing.T, q *queues.MsgsV2, vc valkey.Conn, owner queues.OwnerID, tps int, priority bool, batch string) {
 	t.Helper()
 
@@ -1250,7 +1137,6 @@ func TestMsgsV2InvalidItems(t *testing.T) {
 	assertMsgsV2Size(t, q, vc, 0, 0, 0)
 	assertvk.HGetAll(t, vc, "{msgs}:ch:chan1", map[string]string{
 		"tps": "1", "debt_until": "1767225601.6", "inflight": "1", "last_pop": "1767225600.6",
-		"sec": "1767225600", "used": "1", "debt_sec": "1767225600", "debt_used": "1",
 	})
 }
 
@@ -1297,49 +1183,8 @@ func TestMsgsV2Rates(t *testing.T) {
 			vc := assertvk.ClaimDB(t).Pool().Get()
 			defer vc.Close()
 
-			sim := simulateMsgsV2(t, vc, []msgsV2SimNode{newMsgsV2SimNode(vc)}, tc.owners, tc.latency, tc.window)
+			sim := simulateMsgsV2(t, vc, tc.owners, tc.latency, tc.window)
 			sim.assertRates(t, tc.owners, 0.01)
-		})
-	}
-}
-
-func TestMsgsV2MixedVersions(t *testing.T) {
-	// older versions charge the tps_cost estimate at pop, so make that the actual cost
-	owners := []msgsV2SimOwner{{"tps1", 1, []int{1, 3, 1, 2}}, {"tps10", 10, []int{1, 3, 1, 2}}, {"tps50", 50, []int{1}}}
-
-	simulate := func(t *testing.T, versions ...string) *msgsV2SimResult {
-		vc := assertvk.ClaimDB(t).Pool().Get()
-		defer vc.Close()
-
-		var nodes []msgsV2SimNode
-		for _, v := range versions {
-			if v == "legacy" {
-				nodes = append(nodes, newMsgsV2LegacySimNode(t, vc))
-			} else {
-				nodes = append(nodes, newMsgsV2SimNode(vc))
-			}
-		}
-		return simulateMsgsV2(t, vc, nodes, owners, 0.05, 30)
-	}
-
-	// older versions let a single send take an owner over its TPS each second, so overshoot at low TPS
-	legacy := simulate(t, "legacy")
-	legacy.logRates(t, owners)
-
-	for _, versions := range [][]string{{"legacy", "new"}, {"legacy", "new", "new", "new"}} {
-		t.Run(strings.Join(versions, ","), func(t *testing.T) {
-			sim := simulate(t, versions...)
-			sim.logRates(t, owners)
-
-			// a mix of versions does no worse than older versions alone, and doesn't starve owners, though may send a
-			// little under the TPS as both versions' charges apply
-			for _, o := range owners {
-				expected := float64(o.tps) * sim.window
-				slack := float64(slices.Max(o.costs))
-				actual, legacyActual := float64(sim.charged[o.id]), float64(legacy.charged[o.id])
-				assert.LessOrEqual(t, actual, max(legacyActual, 1.02*expected)+slack, "overshoot for %s", o.id)
-				assert.GreaterOrEqual(t, actual, 0.95*expected-slack, "undershoot for %s", o.id)
-			}
 		})
 	}
 }
@@ -1348,66 +1193,6 @@ type msgsV2SimOwner struct {
 	id    queues.OwnerID
 	tps   int
 	costs []int // costs of successive sends, cycled
-}
-
-// an app that pushes and pops, which may be running an older version
-type msgsV2SimNode struct {
-	push func(queues.OwnerID, int, string)
-	pop  func() (queues.OwnerID, []byte)
-	done func(queues.OwnerID, int)
-}
-
-func newMsgsV2SimNode(vc valkey.Conn) msgsV2SimNode {
-	q := queues.NewMsgsV2("msgs")
-	ctx := context.Background()
-
-	return msgsV2SimNode{
-		push: func(owner queues.OwnerID, tps int, batch string) {
-			must(q.Push(ctx, vc, owner, tps, false, []byte(batch)))
-		},
-		pop: func() (queues.OwnerID, []byte) {
-			owner, msg, err := q.Pop(ctx, vc)
-			must(err)
-			return owner, msg
-		},
-		done: func(owner queues.OwnerID, cost int) { must(q.Done(ctx, vc, owner, cost)) },
-	}
-}
-
-// runs copies of the scripts of the version that charged the tps_cost estimate at pop against a fixed window
-func newMsgsV2LegacySimNode(t *testing.T, vc valkey.Conn) msgsV2SimNode {
-	load := func(name string, keys int) *valkey.Script {
-		src, err := os.ReadFile("testdata/msgs2_legacy/" + name + ".lua")
-		require.NoError(t, err)
-		return valkey.NewScript(keys, string(src))
-	}
-	push, pop, done := load("push", 4), load("pop", 2), load("done", 3)
-	nowMicros := func() int64 { return msgsV2Now().UnixMicro() }
-
-	return msgsV2SimNode{
-		push: func(owner queues.OwnerID, tps int, batch string) {
-			_, err := push.Do(vc, "{msgs}:q:"+owner+"/0", "{msgs}:ch:"+owner, "{msgs}:ready", "{msgs}:waiting", owner, tps,
-				batch, nowMicros())
-			must(err)
-		},
-		pop: func() (queues.OwnerID, []byte) {
-			for {
-				vals, err := valkey.ByteSlices(pop.Do(vc, "{msgs}:ready", "{msgs}:waiting", "{msgs}", 100, nowMicros()))
-				must(err)
-				switch string(vals[0]) {
-				case "empty":
-					return "", nil
-				case "retry":
-					continue
-				}
-				return queues.OwnerID(vals[0]), vals[1]
-			}
-		},
-		done: func(owner queues.OwnerID, cost int) {
-			_, err := done.Do(vc, "{msgs}:ch:"+owner, "{msgs}:ready", "{msgs}:waiting", owner)
-			must(err)
-		},
-	}
 }
 
 type msgsV2SimResult struct {
@@ -1440,18 +1225,20 @@ func (r *msgsV2SimResult) assertRates(t *testing.T, owners []msgsV2SimOwner, tol
 	}
 }
 
-// simulates owners with full queues being pushed to and popped from by the given nodes every few milliseconds, with
+// simulates owners with full queues being pushed to and popped from every few milliseconds, with
 // sends taking the given latency, and measures what's popped during the window after a warmup.
 func simulateMsgsV2(
-	t *testing.T, vc valkey.Conn, nodes []msgsV2SimNode, owners []msgsV2SimOwner, latency, window float64,
+	t *testing.T, vc valkey.Conn, owners []msgsV2SimOwner, latency, window float64,
 ) *msgsV2SimResult {
 	defer queues.SetTimeNow(nil)
+
+	ctx := t.Context()
+	q := queues.NewMsgsV2("msgs")
 
 	const tick = 0.01
 	warmup := latency + 3
 
 	type send struct {
-		node  msgsV2SimNode
 		owner queues.OwnerID
 		cost  int
 		done  float64
@@ -1461,39 +1248,37 @@ func simulateMsgsV2(
 	perSec := map[queues.OwnerID]map[int]int{}
 	result := &msgsV2SimResult{window: window, charged: map[queues.OwnerID]int{}, maxSec: map[queues.OwnerID]int{}}
 
-	for i, now := 0, 0.0; now < warmup+window; i++ {
+	for now := 0.0; now < warmup+window; {
 		setMsgsV2Time(now)
 
 		// complete sends that are done
 		remaining := inflight[:0]
 		for _, s := range inflight {
 			if s.done <= now {
-				s.node.done(s.owner, s.cost)
+				require.NoError(t, q.Done(ctx, vc, s.owner, s.cost))
 			} else {
 				remaining = append(remaining, s)
 			}
 		}
 		inflight = remaining
 
-		// keep every owner's queue topped up, with nodes taking turns to push
+		// keep every owner's queue topped up
 		for _, o := range owners {
 			for pushed[o.id]-popped[o.id] < 2*o.tps+10 {
 				n := pushed[o.id]
 				c := o.costs[n%len(o.costs)]
-				nodes[n%len(nodes)].push(o.id, o.tps, fmt.Sprintf(`[{"n":%d,"cost":%d,"tps_cost":%d}]`, n, c, c))
+				require.NoError(t, q.Push(ctx, vc, o.id, o.tps, false, fmt.Appendf(nil, `[{"n":%d,"cost":%d}]`, n, c)))
 				pushed[o.id]++
 			}
 		}
 
-		// nodes take turns to pop until none can, starting with a different one each tick
-		for active, j := len(nodes), i; active > 0; j++ {
-			node := nodes[j%len(nodes)]
-			owner, msg := node.pop()
+		// pop until nothing can be
+		for {
+			owner, msg, err := q.Pop(ctx, vc)
+			require.NoError(t, err)
 			if owner == "" {
-				active--
-				continue
+				break
 			}
-			active = len(nodes)
 
 			var m struct{ Cost int }
 			require.NoError(t, json.Unmarshal(msg, &m))
@@ -1507,7 +1292,7 @@ func simulateMsgsV2(
 				perSec[owner][sec] += m.Cost
 				result.maxSec[owner] = max(result.maxSec[owner], perSec[owner][sec])
 			}
-			inflight = append(inflight, send{node, owner, m.Cost, now + latency})
+			inflight = append(inflight, send{owner, m.Cost, now + latency})
 		}
 
 		// step to the next tick at which a send completes or an owner wakes
@@ -1524,10 +1309,4 @@ func simulateMsgsV2(
 		now = max(now+tick, math.Ceil(next/tick)*tick)
 	}
 	return result
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
