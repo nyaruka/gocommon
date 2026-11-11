@@ -50,7 +50,7 @@ end
 -- Returns an owner's score in the ready set, which is its number of sends in flight plus a fraction that grows with the
 -- time it was last popped from, so that owners with the same number in flight take turns rather than the first by name
 -- always going first. The fraction stays below 1 for any time before 2106, and its precision falls as sends in flight
--- grow, so owners popped within a microsecond of each other, or a millisecond with over a thousand in flight, still tie.
+-- grow, so owners popped within a microsecond of each other, or a millisecond with 1000+ in flight, still tie.
 local function msgs2ReadyScore(inflight, lastPop)
     return (tonumber(inflight) or 0) + (tonumber(lastPop) or 0) / 2 ^ 32
 end
