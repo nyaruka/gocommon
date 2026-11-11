@@ -1,3 +1,7 @@
+## v1.100.2 (2026-11-11)
+ * Have MsgsV2 owners tied on sends in flight take turns
+ * Remove MsgsV2 compatibility with apps that charge tps_cost against a fixed window
+
 ## v1.100.1 (2026-11-11)
  * Add requeue lane to MsgsV2 for messages popped but never sent
 
