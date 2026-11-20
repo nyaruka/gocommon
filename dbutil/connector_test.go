@@ -73,8 +73,18 @@ func TestWriteConnector(t *testing.T) {
 	pid4 := backendPID()
 	assert.NotEqual(t, pid3, pid4)
 
+	// and when closing a query reads results it hadn't read yet (sqlx's GetContext reads ahead so use database/sql)
+	db.MustExecContext(ctx, `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`)
+
+	var one int
+	err = db.DB.QueryRowContext(ctx, `SELECT 1; DELETE FROM readonly_test`).Scan(&one)
+	assert.ErrorContains(t, err, "read-only transaction")
+
+	pid5 := backendPID()
+	assert.NotEqual(t, pid4, pid5)
+
 	// and the new connection works for writes
 	_, err = db.ExecContext(ctx, `DELETE FROM readonly_test`)
 	assert.NoError(t, err)
-	assert.Equal(t, pid4, backendPID())
+	assert.Equal(t, pid5, backendPID())
 }

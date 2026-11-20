@@ -101,7 +101,7 @@ func (c *discardableConn) IsValid() bool {
 }
 
 // discardableRows checks errors while reading because a query can fail after it has started returning its result,
-// e.g. a DELETE ... RETURNING on a read-only server
+// e.g. a DELETE ... RETURNING on a read-only server, and on closing because that reads any results left over
 type discardableRows struct {
 	pqRows
 	conn *discardableConn
@@ -109,4 +109,8 @@ type discardableRows struct {
 
 func (r *discardableRows) Next(dest []driver.Value) error {
 	return r.conn.check(r.pqRows.Next(dest))
+}
+
+func (r *discardableRows) Close() error {
+	return r.conn.check(r.pqRows.Close())
 }
