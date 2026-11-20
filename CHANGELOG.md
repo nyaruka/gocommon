@@ -1,3 +1,7 @@
+## v1.100.3 (2026-11-20)
+ * Add dbutil.NewWriteConnector which discards connections that get read-only errors
+ * Run CI against PostgreSQL 18
+
 ## v1.100.2 (2026-11-11)
  * Have MsgsV2 owners tied on sends in flight take turns
  * Remove MsgsV2 compatibility with apps that charge tps_cost against a fixed window
