@@ -120,7 +120,9 @@ func TestBulkQuery(t *testing.T) {
 	assert.Equal(t, 0, foo4.ID)
 }
 
+const testDSN = "postgres://gocommon_test:temba@postgres/gocommon_test?sslmode=disable&Timezone=UTC"
+
 // returns an open test database pool
 func getTestDB() *sqlx.DB {
-	return sqlx.MustOpen("postgres", "postgres://gocommon_test:temba@postgres/gocommon_test?sslmode=disable&Timezone=UTC")
+	return sqlx.MustOpen("postgres", testDSN)
 }
