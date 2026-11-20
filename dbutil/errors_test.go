@@ -18,6 +18,15 @@ func TestIsUniqueViolation(t *testing.T) {
 	assert.False(t, dbutil.IsUniqueViolation(errors.New("boom")))
 }
 
+func TestIsReadOnlyError(t *testing.T) {
+	var err error = &pq.Error{Code: pq.ErrorCode("25006")}
+
+	assert.True(t, dbutil.IsReadOnlyError(err))
+	assert.True(t, dbutil.IsReadOnlyError(fmt.Errorf("wrapped: %w", err)))
+	assert.False(t, dbutil.IsReadOnlyError(&pq.Error{Code: pq.ErrorCode("23505")}))
+	assert.False(t, dbutil.IsReadOnlyError(errors.New("boom")))
+}
+
 func TestQueryError(t *testing.T) {
 	qerr := dbutil.QueryErrorf("SELECT * FROM foo WHERE id = $1", []any{234}, "error selecting foo %d", 234)
 	assert.Error(t, qerr)

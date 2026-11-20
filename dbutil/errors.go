@@ -16,6 +16,16 @@ func IsUniqueViolation(err error) bool {
 	return false
 }
 
+// IsReadOnlyError returns true if the given error is from trying to write in a read-only transaction, which includes
+// any transaction on a server that is read-only
+func IsReadOnlyError(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code.Name() == "read_only_sql_transaction"
+	}
+	return false
+}
+
 // QueryError is an error type for failed SQL queries
 type QueryError struct {
 	cause   error
